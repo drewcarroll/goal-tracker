@@ -1,0 +1,37 @@
+// Prisma schema for Goal Tracker.
+// Connection URLs are configured in ../prisma.config.ts (migrations/introspection)
+// and via the Neon driver adapter at runtime — see
+// src/infrastructure/database/prismaClient.ts.
+// Docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum GoalStatus {
+  active
+  completed
+  archived
+}
+
+/// A user's goal. Mirrors the existing `goals` table (snake_case columns).
+model Goal {
+  id          String     @id @default(uuid()) @db.Uuid
+  userId      String     @map("user_id") @db.Uuid
+  title       String     @db.Text
+  description String?    @db.Text
+  status      GoalStatus @default(active)
+  progress    Int        @default(0)
+  dueDate     DateTime?  @map("due_date") @db.Timestamptz(6)
+  createdAt   DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([userId])
+  @@index([status])
+  @@map("goals")
+}
