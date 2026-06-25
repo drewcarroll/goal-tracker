@@ -13,12 +13,6 @@ datasource db {
   provider = "postgresql"
 }
 
-enum GoalStatus {
-  active
-  completed
-  archived
-}
-
 // --- Auth.js (NextAuth) models ---
 // Persisted by @auth/prisma-adapter. Field names on Account (refresh_token,
 // access_token, …) are required verbatim by the adapter. IDs are uuid to stay
@@ -81,19 +75,61 @@ model VerificationToken {
   @@map("verification_tokens")
 }
 
-/// A user's goal. Mirrors the existing `goals` table (snake_case columns).
+// --- Goal tracking models ---
+// A Goal is a measurable target (targetValue + freeform unit). Each goal owns
+// exactly one GoalSession (its start/end timeframe) and accrues many Logs.
+// Progress is derived from accumulated logs, not stored on the goal.
+// Per-user scoping (userId) is enforced in application code, consistent with
+// the rest of the app — see memory note on the auth model.
+
+/// A user's goal, e.g. name "Read books", targetValue 12, unit "books".
 model Goal {
-  id          String     @id @default(uuid()) @db.Uuid
-  userId      String     @map("user_id") @db.Uuid
-  title       String     @db.Text
-  description String?    @db.Text
-  status      GoalStatus @default(active)
-  progress    Int        @default(0)
-  dueDate     DateTime?  @map("due_date") @db.Timestamptz(6)
-  createdAt   DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  name        String   @db.Text
+  targetValue Decimal  @map("target_value") @db.Decimal(12, 4)
+  unit        String   @db.Text
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  session GoalSession?
+  logs    Log[]
 
   @@index([userId])
-  @@index([status])
   @@map("goals")
+}
+
+/// The timeframe a goal is pursued over. One per goal (one-to-one).
+/// Named GoalSession to avoid colliding with the Auth.js `Session` model above.
+model GoalSession {
+  id        String   @id @default(uuid()) @db.Uuid
+  goalId    String   @unique @map("goal_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  startDate DateTime @map("start_date") @db.Timestamptz(6)
+  endDate   DateTime @map("end_date") @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  goal Goal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("goal_sessions")
+}
+
+/// A single value logged against a goal for a specific week of its session.
+/// (goalId, weekIndex) is intentionally NOT unique: multiple logs in the same
+/// week accumulate toward the goal's targetValue.
+model Log {
+  id        String   @id @default(uuid()) @db.Uuid
+  goalId    String   @map("goal_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  weekIndex Int      @map("week_index")
+  value     Decimal  @db.Decimal(12, 4)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  goal Goal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  @@index([goalId, weekIndex])
+  @@index([userId])
+  @@map("logs")
 }
