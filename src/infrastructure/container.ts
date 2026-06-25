@@ -2,8 +2,10 @@ import { CreateGoalUseCase } from "@/application/use-cases/CreateGoalUseCase";
 import { UpdateGoalUseCase } from "@/application/use-cases/UpdateGoalUseCase";
 import { DeleteGoalUseCase } from "@/application/use-cases/DeleteGoalUseCase";
 import { ListGoalsUseCase } from "@/application/use-cases/ListGoalsUseCase";
+import { LogProgressUseCase } from "@/application/use-cases/LogProgressUseCase";
 import { getServerSupabaseClient } from "./database/supabaseClient";
 import { SupabaseGoalRepository } from "./repositories/SupabaseGoalRepository";
+import { SupabaseLogRepository } from "./repositories/SupabaseLogRepository";
 import { NextAuthAuthService } from "./auth/NextAuthAuthService";
 import { UuidGenerator } from "./id/UuidGenerator";
 import { SystemClock } from "./time/SystemClock";
@@ -21,6 +23,7 @@ function buildContainer() {
 
   // Infrastructure adapters (implementing domain/application ports).
   const goalRepository = new SupabaseGoalRepository(supabase);
+  const logRepository = new SupabaseLogRepository(supabase);
   const idGenerator = new UuidGenerator();
   const clock = new SystemClock();
 
@@ -35,6 +38,7 @@ function buildContainer() {
     updateGoalUseCase: new UpdateGoalUseCase(goalRepository, clock),
     deleteGoalUseCase: new DeleteGoalUseCase(goalRepository),
     listGoalsUseCase: new ListGoalsUseCase(goalRepository, clock),
+    logProgressUseCase: new LogProgressUseCase(goalRepository, logRepository, idGenerator, clock),
   };
 }
 

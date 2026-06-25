@@ -38,3 +38,17 @@ export const createGoalSchema = goalInputSchema;
 export const updateGoalSchema = goalInputSchema;
 
 export type GoalInput = z.infer<typeof goalInputSchema>;
+
+/**
+ * Quick-log input: the goal to log against and the amount. The target week is
+ * derived server-side from the goal's timeframe, never supplied by the client.
+ */
+export const quickLogSchema = z.object({
+  goalId: z.string().uuid("Choose a goal"),
+  value: z.coerce
+    .number({ invalid_type_error: "Amount must be a number" })
+    .finite("Amount must be a number")
+    .positive("Amount must be greater than zero"),
+});
+
+export type QuickLogInput = z.infer<typeof quickLogSchema>;

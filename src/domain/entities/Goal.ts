@@ -5,6 +5,7 @@ import {
   type WeeklyLogEntry,
 } from "../services/ProjectionService";
 import { SessionTimeframe } from "../value-objects/SessionTimeframe";
+import { LogEntry } from "./LogEntry";
 
 export interface GoalProps {
   id: string;
@@ -96,6 +97,28 @@ export class Goal {
       end: details.endDate,
     });
     this.props.updatedAt = now;
+  }
+
+  /**
+   * Log a value against this goal for the week that contains `today`.
+   *
+   * The week is derived from the goal's own timeframe (auto-targeting the
+   * current week), so callers never choose it. Multiple logs in the same week
+   * accumulate — the new entry is appended in memory so a subsequent
+   * {@link project} call reflects it immediately. Returns the created entry for
+   * the caller to persist.
+   */
+  logProgress(params: { id: string; value: number; today: Date; now?: Date }): LogEntry {
+    const entry = LogEntry.create({
+      id: params.id,
+      goalId: this.props.id,
+      userId: this.props.userId,
+      weekIndex: this.props.timeframe.weekIndexOn(params.today),
+      value: params.value,
+      now: params.now,
+    });
+    this.props.logs = [...this.props.logs, entry.toWeekly()];
+    return entry;
   }
 
   private static assertValidName(name: string): void {
