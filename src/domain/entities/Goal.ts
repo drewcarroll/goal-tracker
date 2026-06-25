@@ -1,4 +1,5 @@
 import { ValidationError } from "../errors/DomainError";
+import { ProgressChartService, type ProgressChart } from "../services/ProgressChartService";
 import {
   ProjectionService,
   type Projection,
@@ -43,6 +44,8 @@ interface GoalDetails {
 export class Goal {
   /** Stateless; shared across instances. The engine re-derives on every call. */
   private static readonly projectionService = new ProjectionService();
+  /** Stateless; derives chart-ready cumulative series from a projection. */
+  private static readonly progressChartService = new ProgressChartService();
 
   private constructor(private props: GoalProps) {}
 
@@ -222,6 +225,15 @@ export class Goal {
       today,
       logs: this.props.logs,
     });
+  }
+
+  /**
+   * Chart-ready progress series as of `today`: per-week actuals and target
+   * reference, plus cumulative target, actual, and projected series. Built from
+   * the same projection as {@link project}, so the two always agree.
+   */
+  progressChart(today: Date): ProgressChart {
+    return Goal.progressChartService.build(this.project(today));
   }
   get createdAt(): Date {
     return this.props.createdAt;
