@@ -23,6 +23,8 @@ export interface CreateGoalDTO {
 }
 
 export interface UpdateProgressDTO {
+  /** Owner of the goal — used to enforce that callers only mutate their own data. */
+  userId: string;
   goalId: string;
   progress: number;
 }

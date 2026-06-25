@@ -15,6 +15,8 @@ export function toErrorResponse(error: unknown): NextResponse {
 
   const statusByCode: Record<string, number> = {
     VALIDATION_ERROR: 400,
+    UNAUTHORIZED: 401,
+    FORBIDDEN: 403,
     GOAL_ALREADY_COMPLETED: 409,
     GOAL_NOT_FOUND: 404,
   };

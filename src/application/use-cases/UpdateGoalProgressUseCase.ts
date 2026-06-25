@@ -13,7 +13,9 @@ export class UpdateGoalProgressUseCase {
 
   async execute(dto: UpdateProgressDTO): Promise<GoalDTO> {
     const goal = await this.goalRepository.findById(dto.goalId);
-    if (!goal) {
+    // Treat "not owned by the caller" the same as "not found" so we never
+    // disclose the existence of another user's goal.
+    if (!goal || goal.userId !== dto.userId) {
       throw new GoalNotFoundError(dto.goalId);
     }
 

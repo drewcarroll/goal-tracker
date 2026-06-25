@@ -1,29 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getContainer } from "@/infrastructure/container";
-import { createGoalSchema, userIdQuerySchema } from "../../../http/validation";
+import { createGoalSchema } from "../../../http/validation";
 import { toErrorResponse } from "../../../http/errorResponse";
+import { unauthorizedResponse } from "../../../http/auth";
 
 /**
  * Route handler (interface adapter) for /api/goals.
  *
- * Thin: validate input -> call use case -> serialize output.
- * No business logic. Use cases are pre-wired in the composition root.
+ * Thin: authenticate -> validate input -> call use case -> serialize output.
+ * No business logic. The caller's identity is taken from the session, never
+ * from request input, so a user can only ever see/create their own goals.
  */
 
-export async function GET(request: NextRequest): Promise<NextResponse> {
+export async function GET(): Promise<NextResponse> {
   try {
-    const parsed = userIdQuerySchema.safeParse({
-      userId: request.nextUrl.searchParams.get("userId"),
-    });
-    if (!parsed.success) {
-      return NextResponse.json(
-        { error: { code: "VALIDATION_ERROR", message: parsed.error.message } },
-        { status: 400 },
-      );
+    const { authService, listGoalsUseCase } = getContainer();
+    const userId = await authService.getCurrentUserId();
+    if (!userId) {
+      return unauthorizedResponse();
     }
 
-    const { listGoalsUseCase } = getContainer();
-    const goals = await listGoalsUseCase.execute({ userId: parsed.data.userId });
+    const goals = await listGoalsUseCase.execute({ userId });
     return NextResponse.json({ data: goals });
   } catch (error) {
     return toErrorResponse(error);
@@ -32,6 +29,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
+    const { authService, createGoalUseCase } = getContainer();
+    const userId = await authService.getCurrentUserId();
+    if (!userId) {
+      return unauthorizedResponse();
+    }
+
     const body = await request.json();
     const parsed = createGoalSchema.safeParse(body);
     if (!parsed.success) {
@@ -41,9 +44,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const { createGoalUseCase } = getContainer();
     const goal = await createGoalUseCase.execute({
-      userId: parsed.data.userId,
+      userId,
       title: parsed.data.title,
       description: parsed.data.description ?? null,
       dueDate: parsed.data.dueDate ?? null,

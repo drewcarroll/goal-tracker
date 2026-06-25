@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function HomePage() {
   return (
     <main className="mx-auto flex min-h-screen max-w-2xl flex-col justify-center gap-6 px-6 py-16">
@@ -7,14 +9,25 @@ export default function HomePage() {
         following Clean Architecture.
       </p>
 
+      <div>
+        <Link
+          href="/sign-in"
+          className="inline-block rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand/90"
+        >
+          Sign in
+        </Link>
+      </div>
+
       <section className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
         <h2 className="mb-3 text-lg font-semibold">API Endpoints</h2>
+        <p className="mb-3 text-xs text-gray-500">
+          All endpoints require an authenticated session; the acting user is taken from the session,
+          never from request input.
+        </p>
         <ul className="space-y-2 text-sm">
           <li>
-            <code className="rounded bg-gray-100 px-1.5 py-0.5 font-mono">
-              GET /api/goals?userId=
-            </code>{" "}
-            — list a user&apos;s goals
+            <code className="rounded bg-gray-100 px-1.5 py-0.5 font-mono">GET /api/goals</code> —
+            list your goals
           </li>
           <li>
             <code className="rounded bg-gray-100 px-1.5 py-0.5 font-mono">POST /api/goals</code> —
@@ -24,13 +37,11 @@ export default function HomePage() {
             <code className="rounded bg-gray-100 px-1.5 py-0.5 font-mono">
               PATCH /api/goals/:id/progress
             </code>{" "}
-            — update progress
+            — update progress on one of your goals
           </li>
           <li>
-            <code className="rounded bg-gray-100 px-1.5 py-0.5 font-mono">
-              GET /api/goals/stats?userId=
-            </code>{" "}
-            — aggregate stats
+            <code className="rounded bg-gray-100 px-1.5 py-0.5 font-mono">GET /api/goals/stats</code>{" "}
+            — aggregate stats for your goals
           </li>
         </ul>
       </section>

@@ -1,1 +1,1 @@
-export { default, metadata } from "@/interfaces/web/app/(app)/profile/page";
+export { default, metadata, dynamic } from "@/interfaces/web/app/(app)/profile/page";

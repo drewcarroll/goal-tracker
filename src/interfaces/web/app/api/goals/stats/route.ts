@@ -1,25 +1,21 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { getContainer } from "@/infrastructure/container";
-import { userIdQuerySchema } from "../../../../http/validation";
 import { toErrorResponse } from "../../../../http/errorResponse";
+import { unauthorizedResponse } from "../../../../http/auth";
 
 /**
- * Route handler for GET /api/goals/stats?userId=...
+ * Route handler for GET /api/goals/stats.
+ * Stats are always computed over the authenticated user's own goals.
  */
-export async function GET(request: NextRequest): Promise<NextResponse> {
+export async function GET(): Promise<NextResponse> {
   try {
-    const parsed = userIdQuerySchema.safeParse({
-      userId: request.nextUrl.searchParams.get("userId"),
-    });
-    if (!parsed.success) {
-      return NextResponse.json(
-        { error: { code: "VALIDATION_ERROR", message: parsed.error.message } },
-        { status: 400 },
-      );
+    const { authService, getGoalStatsUseCase } = getContainer();
+    const userId = await authService.getCurrentUserId();
+    if (!userId) {
+      return unauthorizedResponse();
     }
 
-    const { getGoalStatsUseCase } = getContainer();
-    const stats = await getGoalStatsUseCase.execute({ userId: parsed.data.userId });
+    const stats = await getGoalStatsUseCase.execute({ userId });
     return NextResponse.json({ data: stats });
   } catch (error) {
     return toErrorResponse(error);
