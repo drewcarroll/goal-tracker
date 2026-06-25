@@ -6,15 +6,18 @@ import { GoalDTO } from "../dtos/GoalDTO";
  * out of the application boundary.
  */
 export class GoalMapper {
-  static toDTO(goal: Goal): GoalDTO {
+  /** `today` anchors the projection (past vs. current/future weeks). */
+  static toDTO(goal: Goal, today: Date): GoalDTO {
+    const projection = goal.project(today);
     return {
       id: goal.id,
       userId: goal.userId,
       name: goal.name,
       targetValue: goal.targetValue,
       unit: goal.unit,
-      weeklyTarget: goal.weeklyTarget(),
-      totalWeeks: goal.timeframe.totalWeeks(),
+      weeklyTarget: projection.weeklyTarget,
+      totalWeeks: projection.totalWeeks,
+      projectedTotal: projection.total,
       startDate: goal.timeframe.startDate().toISOString(),
       endDate: goal.timeframe.endDate().toISOString(),
       createdAt: goal.createdAt.toISOString(),
@@ -22,7 +25,7 @@ export class GoalMapper {
     };
   }
 
-  static toDTOList(goals: Goal[]): GoalDTO[] {
-    return goals.map((g) => GoalMapper.toDTO(g));
+  static toDTOList(goals: Goal[], today: Date): GoalDTO[] {
+    return goals.map((g) => GoalMapper.toDTO(g, today));
   }
 }

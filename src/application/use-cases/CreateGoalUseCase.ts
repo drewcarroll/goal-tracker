@@ -2,6 +2,7 @@ import { Goal } from "@/domain/entities/Goal";
 import { GoalRepository } from "@/domain/repositories/GoalRepository";
 import { CreateGoalDTO, GoalDTO } from "../dtos/GoalDTO";
 import { GoalMapper } from "../mappers/GoalMapper";
+import { Clock } from "../ports/Clock";
 import { IdGenerator } from "../ports/IdGenerator";
 
 /**
@@ -13,6 +14,7 @@ export class CreateGoalUseCase {
   constructor(
     private readonly goalRepository: GoalRepository,
     private readonly idGenerator: IdGenerator,
+    private readonly clock: Clock,
   ) {}
 
   async execute(dto: CreateGoalDTO): Promise<GoalDTO> {
@@ -29,6 +31,6 @@ export class CreateGoalUseCase {
 
     await this.goalRepository.save(goal);
 
-    return GoalMapper.toDTO(goal);
+    return GoalMapper.toDTO(goal, this.clock.now());
   }
 }

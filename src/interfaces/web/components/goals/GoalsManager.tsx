@@ -157,6 +157,20 @@ export function GoalsManager({ initialGoals }: { initialGoals: GoalDTO[] }) {
                   )}
                 </div>
 
+                <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-brand/20 bg-brand/5 px-4 py-3">
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-brand">
+                      Projected by session end
+                    </p>
+                    <p className="mt-0.5 text-xs text-gray-500">
+                      Past progress plus on-target weeks ahead
+                    </p>
+                  </div>
+                  <p className="shrink-0 text-lg font-bold text-gray-900">
+                    {formatNumber(goal.projectedTotal)} {goal.unit}
+                  </p>
+                </div>
+
                 {isConfirming && (
                   <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4">
                     <p className="text-sm text-red-800">

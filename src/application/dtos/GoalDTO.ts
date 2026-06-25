@@ -13,6 +13,11 @@ export interface GoalDTO {
   weeklyTarget: number;
   /** Number of weekly buckets the session spans (always >= 1). */
   totalWeeks: number;
+  /**
+   * Projected end-of-session total from the projection engine: past actuals
+   * plus on-target current/future weeks, with over-delivery kept as bonus.
+   */
+  projectedTotal: number;
   startDate: string; // ISO 8601
   endDate: string; // ISO 8601
   createdAt: string; // ISO 8601

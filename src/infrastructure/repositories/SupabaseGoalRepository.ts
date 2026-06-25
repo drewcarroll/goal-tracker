@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { Goal } from "@/domain/entities/Goal";
 import { GoalRepository } from "@/domain/repositories/GoalRepository";
+import type { WeeklyLogEntry } from "@/domain/services/ProjectionService";
 import { SessionTimeframe } from "@/domain/value-objects/SessionTimeframe";
 
 const GOALS_TABLE = "goals";
@@ -16,6 +17,7 @@ interface GoalRow {
   created_at: string;
   updated_at: string;
   goal_sessions: SessionRow[] | SessionRow | null;
+  logs: LogRow[] | null;
 }
 
 /** Shape of a row in the `goal_sessions` table. */
@@ -27,7 +29,14 @@ interface SessionRow {
   end_date: string;
 }
 
-const GOAL_SELECT = "*, goal_sessions(id, goal_id, user_id, start_date, end_date)";
+/** Shape of a row in the `logs` table (only the fields the projection needs). */
+interface LogRow {
+  week_index: number;
+  value: number | string;
+}
+
+const GOAL_SELECT =
+  "*, goal_sessions(id, goal_id, user_id, start_date, end_date), logs(week_index, value)";
 
 /**
  * Supabase/PostgreSQL implementation of the GoalRepository port.
@@ -122,9 +131,17 @@ export class SupabaseGoalRepository implements GoalRepository {
         start: new Date(session.start_date),
         end: new Date(session.end_date),
       }),
+      logs: this.mapLogs(row.logs),
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
     });
+  }
+
+  private mapLogs(logs: LogRow[] | null): WeeklyLogEntry[] {
+    return (logs ?? []).map((log) => ({
+      weekIndex: log.week_index,
+      value: Number(log.value),
+    }));
   }
 
   /** Supabase embeds a to-one relation as either an object or a single-item array. */

@@ -1,4 +1,9 @@
 import { ValidationError } from "../errors/DomainError";
+import {
+  ProjectionService,
+  type Projection,
+  type WeeklyLogEntry,
+} from "../services/ProjectionService";
 import { SessionTimeframe } from "../value-objects/SessionTimeframe";
 
 export interface GoalProps {
@@ -13,6 +18,8 @@ export interface GoalProps {
   unit: string;
   /** The timeframe the goal is pursued over. */
   timeframe: SessionTimeframe;
+  /** Values logged against the goal, attributed to weeks of its session. */
+  logs: ReadonlyArray<WeeklyLogEntry>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -33,6 +40,9 @@ interface GoalDetails {
  * persistence or transport.
  */
 export class Goal {
+  /** Stateless; shared across instances. The engine re-derives on every call. */
+  private static readonly projectionService = new ProjectionService();
+
   private constructor(private props: GoalProps) {}
 
   /** Reconstitute an existing Goal (e.g. from a repository). */
@@ -67,6 +77,7 @@ export class Goal {
       targetValue: params.targetValue,
       unit: params.unit.trim(),
       timeframe: SessionTimeframe.create({ start: params.startDate, end: params.endDate }),
+      logs: [],
       createdAt: now,
       updatedAt: now,
     });
@@ -144,6 +155,20 @@ export class Goal {
    */
   weeklyTarget(): number {
     return this.props.targetValue / this.props.timeframe.totalWeeks();
+  }
+
+  /**
+   * The "what you'll accomplish" projection as of `today`: past weeks count
+   * their actual logged totals, while the current and future weeks are assumed
+   * to hit at least the weekly target (over-delivery kept as bonus).
+   */
+  project(today: Date): Projection {
+    return Goal.projectionService.project({
+      timeframe: this.props.timeframe,
+      targetValue: this.props.targetValue,
+      today,
+      logs: this.props.logs,
+    });
   }
   get createdAt(): Date {
     return this.props.createdAt;
