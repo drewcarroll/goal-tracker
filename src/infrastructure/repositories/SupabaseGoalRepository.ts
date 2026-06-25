@@ -27,11 +27,7 @@ export class SupabaseGoalRepository implements GoalRepository {
   constructor(private readonly client: SupabaseClient) {}
 
   async findById(id: string): Promise<Goal | null> {
-    const { data, error } = await this.client
-      .from(TABLE)
-      .select("*")
-      .eq("id", id)
-      .maybeSingle();
+    const { data, error } = await this.client.from(TABLE).select("*").eq("id", id).maybeSingle();
 
     if (error) {
       throw new Error(`Failed to fetch goal "${id}": ${error.message}`);

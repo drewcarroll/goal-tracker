@@ -4,8 +4,26 @@
 
 :root {
   color-scheme: light dark;
+
+  /* iOS safe-area insets, also available as Tailwind spacing tokens
+     (pt-safe-top, pb-safe-bottom, …). Exposed here for raw CSS use. */
+  --safe-area-inset-top: env(safe-area-inset-top);
+  --safe-area-inset-right: env(safe-area-inset-right);
+  --safe-area-inset-bottom: env(safe-area-inset-bottom);
+  --safe-area-inset-left: env(safe-area-inset-left);
 }
 
-body {
-  @apply bg-gray-50 text-gray-900 antialiased;
+@layer base {
+  html {
+    /* Keep text at its intended size when an iPhone rotates to landscape. */
+    -webkit-text-size-adjust: 100%;
+    -moz-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-gray-50 text-gray-900 antialiased;
+    /* Mobile-first: fill the dynamic viewport and never scroll sideways. */
+    @apply min-h-dvh overflow-x-hidden;
+  }
 }

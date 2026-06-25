@@ -1,59 +1,76 @@
 {
   "$schema": "https://json.schemastore.org/eslintrc",
   "root": true,
+  "plugins": ["@typescript-eslint"],
   "extends": ["next/core-web-vitals", "prettier"],
   "rules": {
-    "@typescript-eslint/no-explicit-any": "error",
-    "no-restricted-imports": [
-      "error",
-      {
-        "patterns": [
-          {
-            "group": [
-              "@/application/*",
-              "@/infrastructure/*",
-              "@/interfaces/*"
-            ],
-            "message": "domain/ must not import from outer layers. Dependencies point inward only."
-          }
-        ]
-      }
-    ]
+    "@typescript-eslint/no-explicit-any": "error"
   },
   "overrides": [
     {
-      "files": ["src/domain/**/*.ts"],
+      "files": ["src/domain/**/*.{ts,tsx}"],
       "rules": {
         "no-restricted-imports": [
           "error",
           {
             "patterns": [
-              "@/application/*",
-              "@/infrastructure/*",
-              "@/interfaces/*"
+              {
+                "group": ["@/application/*", "@/infrastructure/*", "@/interfaces/*"],
+                "message": "domain/ must not import from outer layers. Dependencies point inward only."
+              }
             ]
           }
         ]
       }
     },
     {
-      "files": ["src/application/**/*.ts"],
+      "files": ["src/application/**/*.{ts,tsx}"],
       "rules": {
         "no-restricted-imports": [
           "error",
           {
-            "patterns": ["@/infrastructure/*", "@/interfaces/*"]
+            "patterns": [
+              {
+                "group": ["@/infrastructure/*", "@/interfaces/*"],
+                "message": "application/ may import domain/ only. Dependencies point inward only."
+              }
+            ]
           }
         ]
       }
     },
     {
-      "files": ["src/interfaces/**/*.{ts,tsx}"],
+      "files": ["src/infrastructure/**/*.{ts,tsx}"],
       "rules": {
         "no-restricted-imports": [
           "error",
           {
-            "patterns": ["@/domain/*", "@/infrastructure/*"]
+            "patterns": [
+              {
+                "group": ["@/interfaces/*"],
+                "message": "infrastructure/ may import application/ and domain/ only, never interfaces/."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["src/interfaces/**/*.{ts,tsx}", "app/**/*.{ts,tsx}"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["@/domain/*"],
+                "message": "interfaces/ must orchestrate application use cases, not reach into domain directly."
+              },
+              {
+                "group": ["@/infrastructure/*", "!@/infrastructure/container"],
+                "message": "interfaces/ may only touch infrastructure via the composition root (@/infrastructure/container)."
+              }
+            ]
           }
         ]
       }

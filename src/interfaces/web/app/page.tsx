@@ -11,7 +11,9 @@ export default function HomePage() {
         <h2 className="mb-3 text-lg font-semibold">API Endpoints</h2>
         <ul className="space-y-2 text-sm">
           <li>
-            <code className="rounded bg-gray-100 px-1.5 py-0.5 font-mono">GET /api/goals?userId=</code>{" "}
+            <code className="rounded bg-gray-100 px-1.5 py-0.5 font-mono">
+              GET /api/goals?userId=
+            </code>{" "}
             — list a user&apos;s goals
           </li>
           <li>
