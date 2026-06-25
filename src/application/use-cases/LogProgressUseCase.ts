@@ -32,6 +32,7 @@ export class LogProgressUseCase {
       id: this.idGenerator.generate(),
       value: dto.value,
       today: now,
+      weekIndex: dto.weekIndex,
       now,
     });
 

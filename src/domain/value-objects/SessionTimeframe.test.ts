@@ -126,6 +126,38 @@ describe("derive", () => {
   });
 });
 
+describe("weekRange", () => {
+  it("returns the [start, end) bounds of a full week bucket", () => {
+    expect(tf.weekRange(0)).toEqual({
+      start: new Date("2026-01-01T00:00:00.000Z"),
+      end: new Date("2026-01-08T00:00:00.000Z"),
+    });
+    expect(tf.weekRange(2)).toEqual({
+      start: new Date("2026-01-15T00:00:00.000Z"),
+      end: new Date("2026-01-22T00:00:00.000Z"),
+    });
+  });
+
+  it("truncates the final bucket to the session end", () => {
+    // A 10-day session: 1 full week + a 3-day tail (ceil -> 2 weeks).
+    const partial = SessionTimeframe.create({
+      start: new Date("2026-01-01T00:00:00.000Z"),
+      end: new Date("2026-01-11T00:00:00.000Z"),
+    });
+    expect(partial.totalWeeks()).toBe(2);
+    expect(partial.weekRange(1)).toEqual({
+      start: new Date("2026-01-08T00:00:00.000Z"),
+      end: new Date("2026-01-11T00:00:00.000Z"),
+    });
+  });
+
+  it("rejects an index outside the session", () => {
+    expect(() => tf.weekRange(-1)).toThrow(ValidationError);
+    expect(() => tf.weekRange(4)).toThrow(ValidationError); // only weeks 0..3 exist
+    expect(() => tf.weekRange(1.5)).toThrow(ValidationError);
+  });
+});
+
 describe("equals", () => {
   it("compares by value", () => {
     expect(tf.equals(SessionTimeframe.create({ start, end }))).toBe(true);

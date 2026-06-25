@@ -100,25 +100,55 @@ export class Goal {
   }
 
   /**
-   * Log a value against this goal for the week that contains `today`.
+   * Log a value against this goal. By default the entry is attributed to the
+   * week that contains `today` (the current week). Pass `weekIndex` to backfill
+   * a specific earlier week — e.g. an entry the user forgot after a week reset.
    *
-   * The week is derived from the goal's own timeframe (auto-targeting the
-   * current week), so callers never choose it. Multiple logs in the same week
-   * accumulate — the new entry is appended in memory so a subsequent
-   * {@link project} call reflects it immediately. Returns the created entry for
-   * the caller to persist.
+   * The chosen week must lie within the session and must not be in the future
+   * (you cannot log progress for a week that hasn't started). Multiple logs in
+   * the same week accumulate — the new entry is appended in memory so a
+   * subsequent {@link project} call reflects it immediately. Returns the created
+   * entry for the caller to persist.
    */
-  logProgress(params: { id: string; value: number; today: Date; now?: Date }): LogEntry {
+  logProgress(params: {
+    id: string;
+    value: number;
+    today: Date;
+    weekIndex?: number;
+    now?: Date;
+  }): LogEntry {
+    const weekIndex = params.weekIndex ?? this.props.timeframe.weekIndexOn(params.today);
+    this.assertWeekLoggable(weekIndex, params.today);
+
     const entry = LogEntry.create({
       id: params.id,
       goalId: this.props.id,
       userId: this.props.userId,
-      weekIndex: this.props.timeframe.weekIndexOn(params.today),
+      weekIndex,
       value: params.value,
       now: params.now,
     });
     this.props.logs = [...this.props.logs, entry.toWeekly()];
     return entry;
+  }
+
+  /** Guard that a week can be logged against: in-session and not yet to come. */
+  private assertWeekLoggable(weekIndex: number, today: Date): void {
+    const totalWeeks = this.props.timeframe.totalWeeks();
+    if (!Number.isInteger(weekIndex) || weekIndex < 0 || weekIndex >= totalWeeks) {
+      throw new ValidationError(
+        `That week is outside the goal's session ` +
+          `(the session spans ${totalWeeks} ${totalWeeks === 1 ? "week" : "weeks"}).`,
+      );
+    }
+    // Once the session has ended every week is in the past and open to backfill.
+    // While it is running, weeks beyond the current one have not happened yet.
+    if (
+      this.props.timeframe.phaseOn(today) !== "after" &&
+      weekIndex > this.props.timeframe.weekIndexOn(today)
+    ) {
+      throw new ValidationError("You can't log progress for a week that hasn't started yet.");
+    }
   }
 
   private static assertValidName(name: string): void {

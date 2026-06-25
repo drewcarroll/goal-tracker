@@ -9,6 +9,17 @@ export class GoalMapper {
   /** `today` anchors the projection (past vs. current/future weeks). */
   static toDTO(goal: Goal, today: Date): GoalDTO {
     const projection = goal.project(today);
+    const timeframe = goal.timeframe;
+    const weeks = projection.weeks.map((week) => {
+      const range = timeframe.weekRange(week.weekIndex);
+      return {
+        index: week.weekIndex,
+        startDate: range.start.toISOString(),
+        endDate: range.end.toISOString(),
+        kind: week.kind,
+        actual: week.actual,
+      };
+    });
     return {
       id: goal.id,
       userId: goal.userId,
@@ -17,9 +28,11 @@ export class GoalMapper {
       unit: goal.unit,
       weeklyTarget: projection.weeklyTarget,
       totalWeeks: projection.totalWeeks,
+      currentWeekIndex: timeframe.weekIndexOn(today),
+      weeks,
       projectedTotal: projection.total,
-      startDate: goal.timeframe.startDate().toISOString(),
-      endDate: goal.timeframe.endDate().toISOString(),
+      startDate: timeframe.startDate().toISOString(),
+      endDate: timeframe.endDate().toISOString(),
       createdAt: goal.createdAt.toISOString(),
       updatedAt: goal.updatedAt.toISOString(),
     };

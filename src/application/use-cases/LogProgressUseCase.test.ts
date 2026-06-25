@@ -69,6 +69,40 @@ describe("LogProgressUseCase", () => {
     expect(logRepo.added[0]?.userId).toBe("user-1");
   });
 
+  it("backfills an explicit past week", async () => {
+    const useCase = new LogProgressUseCase(
+      new InMemoryGoalRepository([makeGoal()]),
+      logRepo,
+      fixedIds,
+      fixedClock,
+    );
+
+    const result = await useCase.execute({
+      userId: "user-1",
+      goalId: "goal-1",
+      value: 6,
+      weekIndex: 0,
+    });
+
+    expect(result.log.weekIndex).toBe(0);
+    expect(result.weekTotal).toBe(6);
+    expect(logRepo.added[0]?.weekIndex).toBe(0);
+  });
+
+  it("rejects backfilling a week outside the session", async () => {
+    const useCase = new LogProgressUseCase(
+      new InMemoryGoalRepository([makeGoal()]),
+      logRepo,
+      fixedIds,
+      fixedClock,
+    );
+
+    await expect(
+      useCase.execute({ userId: "user-1", goalId: "goal-1", value: 6, weekIndex: 99 }),
+    ).rejects.toThrow();
+    expect(logRepo.added).toHaveLength(0);
+  });
+
   it("rejects logging against a goal the caller does not own", async () => {
     const useCase = new LogProgressUseCase(
       new InMemoryGoalRepository([makeGoal()]),

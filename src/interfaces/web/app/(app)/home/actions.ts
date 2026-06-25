@@ -10,6 +10,8 @@ import { quickLogSchema } from "@/interfaces/web/http/validation";
 export interface QuickLogFormValues {
   goalId: string;
   value: string;
+  /** 0-based week to backfill; omit to log against the current week. */
+  weekIndex?: string;
 }
 
 export type QuickLogFieldErrors = Partial<Record<keyof QuickLogFormValues, string>>;
@@ -21,7 +23,7 @@ export type QuickLogActionResult =
 /** Map a ZodError's flattened field errors to one message per field. */
 function toFieldErrors(fieldErrors: Record<string, string[] | undefined>): QuickLogFieldErrors {
   const result: QuickLogFieldErrors = {};
-  for (const key of ["goalId", "value"] as const) {
+  for (const key of ["goalId", "value", "weekIndex"] as const) {
     const message = fieldErrors[key]?.[0];
     if (message) {
       result[key] = message;
@@ -60,6 +62,7 @@ export async function logProgressAction(values: QuickLogFormValues): Promise<Qui
       userId,
       goalId: parsed.data.goalId,
       value: parsed.data.value,
+      weekIndex: parsed.data.weekIndex,
     });
     // Goals' projected totals are derived from logs and surface on other tabs.
     revalidatePath("/home");

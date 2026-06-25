@@ -40,8 +40,10 @@ export const updateGoalSchema = goalInputSchema;
 export type GoalInput = z.infer<typeof goalInputSchema>;
 
 /**
- * Quick-log input: the goal to log against and the amount. The target week is
- * derived server-side from the goal's timeframe, never supplied by the client.
+ * Quick-log input: the goal to log against and the amount. By default the
+ * target week is derived server-side from the goal's timeframe. An optional
+ * `weekIndex` backfills an earlier week; the goal still validates that it falls
+ * within the session, so this only shapes the input.
  */
 export const quickLogSchema = z.object({
   goalId: z.string().uuid("Choose a goal"),
@@ -49,6 +51,11 @@ export const quickLogSchema = z.object({
     .number({ invalid_type_error: "Amount must be a number" })
     .finite("Amount must be a number")
     .positive("Amount must be greater than zero"),
+  weekIndex: z.coerce
+    .number({ invalid_type_error: "Choose a week" })
+    .int("Choose a week")
+    .nonnegative("Choose a week")
+    .optional(),
 });
 
 export type QuickLogInput = z.infer<typeof quickLogSchema>;

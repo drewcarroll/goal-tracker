@@ -20,6 +20,11 @@ export interface CreateLogDTO {
   goalId: string;
   /** The amount to log, in the goal's unit. */
   value: number;
+  /**
+   * Optional explicit week to log against (backfill). When omitted, the entry
+   * is attributed to the current week. The goal validates that it is in range.
+   */
+  weekIndex?: number;
 }
 
 export interface LogProgressResultDTO {

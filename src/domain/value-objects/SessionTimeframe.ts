@@ -78,6 +78,21 @@ export class SessionTimeframe {
   }
 
   /**
+   * The [start, end) bounds of the 0-based week bucket at `index`. The final
+   * bucket is truncated to the session end when the window is not an exact
+   * multiple of 7 days. Throws if `index` is outside [0, totalWeeks - 1].
+   */
+  weekRange(index: number): { start: Date; end: Date } {
+    const lastIndex = this.totalWeeks() - 1;
+    if (!Number.isInteger(index) || index < 0 || index > lastIndex) {
+      throw new ValidationError(`Week index must be between 0 and ${lastIndex}.`);
+    }
+    const start = this.start.getTime() + index * WEEK_MS;
+    const end = Math.min(start + WEEK_MS, this.end.getTime());
+    return { start: new Date(start), end: new Date(end) };
+  }
+
+  /**
    * Weekly buckets still open on `date`, including the current one. Equals
    * totalWeeks before the session starts and 0 once it has ended.
    */
