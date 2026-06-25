@@ -1,22 +1,15 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
 import { getContainer } from "@/infrastructure/container";
 import { ProgressView } from "@/interfaces/web/components/progress/ProgressView";
 
 export const metadata: Metadata = { title: "Progress · Goal Tracker" };
 
-// Depends on the per-request session, so it must never be statically prerendered.
+// Reads live data per request, so it must never be statically prerendered.
 export const dynamic = "force-dynamic";
 
 export default async function ProgressPage() {
-  const { authService, getProgressDataUseCase } = getContainer();
-  const userId = await authService.getCurrentUserId();
-  // Middleware and the app shell already gate this route; defence-in-depth.
-  if (!userId) {
-    redirect("/sign-in");
-  }
-
-  const charts = await getProgressDataUseCase.execute({ userId });
+  const { ownerId, getProgressDataUseCase } = getContainer();
+  const charts = await getProgressDataUseCase.execute({ userId: ownerId });
 
   return (
     <section className="mx-auto flex w-full max-w-3xl flex-col gap-6">

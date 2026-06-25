@@ -7,9 +7,10 @@ import { GetProgressDataUseCase } from "@/application/use-cases/GetProgressDataU
 import { getServerSupabaseClient } from "./database/supabaseClient";
 import { SupabaseGoalRepository } from "./repositories/SupabaseGoalRepository";
 import { SupabaseLogRepository } from "./repositories/SupabaseLogRepository";
-import { NextAuthAuthService } from "./auth/NextAuthAuthService";
 import { UuidGenerator } from "./id/UuidGenerator";
 import { SystemClock } from "./time/SystemClock";
+import { OWNER_ID } from "./config/owner";
+import { env } from "./config/env";
 
 /**
  * Composition Root.
@@ -18,6 +19,10 @@ import { SystemClock } from "./time/SystemClock";
  * are wired to application use cases. Interfaces (route handlers, server
  * actions, pages) import pre-assembled use cases from here so they never
  * touch infrastructure or domain directly.
+ *
+ * This is a single-user app: there is no auth service. `ownerId` is the fixed
+ * identity every goal/log is scoped to, and `appPassword` backs the shared
+ * password gate (see middleware + /api/unlock).
  */
 function buildContainer() {
   const supabase = getServerSupabaseClient();
@@ -28,13 +33,10 @@ function buildContainer() {
   const idGenerator = new UuidGenerator();
   const clock = new SystemClock();
 
-  // Cross-cutting services. The auth service reads the current request's
-  // session lazily per call, so a single instance is safe to share here.
-  const authService = new NextAuthAuthService();
-
   // Application use cases.
   return {
-    authService,
+    ownerId: OWNER_ID,
+    appPassword: env.appPassword(),
     createGoalUseCase: new CreateGoalUseCase(goalRepository, idGenerator, clock),
     updateGoalUseCase: new UpdateGoalUseCase(goalRepository, clock),
     deleteGoalUseCase: new DeleteGoalUseCase(goalRepository),

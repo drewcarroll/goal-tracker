@@ -5,9 +5,9 @@ import { z } from "zod";
  * Business invariants are enforced in the domain layer (e.g. target > 0,
  * end-after-start). These shape and lightly sanity-check transport input.
  *
- * NOTE: `userId` is intentionally NOT part of any client-supplied schema. The
- * caller's identity is always derived server-side from the authenticated
- * session (see `getCurrentUserId`), never trusted from request input.
+ * NOTE: `userId` is intentionally NOT part of any client-supplied schema. This
+ * is a single-user app; the owner id is supplied server-side from the
+ * composition root, never trusted from request input.
  */
 
 /** Accepts either a date-only string ("YYYY-MM-DD") or a full ISO datetime. */

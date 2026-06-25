@@ -2,25 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { getContainer } from "@/infrastructure/container";
 import { createGoalSchema } from "../../../http/validation";
 import { toErrorResponse } from "../../../http/errorResponse";
-import { unauthorizedResponse } from "../../../http/auth";
 
 /**
  * Route handler (interface adapter) for /api/goals.
  *
- * Thin: authenticate -> validate input -> call use case -> serialize output.
- * No business logic. The caller's identity is taken from the session, never
- * from request input, so a user can only ever see/create their own goals.
+ * Thin: validate input -> call use case -> serialize output. No business logic.
+ * Single-user: the owner id comes from the composition root, never from request
+ * input. Access is gated by the shared-password middleware.
  */
 
 export async function GET(): Promise<NextResponse> {
   try {
-    const { authService, listGoalsUseCase } = getContainer();
-    const userId = await authService.getCurrentUserId();
-    if (!userId) {
-      return unauthorizedResponse();
-    }
-
-    const goals = await listGoalsUseCase.execute({ userId });
+    const { ownerId, listGoalsUseCase } = getContainer();
+    const goals = await listGoalsUseCase.execute({ userId: ownerId });
     return NextResponse.json({ data: goals });
   } catch (error) {
     return toErrorResponse(error);
@@ -29,11 +23,7 @@ export async function GET(): Promise<NextResponse> {
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    const { authService, createGoalUseCase } = getContainer();
-    const userId = await authService.getCurrentUserId();
-    if (!userId) {
-      return unauthorizedResponse();
-    }
+    const { ownerId, createGoalUseCase } = getContainer();
 
     const body = await request.json();
     const parsed = createGoalSchema.safeParse(body);
@@ -45,7 +35,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const goal = await createGoalUseCase.execute({
-      userId,
+      userId: ownerId,
       name: parsed.data.name,
       targetValue: parsed.data.targetValue,
       unit: parsed.data.unit,

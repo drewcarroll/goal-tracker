@@ -42,11 +42,7 @@ function toErrorMessage(error: unknown): string {
 }
 
 export async function createGoalAction(values: GoalFormValues): Promise<GoalActionResult> {
-  const { authService, createGoalUseCase } = getContainer();
-  const userId = await authService.getCurrentUserId();
-  if (!userId) {
-    return { ok: false, error: "You must be signed in to create a goal." };
-  }
+  const { ownerId, createGoalUseCase } = getContainer();
 
   const parsed = createGoalSchema.safeParse(values);
   if (!parsed.success) {
@@ -58,7 +54,7 @@ export async function createGoalAction(values: GoalFormValues): Promise<GoalActi
   }
 
   try {
-    const goal = await createGoalUseCase.execute({ userId, ...parsed.data });
+    const goal = await createGoalUseCase.execute({ userId: ownerId, ...parsed.data });
     revalidatePath("/goals");
     return { ok: true, goal };
   } catch (error) {
@@ -70,11 +66,7 @@ export async function updateGoalAction(
   goalId: string,
   values: GoalFormValues,
 ): Promise<GoalActionResult> {
-  const { authService, updateGoalUseCase } = getContainer();
-  const userId = await authService.getCurrentUserId();
-  if (!userId) {
-    return { ok: false, error: "You must be signed in to edit a goal." };
-  }
+  const { ownerId, updateGoalUseCase } = getContainer();
 
   const parsed = updateGoalSchema.safeParse(values);
   if (!parsed.success) {
@@ -86,7 +78,7 @@ export async function updateGoalAction(
   }
 
   try {
-    const goal = await updateGoalUseCase.execute({ userId, goalId, ...parsed.data });
+    const goal = await updateGoalUseCase.execute({ userId: ownerId, goalId, ...parsed.data });
     revalidatePath("/goals");
     return { ok: true, goal };
   } catch (error) {
@@ -97,14 +89,10 @@ export async function updateGoalAction(
 export type DeleteActionResult = { ok: true } | { ok: false; error: string };
 
 export async function deleteGoalAction(goalId: string): Promise<DeleteActionResult> {
-  const { authService, deleteGoalUseCase } = getContainer();
-  const userId = await authService.getCurrentUserId();
-  if (!userId) {
-    return { ok: false, error: "You must be signed in to delete a goal." };
-  }
+  const { ownerId, deleteGoalUseCase } = getContainer();
 
   try {
-    await deleteGoalUseCase.execute({ userId, goalId });
+    await deleteGoalUseCase.execute({ userId: ownerId, goalId });
     revalidatePath("/goals");
     return { ok: true };
   } catch (error) {

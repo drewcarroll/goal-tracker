@@ -38,25 +38,15 @@ function ProgressIcon(props: IconProps) {
   );
 }
 
-function ProfileIcon(props: IconProps) {
-  return (
-    <svg {...baseIconProps} {...props}>
-      <circle cx="12" cy="8" r="4" />
-      <path d="M4 20a8 8 0 0 1 16 0" />
-    </svg>
-  );
-}
-
 export interface NavItem {
   href: string;
   label: string;
   Icon: ComponentType<IconProps>;
 }
 
-/** The four primary tabs, in display order. */
+/** The primary tabs, in display order. */
 export const NAV_ITEMS: readonly NavItem[] = [
   { href: "/home", label: "Home", Icon: HomeIcon },
   { href: "/goals", label: "Goals", Icon: GoalsIcon },
   { href: "/progress", label: "Progress", Icon: ProgressIcon },
-  { href: "/profile", label: "Profile", Icon: ProfileIcon },
 ];

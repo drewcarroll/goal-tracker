@@ -1,64 +1,53 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { AUTH_COOKIE, sha256Hex } from "@/interfaces/web/http/password";
 
 /**
- * Auth gate for the whole app.
+ * Shared-password gate for the whole app (single-user).
  *
- * - Redirects page requests without a session to the sign-in screen.
- * - Returns 401 for unauthenticated API requests (no HTML redirect for JSON
- *   clients).
+ * - Page requests without a valid unlock cookie are redirected to /unlock.
+ * - API requests without it get a 401 (no HTML redirect for JSON clients).
  *
- * Auth.js uses the database session strategy, whose session token can only be
- * validated with a DB lookup — not available in the Edge middleware runtime.
- * So this is a lightweight *presence* check on the session cookie for redirect
- * UX only; the authoritative check runs server-side via `auth()` in the
- * protected layout, pages, and route handlers.
- *
- * Public paths (landing page, sign-in screen, and all Auth.js endpoints under
- * /api/auth) are reachable without a session.
+ * The cookie holds sha256(APP_PASSWORD), set by /api/unlock. Here we recompute
+ * that hash from the env var and compare — no database, no accounts. Public
+ * paths (landing, the unlock screen + endpoint, and the dev-only demo) are
+ * reachable without unlocking.
  */
 
-/** Exact paths that never require authentication. */
+/** Exact paths that never require the password. */
 const PUBLIC_EXACT = new Set<string>(["/"]);
-/** Path prefixes that never require authentication. */
-const PUBLIC_PREFIXES = ["/sign-in", "/api/auth"];
-
-/** Auth.js v5 database-session cookie names (insecure dev + secure prod). */
-const SESSION_COOKIES = ["authjs.session-token", "__Secure-authjs.session-token"];
+/** Path prefixes that never require the password. */
+// `/demo` is a dev-only mock-data preview (it 404s in production).
+const PUBLIC_PREFIXES = ["/unlock", "/api/unlock", "/demo"];
 
 function isPublic(pathname: string): boolean {
   if (PUBLIC_EXACT.has(pathname)) {
     return true;
   }
-  return PUBLIC_PREFIXES.some(
-    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
-  );
+  return PUBLIC_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 }
 
-export function middleware(request: NextRequest): NextResponse {
+export async function middleware(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl;
-  const hasSession = SESSION_COOKIES.some((name) => request.cookies.has(name));
-  const isApi = pathname.startsWith("/api");
+  if (isPublic(pathname)) {
+    return NextResponse.next();
+  }
 
-  if (!hasSession && !isPublic(pathname)) {
-    if (isApi) {
+  const password = process.env.APP_PASSWORD ?? "";
+  const expected = password ? await sha256Hex(password) : "";
+  const token = request.cookies.get(AUTH_COOKIE)?.value;
+  const unlocked = expected !== "" && token === expected;
+
+  if (!unlocked) {
+    if (pathname.startsWith("/api")) {
       return NextResponse.json(
-        { error: { code: "UNAUTHORIZED", message: "Authentication required." } },
+        { error: { code: "UNAUTHORIZED", message: "Locked. Unlock the app first." } },
         { status: 401 },
       );
     }
-    const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = "/sign-in";
-    redirectUrl.search = "";
-    redirectUrl.searchParams.set("redirectedFrom", pathname);
-    return NextResponse.redirect(redirectUrl);
-  }
-
-  // Already signed in but heading to the sign-in screen → send to the app.
-  if (hasSession && pathname === "/sign-in") {
-    const homeUrl = request.nextUrl.clone();
-    homeUrl.pathname = "/home";
-    homeUrl.search = "";
-    return NextResponse.redirect(homeUrl);
+    const url = request.nextUrl.clone();
+    url.pathname = "/unlock";
+    url.search = "";
+    return NextResponse.redirect(url);
   }
 
   return NextResponse.next();

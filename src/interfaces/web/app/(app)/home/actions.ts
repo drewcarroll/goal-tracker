@@ -42,11 +42,7 @@ function toErrorMessage(error: unknown): string {
 }
 
 export async function logProgressAction(values: QuickLogFormValues): Promise<QuickLogActionResult> {
-  const { authService, logProgressUseCase } = getContainer();
-  const userId = await authService.getCurrentUserId();
-  if (!userId) {
-    return { ok: false, error: "You must be signed in to log progress." };
-  }
+  const { ownerId, logProgressUseCase } = getContainer();
 
   const parsed = quickLogSchema.safeParse(values);
   if (!parsed.success) {
@@ -59,7 +55,7 @@ export async function logProgressAction(values: QuickLogFormValues): Promise<Qui
 
   try {
     const result = await logProgressUseCase.execute({
-      userId,
+      userId: ownerId,
       goalId: parsed.data.goalId,
       value: parsed.data.value,
       weekIndex: parsed.data.weekIndex,
