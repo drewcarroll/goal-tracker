@@ -6,34 +6,32 @@
 export interface GoalDTO {
   id: string;
   userId: string;
-  title: string;
-  description: string | null;
-  status: "active" | "completed" | "archived";
-  progress: number;
-  dueDate: string | null; // ISO 8601
+  name: string;
+  targetValue: number;
+  unit: string;
+  startDate: string; // ISO 8601
+  endDate: string; // ISO 8601
   createdAt: string; // ISO 8601
   updatedAt: string; // ISO 8601
 }
 
 export interface CreateGoalDTO {
+  /** Owner of the goal — always derived from the session, never client input. */
   userId: string;
-  title: string;
-  description?: string | null;
-  dueDate?: string | null; // ISO 8601
+  name: string;
+  targetValue: number;
+  unit: string;
+  startDate: string; // ISO 8601
+  endDate: string; // ISO 8601
 }
 
-export interface UpdateProgressDTO {
+export interface UpdateGoalDTO {
   /** Owner of the goal — used to enforce that callers only mutate their own data. */
   userId: string;
   goalId: string;
-  progress: number;
-}
-
-export interface GoalStatsDTO {
-  total: number;
-  active: number;
-  completed: number;
-  archived: number;
-  averageProgress: number;
-  completionRate: number;
+  name: string;
+  targetValue: number;
+  unit: string;
+  startDate: string; // ISO 8601
+  endDate: string; // ISO 8601
 }

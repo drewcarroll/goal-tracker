@@ -45,6 +45,16 @@ export class SessionTimeframe {
     return new SessionTimeframe(new Date(start.getTime()), new Date(end.getTime()));
   }
 
+  /** Inclusive lower bound of the window. Returns a defensive copy. */
+  startDate(): Date {
+    return new Date(this.start.getTime());
+  }
+
+  /** Exclusive upper bound of the window. Returns a defensive copy. */
+  endDate(): Date {
+    return new Date(this.end.getTime());
+  }
+
   /** Total number of weekly buckets covering the window (always >= 1). */
   totalWeeks(): number {
     return Math.ceil((this.end.getTime() - this.start.getTime()) / WEEK_MS);

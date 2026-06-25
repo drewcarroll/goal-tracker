@@ -46,9 +46,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
     const goal = await createGoalUseCase.execute({
       userId,
-      title: parsed.data.title,
-      description: parsed.data.description ?? null,
-      dueDate: parsed.data.dueDate ?? null,
+      name: parsed.data.name,
+      targetValue: parsed.data.targetValue,
+      unit: parsed.data.unit,
+      startDate: parsed.data.startDate,
+      endDate: parsed.data.endDate,
     });
 
     return NextResponse.json({ data: goal }, { status: 201 });

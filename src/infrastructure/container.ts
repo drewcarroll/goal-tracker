@@ -1,8 +1,6 @@
-import { GoalStatsService } from "@/domain/services/GoalStatsService";
 import { CreateGoalUseCase } from "@/application/use-cases/CreateGoalUseCase";
+import { UpdateGoalUseCase } from "@/application/use-cases/UpdateGoalUseCase";
 import { ListGoalsUseCase } from "@/application/use-cases/ListGoalsUseCase";
-import { UpdateGoalProgressUseCase } from "@/application/use-cases/UpdateGoalProgressUseCase";
-import { GetGoalStatsUseCase } from "@/application/use-cases/GetGoalStatsUseCase";
 import { getServerSupabaseClient } from "./database/supabaseClient";
 import { SupabaseGoalRepository } from "./repositories/SupabaseGoalRepository";
 import { NextAuthAuthService } from "./auth/NextAuthAuthService";
@@ -12,9 +10,9 @@ import { UuidGenerator } from "./id/UuidGenerator";
  * Composition Root.
  *
  * This is the ONLY place where concrete infrastructure implementations
- * are wired to application use cases. Interfaces (route handlers) import
- * pre-assembled use cases from here so they never touch infrastructure
- * or domain directly.
+ * are wired to application use cases. Interfaces (route handlers, server
+ * actions, pages) import pre-assembled use cases from here so they never
+ * touch infrastructure or domain directly.
  */
 function buildContainer() {
   const supabase = getServerSupabaseClient();
@@ -22,9 +20,6 @@ function buildContainer() {
   // Infrastructure adapters (implementing domain/application ports).
   const goalRepository = new SupabaseGoalRepository(supabase);
   const idGenerator = new UuidGenerator();
-
-  // Domain services.
-  const goalStatsService = new GoalStatsService();
 
   // Cross-cutting services. The auth service reads the current request's
   // session lazily per call, so a single instance is safe to share here.
@@ -34,9 +29,8 @@ function buildContainer() {
   return {
     authService,
     createGoalUseCase: new CreateGoalUseCase(goalRepository, idGenerator),
+    updateGoalUseCase: new UpdateGoalUseCase(goalRepository),
     listGoalsUseCase: new ListGoalsUseCase(goalRepository),
-    updateGoalProgressUseCase: new UpdateGoalProgressUseCase(goalRepository),
-    getGoalStatsUseCase: new GetGoalStatsUseCase(goalRepository, goalStatsService),
   };
 }
 

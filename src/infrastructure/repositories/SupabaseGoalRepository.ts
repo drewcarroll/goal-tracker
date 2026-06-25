@@ -1,33 +1,49 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { Goal } from "@/domain/entities/Goal";
 import { GoalRepository } from "@/domain/repositories/GoalRepository";
-import { GoalStatus } from "@/domain/value-objects/GoalStatus";
-import { Progress } from "@/domain/value-objects/Progress";
+import { SessionTimeframe } from "@/domain/value-objects/SessionTimeframe";
 
-const TABLE = "goals";
+const GOALS_TABLE = "goals";
+const SESSIONS_TABLE = "goal_sessions";
 
 /** Shape of a row in the `goals` table (DB concern, stays in infrastructure). */
 interface GoalRow {
   id: string;
   user_id: string;
-  title: string;
-  description: string | null;
-  status: string;
-  progress: number;
-  due_date: string | null;
+  name: string;
+  target_value: number | string;
+  unit: string;
   created_at: string;
   updated_at: string;
+  goal_sessions: SessionRow[] | SessionRow | null;
 }
+
+/** Shape of a row in the `goal_sessions` table. */
+interface SessionRow {
+  id: string;
+  goal_id: string;
+  user_id: string;
+  start_date: string;
+  end_date: string;
+}
+
+const GOAL_SELECT = "*, goal_sessions(id, goal_id, user_id, start_date, end_date)";
 
 /**
  * Supabase/PostgreSQL implementation of the GoalRepository port.
- * Maps DB rows <-> domain entities. Contains zero business logic.
+ * A Goal aggregate spans two tables — `goals` and its one-to-one
+ * `goal_sessions` row — which this adapter maps to/from a domain entity.
+ * Contains zero business logic.
  */
 export class SupabaseGoalRepository implements GoalRepository {
   constructor(private readonly client: SupabaseClient) {}
 
   async findById(id: string): Promise<Goal | null> {
-    const { data, error } = await this.client.from(TABLE).select("*").eq("id", id).maybeSingle();
+    const { data, error } = await this.client
+      .from(GOALS_TABLE)
+      .select(GOAL_SELECT)
+      .eq("id", id)
+      .maybeSingle();
 
     if (error) {
       throw new Error(`Failed to fetch goal "${id}": ${error.message}`);
@@ -40,8 +56,8 @@ export class SupabaseGoalRepository implements GoalRepository {
 
   async findByUserId(userId: string): Promise<Goal[]> {
     const { data, error } = await this.client
-      .from(TABLE)
-      .select("*")
+      .from(GOALS_TABLE)
+      .select(GOAL_SELECT)
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
 
@@ -52,15 +68,40 @@ export class SupabaseGoalRepository implements GoalRepository {
   }
 
   async save(goal: Goal): Promise<void> {
-    const row = this.toRow(goal);
-    const { error } = await this.client.from(TABLE).upsert(row, { onConflict: "id" });
-    if (error) {
-      throw new Error(`Failed to save goal "${goal.id}": ${error.message}`);
+    const { error: goalError } = await this.client.from(GOALS_TABLE).upsert(
+      {
+        id: goal.id,
+        user_id: goal.userId,
+        name: goal.name,
+        target_value: goal.targetValue,
+        unit: goal.unit,
+        updated_at: goal.updatedAt.toISOString(),
+      },
+      { onConflict: "id" },
+    );
+    if (goalError) {
+      throw new Error(`Failed to save goal "${goal.id}": ${goalError.message}`);
+    }
+
+    const { error: sessionError } = await this.client.from(SESSIONS_TABLE).upsert(
+      {
+        id: goal.sessionId,
+        goal_id: goal.id,
+        user_id: goal.userId,
+        start_date: goal.timeframe.startDate().toISOString(),
+        end_date: goal.timeframe.endDate().toISOString(),
+        updated_at: goal.updatedAt.toISOString(),
+      },
+      { onConflict: "goal_id" },
+    );
+    if (sessionError) {
+      throw new Error(`Failed to save session for goal "${goal.id}": ${sessionError.message}`);
     }
   }
 
   async delete(id: string): Promise<void> {
-    const { error } = await this.client.from(TABLE).delete().eq("id", id);
+    // `goal_sessions` rows cascade-delete with their goal (FK onDelete: Cascade).
+    const { error } = await this.client.from(GOALS_TABLE).delete().eq("id", id);
     if (error) {
       throw new Error(`Failed to delete goal "${id}": ${error.message}`);
     }
@@ -69,30 +110,29 @@ export class SupabaseGoalRepository implements GoalRepository {
   // --- Mapping helpers ---
 
   private toDomain(row: GoalRow): Goal {
+    const session = this.extractSession(row);
     return Goal.rehydrate({
       id: row.id,
       userId: row.user_id,
-      title: row.title,
-      description: row.description,
-      status: GoalStatus.fromString(row.status),
-      progress: Progress.fromPercent(row.progress),
-      dueDate: row.due_date ? new Date(row.due_date) : null,
+      sessionId: session.id,
+      name: row.name,
+      targetValue: Number(row.target_value),
+      unit: row.unit,
+      timeframe: SessionTimeframe.create({
+        start: new Date(session.start_date),
+        end: new Date(session.end_date),
+      }),
       createdAt: new Date(row.created_at),
       updatedAt: new Date(row.updated_at),
     });
   }
 
-  private toRow(goal: Goal): GoalRow {
-    return {
-      id: goal.id,
-      user_id: goal.userId,
-      title: goal.title,
-      description: goal.description,
-      status: goal.status.toString(),
-      progress: goal.progress.value(),
-      due_date: goal.dueDate ? goal.dueDate.toISOString() : null,
-      created_at: goal.createdAt.toISOString(),
-      updated_at: goal.updatedAt.toISOString(),
-    };
+  /** Supabase embeds a to-one relation as either an object or a single-item array. */
+  private extractSession(row: GoalRow): SessionRow {
+    const session = Array.isArray(row.goal_sessions) ? row.goal_sessions[0] : row.goal_sessions;
+    if (!session) {
+      throw new Error(`Goal "${row.id}" is missing its session.`);
+    }
+    return session;
   }
 }

@@ -21,11 +21,3 @@ export class ValidationError extends DomainError {
     super(message);
   }
 }
-
-export class GoalAlreadyCompletedError extends DomainError {
-  public readonly code = "GOAL_ALREADY_COMPLETED";
-
-  constructor(goalId: string) {
-    super(`Goal "${goalId}" is already completed.`);
-  }
-}

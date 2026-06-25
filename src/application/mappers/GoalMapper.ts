@@ -10,11 +10,11 @@ export class GoalMapper {
     return {
       id: goal.id,
       userId: goal.userId,
-      title: goal.title,
-      description: goal.description,
-      status: goal.status.toString(),
-      progress: goal.progress.value(),
-      dueDate: goal.dueDate ? goal.dueDate.toISOString() : null,
+      name: goal.name,
+      targetValue: goal.targetValue,
+      unit: goal.unit,
+      startDate: goal.timeframe.startDate().toISOString(),
+      endDate: goal.timeframe.endDate().toISOString(),
       createdAt: goal.createdAt.toISOString(),
       updatedAt: goal.updatedAt.toISOString(),
     };

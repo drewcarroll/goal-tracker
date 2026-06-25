@@ -1,90 +1,117 @@
-import { GoalAlreadyCompletedError, ValidationError } from "../errors/DomainError";
-import { GoalStatus } from "../value-objects/GoalStatus";
-import { Progress } from "../value-objects/Progress";
+import { ValidationError } from "../errors/DomainError";
+import { SessionTimeframe } from "../value-objects/SessionTimeframe";
 
 export interface GoalProps {
   id: string;
   userId: string;
-  title: string;
-  description: string | null;
-  status: GoalStatus;
-  progress: Progress;
-  dueDate: Date | null;
+  /** Identity of the goal's one-to-one session (its [start, end) window). */
+  sessionId: string;
+  name: string;
+  /** The numeric target the user is working toward (e.g. 12). Always > 0. */
+  targetValue: number;
+  /** Freeform unit the target is measured in (e.g. "books", "km"). */
+  unit: string;
+  /** The timeframe the goal is pursued over. */
+  timeframe: SessionTimeframe;
   createdAt: Date;
   updatedAt: Date;
 }
 
+/** The mutable fields a user can supply when creating or editing a goal. */
+interface GoalDetails {
+  name: string;
+  targetValue: number;
+  unit: string;
+  startDate: Date;
+  endDate: Date;
+}
+
 /**
  * Goal entity — has identity (id) and a lifecycle.
- * Enforces its own invariants. Knows nothing about persistence or transport.
+ * A goal is a measurable target (targetValue + freeform unit) pursued over a
+ * single session window. Enforces its own invariants. Knows nothing about
+ * persistence or transport.
  */
 export class Goal {
   private constructor(private props: GoalProps) {}
 
   /** Reconstitute an existing Goal (e.g. from a repository). */
   static rehydrate(props: GoalProps): Goal {
-    Goal.assertValidTitle(props.title);
+    Goal.assertValidName(props.name);
+    Goal.assertValidTargetValue(props.targetValue);
+    Goal.assertValidUnit(props.unit);
     return new Goal(props);
   }
 
-  /** Create a brand new Goal with sensible defaults. */
+  /** Create a brand new Goal together with its session window. */
   static create(params: {
     id: string;
     userId: string;
-    title: string;
-    description?: string | null;
-    dueDate?: Date | null;
+    sessionId: string;
+    name: string;
+    targetValue: number;
+    unit: string;
+    startDate: Date;
+    endDate: Date;
     now?: Date;
   }): Goal {
-    Goal.assertValidTitle(params.title);
+    Goal.assertValidName(params.name);
+    Goal.assertValidTargetValue(params.targetValue);
+    Goal.assertValidUnit(params.unit);
     const now = params.now ?? new Date();
     return new Goal({
       id: params.id,
       userId: params.userId,
-      title: params.title.trim(),
-      description: params.description?.trim() ?? null,
-      status: GoalStatus.active(),
-      progress: Progress.zero(),
-      dueDate: params.dueDate ?? null,
+      sessionId: params.sessionId,
+      name: params.name.trim(),
+      targetValue: params.targetValue,
+      unit: params.unit.trim(),
+      timeframe: SessionTimeframe.create({ start: params.startDate, end: params.endDate }),
       createdAt: now,
       updatedAt: now,
     });
   }
 
-  private static assertValidTitle(title: string): void {
-    if (!title || title.trim().length === 0) {
-      throw new ValidationError("Goal title must not be empty.");
-    }
-    if (title.trim().length > 200) {
-      throw new ValidationError("Goal title must be 200 characters or fewer.");
-    }
-  }
-
-  // --- Behavior (business rules live here) ---
-
-  updateProgress(progress: Progress, now: Date = new Date()): void {
-    if (this.props.status.isCompleted()) {
-      throw new GoalAlreadyCompletedError(this.props.id);
-    }
-    this.props.progress = progress;
-    if (progress.isComplete()) {
-      this.props.status = GoalStatus.completed();
-    }
+  /** Apply user edits to an existing goal, re-validating every invariant. */
+  edit(details: GoalDetails, now: Date = new Date()): void {
+    Goal.assertValidName(details.name);
+    Goal.assertValidTargetValue(details.targetValue);
+    Goal.assertValidUnit(details.unit);
+    this.props.name = details.name.trim();
+    this.props.targetValue = details.targetValue;
+    this.props.unit = details.unit.trim();
+    this.props.timeframe = SessionTimeframe.create({
+      start: details.startDate,
+      end: details.endDate,
+    });
     this.props.updatedAt = now;
   }
 
-  complete(now: Date = new Date()): void {
-    if (this.props.status.isCompleted()) {
-      throw new GoalAlreadyCompletedError(this.props.id);
+  private static assertValidName(name: string): void {
+    if (!name || name.trim().length === 0) {
+      throw new ValidationError("Goal name must not be empty.");
     }
-    this.props.status = GoalStatus.completed();
-    this.props.progress = Progress.complete();
-    this.props.updatedAt = now;
+    if (name.trim().length > 200) {
+      throw new ValidationError("Goal name must be 200 characters or fewer.");
+    }
   }
 
-  archive(now: Date = new Date()): void {
-    this.props.status = GoalStatus.archived();
-    this.props.updatedAt = now;
+  private static assertValidTargetValue(targetValue: number): void {
+    if (!Number.isFinite(targetValue)) {
+      throw new ValidationError("Target value must be a number.");
+    }
+    if (targetValue <= 0) {
+      throw new ValidationError("Target value must be greater than zero.");
+    }
+  }
+
+  private static assertValidUnit(unit: string): void {
+    if (!unit || unit.trim().length === 0) {
+      throw new ValidationError("Unit must not be empty.");
+    }
+    if (unit.trim().length > 50) {
+      throw new ValidationError("Unit must be 50 characters or fewer.");
+    }
   }
 
   // --- Getters (read-only access to state) ---
@@ -95,20 +122,20 @@ export class Goal {
   get userId(): string {
     return this.props.userId;
   }
-  get title(): string {
-    return this.props.title;
+  get sessionId(): string {
+    return this.props.sessionId;
   }
-  get description(): string | null {
-    return this.props.description;
+  get name(): string {
+    return this.props.name;
   }
-  get status(): GoalStatus {
-    return this.props.status;
+  get targetValue(): number {
+    return this.props.targetValue;
   }
-  get progress(): Progress {
-    return this.props.progress;
+  get unit(): string {
+    return this.props.unit;
   }
-  get dueDate(): Date | null {
-    return this.props.dueDate;
+  get timeframe(): SessionTimeframe {
+    return this.props.timeframe;
   }
   get createdAt(): Date {
     return this.props.createdAt;
