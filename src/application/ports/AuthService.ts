@@ -12,6 +12,10 @@
 export interface AuthUser {
   id: string;
   email: string | null;
+  /** Display name from the identity provider (e.g. Google), if available. */
+  name: string | null;
+  /** Avatar URL from the identity provider (e.g. Google), if available. */
+  image: string | null;
 }
 
 export interface AuthService {

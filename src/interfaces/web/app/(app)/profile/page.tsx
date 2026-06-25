@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getContainer } from "@/infrastructure/container";
+import { ProfileAvatar } from "@/interfaces/web/components/profile/ProfileAvatar";
 import { SignOutButton } from "@/interfaces/web/components/auth/SignOutButton";
 
 export const metadata: Metadata = { title: "Profile · Goal Tracker" };
@@ -17,17 +18,22 @@ export default async function ProfilePage() {
   }
 
   return (
-    <section className="mx-auto w-full max-w-3xl">
+    <section className="mx-auto w-full max-w-md">
       <h1 className="text-2xl font-bold tracking-tight">Profile</h1>
-      <p className="mt-2 text-gray-600">Account settings and preferences will appear here.</p>
 
-      <dl className="mt-6 rounded-lg border border-gray-200 bg-white p-4 text-sm">
-        <dt className="font-medium text-gray-500">Signed in as</dt>
-        <dd className="mt-1 text-gray-900">{user.email ?? user.id}</dd>
-      </dl>
+      <div className="mt-6 flex flex-col items-center gap-5 rounded-2xl border border-gray-200 bg-white p-6 text-center shadow-sm sm:p-8">
+        <ProfileAvatar image={user.image} name={user.name} email={user.email} />
 
-      <div className="mt-6">
-        <SignOutButton />
+        <div className="flex w-full flex-col gap-1">
+          {user.name && (
+            <p className="text-lg font-semibold text-gray-900">{user.name}</p>
+          )}
+          {user.email && (
+            <p className="break-all text-sm text-gray-500">{user.email}</p>
+          )}
+        </div>
+
+        <SignOutButton className="w-full sm:w-auto" />
       </div>
     </section>
   );

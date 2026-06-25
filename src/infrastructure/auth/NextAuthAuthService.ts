@@ -16,7 +16,12 @@ export class NextAuthAuthService implements AuthService {
     if (!user?.id) {
       return null;
     }
-    return { id: user.id, email: user.email ?? null };
+    return {
+      id: user.id,
+      email: user.email ?? null,
+      name: user.name ?? null,
+      image: user.image ?? null,
+    };
   }
 
   async getCurrentUserId(): Promise<string | null> {
