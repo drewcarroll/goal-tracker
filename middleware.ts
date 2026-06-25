@@ -1,22 +1,29 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { updateSession } from "@/infrastructure/auth/updateSession";
 
 /**
  * Auth gate for the whole app.
  *
- * - Refreshes the Supabase session on every request (keeps tokens fresh).
- * - Redirects unauthenticated page requests to the sign-in screen.
+ * - Redirects page requests without a session to the sign-in screen.
  * - Returns 401 for unauthenticated API requests (no HTML redirect for JSON
  *   clients).
  *
- * Public paths (the landing page, the sign-in screen, and Supabase auth
- * callbacks) are reachable without a session; everything else requires one.
+ * Auth.js uses the database session strategy, whose session token can only be
+ * validated with a DB lookup — not available in the Edge middleware runtime.
+ * So this is a lightweight *presence* check on the session cookie for redirect
+ * UX only; the authoritative check runs server-side via `auth()` in the
+ * protected layout, pages, and route handlers.
+ *
+ * Public paths (landing page, sign-in screen, and all Auth.js endpoints under
+ * /api/auth) are reachable without a session.
  */
 
 /** Exact paths that never require authentication. */
 const PUBLIC_EXACT = new Set<string>(["/"]);
 /** Path prefixes that never require authentication. */
-const PUBLIC_PREFIXES = ["/sign-in", "/auth"];
+const PUBLIC_PREFIXES = ["/sign-in", "/api/auth"];
+
+/** Auth.js v5 database-session cookie names (insecure dev + secure prod). */
+const SESSION_COOKIES = ["authjs.session-token", "__Secure-authjs.session-token"];
 
 function isPublic(pathname: string): boolean {
   if (PUBLIC_EXACT.has(pathname)) {
@@ -27,12 +34,12 @@ function isPublic(pathname: string): boolean {
   );
 }
 
-export async function middleware(request: NextRequest): Promise<NextResponse> {
-  const { response, user } = await updateSession(request);
+export function middleware(request: NextRequest): NextResponse {
   const { pathname } = request.nextUrl;
+  const hasSession = SESSION_COOKIES.some((name) => request.cookies.has(name));
   const isApi = pathname.startsWith("/api");
 
-  if (!user && !isPublic(pathname)) {
+  if (!hasSession && !isPublic(pathname)) {
     if (isApi) {
       return NextResponse.json(
         { error: { code: "UNAUTHORIZED", message: "Authentication required." } },
@@ -47,14 +54,14 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
   }
 
   // Already signed in but heading to the sign-in screen → send to the app.
-  if (user && pathname === "/sign-in") {
+  if (hasSession && pathname === "/sign-in") {
     const homeUrl = request.nextUrl.clone();
     homeUrl.pathname = "/home";
     homeUrl.search = "";
     return NextResponse.redirect(homeUrl);
   }
 
-  return response;
+  return NextResponse.next();
 }
 
 export const config = {

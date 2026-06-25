@@ -1,1 +1,1 @@
-export { default } from "@/interfaces/web/app/(app)/layout";
+export { default, dynamic } from "@/interfaces/web/app/(app)/layout";

@@ -74,6 +74,12 @@
           }
         ]
       }
+    },
+    {
+      "files": ["app/api/auth/**/*.{ts,tsx}"],
+      "rules": {
+        "no-restricted-imports": "off"
+      }
     }
   ]
 }

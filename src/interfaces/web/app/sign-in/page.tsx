@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import { SignInForm } from "@/interfaces/web/components/auth/SignInForm";
+import { GoogleSignInButton } from "@/interfaces/web/components/auth/GoogleSignInButton";
 
 export const metadata: Metadata = { title: "Sign in · Goal Tracker" };
 
@@ -15,7 +15,7 @@ export default function SignInPage() {
       <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
         {/* useSearchParams() requires a Suspense boundary during prerender. */}
         <Suspense fallback={null}>
-          <SignInForm />
+          <GoogleSignInButton />
         </Suspense>
       </div>
     </main>

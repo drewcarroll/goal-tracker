@@ -5,7 +5,7 @@ import { UpdateGoalProgressUseCase } from "@/application/use-cases/UpdateGoalPro
 import { GetGoalStatsUseCase } from "@/application/use-cases/GetGoalStatsUseCase";
 import { getServerSupabaseClient } from "./database/supabaseClient";
 import { SupabaseGoalRepository } from "./repositories/SupabaseGoalRepository";
-import { SupabaseAuthService } from "./auth/SupabaseAuthService";
+import { NextAuthAuthService } from "./auth/NextAuthAuthService";
 import { UuidGenerator } from "./id/UuidGenerator";
 
 /**
@@ -26,9 +26,9 @@ function buildContainer() {
   // Domain services.
   const goalStatsService = new GoalStatsService();
 
-  // Cross-cutting services. The auth service binds to the current request's
-  // cookies lazily per call, so a single instance is safe to share here.
-  const authService = new SupabaseAuthService();
+  // Cross-cutting services. The auth service reads the current request's
+  // session lazily per call, so a single instance is safe to share here.
+  const authService = new NextAuthAuthService();
 
   // Application use cases.
   return {
