@@ -43,7 +43,14 @@ interface LogSuccess {
   weekLabel: string;
 }
 
-export function QuickLogForm({ goals }: { goals: GoalDTO[] }) {
+export function QuickLogForm({
+  goals,
+  onLogged,
+}: {
+  goals: GoalDTO[];
+  /** Called on a successful log with the re-projected goal, for live updates. */
+  onLogged?: (goal: GoalDTO) => void;
+}) {
   const [selectedId, setSelectedId] = useState<string>(goals[0]?.id ?? "");
   const [value, setValue] = useState("");
   // Backfill: when on, the entry targets `backfillWeek` instead of this week.
@@ -136,6 +143,8 @@ export function QuickLogForm({ goals }: { goals: GoalDTO[] }) {
           weekTotal: result.weekTotal,
           weekLabel: loggedWeek ? weekName(loggedWeek) : `Week ${result.log.weekIndex + 1}`,
         });
+        // Hand the re-projected goal up so the week summary reflects it at once.
+        onLogged?.(result.goal);
         // Keep the goal and chosen week selected, clear the amount, refocus.
         setValue("");
         amountRef.current?.focus();

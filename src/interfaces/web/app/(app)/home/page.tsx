@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getContainer } from "@/infrastructure/container";
-import { QuickLogForm } from "@/interfaces/web/components/home/QuickLogForm";
+import { HomeView } from "@/interfaces/web/components/home/HomeView";
 
 export const metadata: Metadata = { title: "Home · Goal Tracker" };
 
@@ -24,7 +24,7 @@ export default async function HomePage() {
         <h1 className="text-2xl font-bold tracking-tight">Home</h1>
         <p className="mt-1 text-gray-600">Quickly log progress toward a goal.</p>
       </div>
-      <QuickLogForm goals={goals} />
+      <HomeView goals={goals} />
     </section>
   );
 }
