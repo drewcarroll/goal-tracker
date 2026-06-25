@@ -46,3 +46,22 @@ export async function PUT(
     return toErrorResponse(error);
   }
 }
+
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: { id: string } },
+): Promise<NextResponse> {
+  try {
+    const { authService, deleteGoalUseCase } = getContainer();
+    const userId = await authService.getCurrentUserId();
+    if (!userId) {
+      return unauthorizedResponse();
+    }
+
+    await deleteGoalUseCase.execute({ userId, goalId: params.id });
+
+    return new NextResponse(null, { status: 204 });
+  } catch (error) {
+    return toErrorResponse(error);
+  }
+}

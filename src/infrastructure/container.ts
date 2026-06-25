@@ -1,5 +1,6 @@
 import { CreateGoalUseCase } from "@/application/use-cases/CreateGoalUseCase";
 import { UpdateGoalUseCase } from "@/application/use-cases/UpdateGoalUseCase";
+import { DeleteGoalUseCase } from "@/application/use-cases/DeleteGoalUseCase";
 import { ListGoalsUseCase } from "@/application/use-cases/ListGoalsUseCase";
 import { getServerSupabaseClient } from "./database/supabaseClient";
 import { SupabaseGoalRepository } from "./repositories/SupabaseGoalRepository";
@@ -30,6 +31,7 @@ function buildContainer() {
     authService,
     createGoalUseCase: new CreateGoalUseCase(goalRepository, idGenerator),
     updateGoalUseCase: new UpdateGoalUseCase(goalRepository),
+    deleteGoalUseCase: new DeleteGoalUseCase(goalRepository),
     listGoalsUseCase: new ListGoalsUseCase(goalRepository),
   };
 }

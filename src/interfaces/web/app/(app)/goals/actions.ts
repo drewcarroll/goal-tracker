@@ -93,3 +93,21 @@ export async function updateGoalAction(
     return { ok: false, error: toErrorMessage(error) };
   }
 }
+
+export type DeleteActionResult = { ok: true } | { ok: false; error: string };
+
+export async function deleteGoalAction(goalId: string): Promise<DeleteActionResult> {
+  const { authService, deleteGoalUseCase } = getContainer();
+  const userId = await authService.getCurrentUserId();
+  if (!userId) {
+    return { ok: false, error: "You must be signed in to delete a goal." };
+  }
+
+  try {
+    await deleteGoalUseCase.execute({ userId, goalId });
+    revalidatePath("/goals");
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: toErrorMessage(error) };
+  }
+}

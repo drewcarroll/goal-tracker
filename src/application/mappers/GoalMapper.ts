@@ -13,6 +13,8 @@ export class GoalMapper {
       name: goal.name,
       targetValue: goal.targetValue,
       unit: goal.unit,
+      weeklyTarget: goal.weeklyTarget(),
+      totalWeeks: goal.timeframe.totalWeeks(),
       startDate: goal.timeframe.startDate().toISOString(),
       endDate: goal.timeframe.endDate().toISOString(),
       createdAt: goal.createdAt.toISOString(),

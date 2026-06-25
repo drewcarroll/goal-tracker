@@ -137,6 +137,14 @@ export class Goal {
   get timeframe(): SessionTimeframe {
     return this.props.timeframe;
   }
+
+  /**
+   * The target split evenly across the session's weeks (the per-week rate a
+   * user must sustain). Mirrors the weekly target used by the projection.
+   */
+  weeklyTarget(): number {
+    return this.props.targetValue / this.props.timeframe.totalWeeks();
+  }
   get createdAt(): Date {
     return this.props.createdAt;
   }

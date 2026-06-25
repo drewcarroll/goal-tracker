@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import type { GoalDTO } from "@/application/dtos/GoalDTO";
 import {
   createGoalAction,
   updateGoalAction,
+  deleteGoalAction,
   type GoalFormValues,
 } from "@/interfaces/web/app/(app)/goals/actions";
 import { GoalForm } from "./GoalForm";
@@ -19,14 +20,23 @@ function formatDate(iso: string): string {
   });
 }
 
-/** Renders the numeric target without trailing zeros (12, not 12.0000). */
-function formatTarget(value: number): string {
-  return String(value);
+/** Renders a number without noise: integers as-is, otherwise up to 2 decimals. */
+function formatNumber(value: number): string {
+  return Number.isInteger(value) ? String(value) : String(Number(value.toFixed(2)));
+}
+
+function formatWeeks(weeks: number): string {
+  return `${weeks} ${weeks === 1 ? "week" : "weeks"}`;
 }
 
 export function GoalsManager({ initialGoals }: { initialGoals: GoalDTO[] }) {
   const [goals, setGoals] = useState<GoalDTO[]>(initialGoals);
   const [view, setView] = useState<View>({ kind: "list" });
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [pendingDelete, startDelete] = useTransition();
+
+  const busy = view.kind !== "list" || confirmDeleteId !== null;
 
   function handleCreated(goal: GoalDTO) {
     setGoals((prev) => [goal, ...prev]);
@@ -38,11 +48,34 @@ export function GoalsManager({ initialGoals }: { initialGoals: GoalDTO[] }) {
     setView({ kind: "list" });
   }
 
+  function openDeleteConfirm(goalId: string) {
+    setDeleteError(null);
+    setConfirmDeleteId(goalId);
+  }
+
+  function cancelDelete() {
+    setConfirmDeleteId(null);
+    setDeleteError(null);
+  }
+
+  function confirmDelete(goalId: string) {
+    setDeleteError(null);
+    startDelete(async () => {
+      const result = await deleteGoalAction(goalId);
+      if (result.ok) {
+        setGoals((prev) => prev.filter((g) => g.id !== goalId));
+        setConfirmDeleteId(null);
+      } else {
+        setDeleteError(result.error);
+      }
+    });
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between gap-4">
         <h1 className="text-2xl font-bold tracking-tight">Goals</h1>
-        {view.kind === "list" && (
+        {view.kind === "list" && confirmDeleteId === null && (
           <button
             type="button"
             onClick={() => setView({ kind: "create" })}
@@ -68,41 +101,96 @@ export function GoalsManager({ initialGoals }: { initialGoals: GoalDTO[] }) {
         </p>
       ) : (
         <ul className="flex flex-col gap-3">
-          {goals.map((goal) =>
-            view.kind === "edit" && view.goalId === goal.id ? (
-              <li key={goal.id}>
-                <GoalForm
-                  goal={goal}
-                  onSubmit={(values: GoalFormValues) => updateGoalAction(goal.id, values)}
-                  onSuccess={handleUpdated}
-                  onCancel={() => setView({ kind: "list" })}
-                />
-              </li>
-            ) : (
+          {goals.map((goal) => {
+            if (view.kind === "edit" && view.goalId === goal.id) {
+              return (
+                <li key={goal.id}>
+                  <GoalForm
+                    goal={goal}
+                    onSubmit={(values: GoalFormValues) => updateGoalAction(goal.id, values)}
+                    onSuccess={handleUpdated}
+                    onCancel={() => setView({ kind: "list" })}
+                  />
+                </li>
+              );
+            }
+
+            const isConfirming = confirmDeleteId === goal.id;
+
+            return (
               <li
                 key={goal.id}
-                className="flex items-center justify-between gap-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5"
+                className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5"
               >
-                <div className="min-w-0">
-                  <p className="truncate font-semibold text-gray-900">{goal.name}</p>
-                  <p className="mt-0.5 text-sm text-gray-600">
-                    {formatTarget(goal.targetValue)} {goal.unit}
-                  </p>
-                  <p className="mt-0.5 text-xs text-gray-400">
-                    {formatDate(goal.startDate)} – {formatDate(goal.endDate)}
-                  </p>
+                <div className="flex items-center justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold text-gray-900">{goal.name}</p>
+                    <p className="mt-0.5 text-sm font-medium text-gray-700">
+                      {formatNumber(goal.weeklyTarget)} {goal.unit} / week
+                    </p>
+                    <p className="mt-0.5 text-xs text-gray-400">
+                      {formatDate(goal.startDate)} – {formatDate(goal.endDate)} ·{" "}
+                      {formatWeeks(goal.totalWeeks)} · {formatNumber(goal.targetValue)} {goal.unit}{" "}
+                      total
+                    </p>
+                  </div>
+
+                  {!isConfirming && (
+                    <div className="flex shrink-0 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setView({ kind: "edit", goalId: goal.id })}
+                        disabled={busy}
+                        className="rounded-lg border border-gray-300 px-3.5 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 disabled:opacity-50"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openDeleteConfirm(goal.id)}
+                        disabled={busy}
+                        className="rounded-lg border border-gray-300 px-3.5 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  )}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setView({ kind: "edit", goalId: goal.id })}
-                  disabled={view.kind !== "list"}
-                  className="shrink-0 rounded-lg border border-gray-300 px-3.5 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 disabled:opacity-50"
-                >
-                  Edit
-                </button>
+
+                {isConfirming && (
+                  <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4">
+                    <p className="text-sm text-red-800">
+                      Delete <span className="font-semibold">{goal.name}</span>? This also removes its
+                      session and logs and can&apos;t be undone.
+                    </p>
+                    {deleteError && (
+                      <p role="alert" className="mt-2 text-sm font-medium text-red-700">
+                        {deleteError}
+                      </p>
+                    )}
+                    <div className="mt-3 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                      <button
+                        type="button"
+                        onClick={cancelDelete}
+                        disabled={pendingDelete}
+                        className="rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 disabled:opacity-60"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => confirmDelete(goal.id)}
+                        disabled={pendingDelete}
+                        className="rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-700 disabled:opacity-60"
+                      >
+                        {pendingDelete ? "Deleting…" : "Delete goal"}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </li>
-            ),
-          )}
+            );
+          })}
         </ul>
       )}
     </div>
