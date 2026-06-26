@@ -16,8 +16,8 @@ class InMemoryGoalRepository implements GoalRepository {
   async delete(): Promise<void> {}
 }
 
-// Jan 16 sits in week index 2 of a Jan 1 -> Feb 5 (5-week) session.
-const NOW = new Date("2026-01-16T00:00:00.000Z");
+// Jan 20 sits in week index 2 of a Jan 5 -> Feb 9 (5-week) session.
+const NOW = new Date("2026-01-20T00:00:00.000Z");
 const fixedClock: Clock = { now: () => NOW };
 
 function makeGoal(overrides: Partial<{ id: string; userId: string }> = {}) {
@@ -26,11 +26,11 @@ function makeGoal(overrides: Partial<{ id: string; userId: string }> = {}) {
     userId: overrides.userId ?? "user-1",
     sessionId: "session-1",
     name: "Read books",
-    targetValue: 50,
+    weeklyTarget: 10, // 10/week × 5 weeks = 50 total
     unit: "books",
-    startDate: new Date("2026-01-01T00:00:00.000Z"),
-    endDate: new Date("2026-02-05T00:00:00.000Z"),
-    now: new Date("2026-01-01T00:00:00.000Z"),
+    startDate: new Date("2026-01-05T00:00:00.000Z"),
+    endDate: new Date("2026-02-09T00:00:00.000Z"),
+    now: new Date("2026-01-05T00:00:00.000Z"),
   });
   // Log against past and current weeks via the aggregate root.
   goal.logProgress({ id: "l0", value: 6, today: NOW, weekIndex: 0 });
@@ -58,16 +58,16 @@ describe("GetProgressDataUseCase", () => {
       weeklyTarget: 10,
       totalWeeks: 5,
       currentWeekIndex: 2,
-      projectedTotal: 44,
+      projectedTotal: 38,
     });
     expect(chart.weeks).toHaveLength(5);
     expect(chart.weeks.map((w) => w.weeklyActual)).toEqual([6, 8, 4, 0, 0]);
     expect(chart.weeks.map((w) => w.cumulativeActual)).toEqual([6, 14, 18, null, null]);
-    expect(chart.weeks.map((w) => w.cumulativeProjected)).toEqual([6, 14, 24, 34, 44]);
+    expect(chart.weeks.map((w) => w.cumulativeProjected)).toEqual([6, 14, 18, 28, 38]);
     expect(chart.weeks.map((w) => w.cumulativeTarget)).toEqual([10, 20, 30, 40, 50]);
     // Each week is labelled with its calendar date range.
-    expect(chart.weeks[0]?.startDate).toBe("2026-01-01T00:00:00.000Z");
-    expect(chart.weeks[0]?.endDate).toBe("2026-01-08T00:00:00.000Z");
+    expect(chart.weeks[0]?.startDate).toBe("2026-01-05T00:00:00.000Z");
+    expect(chart.weeks[0]?.endDate).toBe("2026-01-12T00:00:00.000Z");
   });
 
   it("only returns the caller's own goals (AC #4)", async () => {

@@ -33,7 +33,7 @@ export function GoalForm({ goal, onSubmit, onSuccess, onCancel }: GoalFormProps)
   const isEdit = Boolean(goal);
   const [values, setValues] = useState<GoalFormValues>({
     name: goal?.name ?? "",
-    targetValue: goal ? String(goal.targetValue) : "",
+    weeklyTarget: goal ? String(goal.weeklyTarget) : "",
     unit: goal?.unit ?? "",
     startDate: toDateInputValue(goal?.startDate),
     endDate: toDateInputValue(goal?.endDate),
@@ -50,11 +50,11 @@ export function GoalForm({ goal, onSubmit, onSuccess, onCancel }: GoalFormProps)
   function validate(): GoalFieldErrors {
     const errors: GoalFieldErrors = {};
     if (!values.name.trim()) errors.name = "Name is required";
-    const target = Number(values.targetValue);
-    if (!values.targetValue.trim() || Number.isNaN(target)) {
-      errors.targetValue = "Target value must be a number";
+    const target = Number(values.weeklyTarget);
+    if (!values.weeklyTarget.trim() || Number.isNaN(target)) {
+      errors.weeklyTarget = "Weekly target must be a number";
     } else if (target <= 0) {
-      errors.targetValue = "Target value must be greater than zero";
+      errors.weeklyTarget = "Weekly target must be greater than zero";
     }
     if (!values.unit.trim()) errors.unit = "Unit is required";
     if (!values.startDate) errors.startDate = "Start date is required";
@@ -126,21 +126,26 @@ export function GoalForm({ goal, onSubmit, onSuccess, onCancel }: GoalFormProps)
       <div className="flex flex-col gap-4 xs:flex-row">
         <div className="xs:flex-1">
           <label htmlFor="goal-target" className={LABEL_CLASS}>
-            Target value
+            Weekly target
           </label>
-          <input
-            id="goal-target"
-            type="number"
-            inputMode="decimal"
-            min="0"
-            step="any"
-            value={values.targetValue}
-            onChange={(e) => update("targetValue", e.target.value)}
-            placeholder="12"
-            aria-invalid={Boolean(fieldErrors.targetValue)}
-            className={FIELD_CLASS}
-          />
-          {fieldErrors.targetValue && <FieldError>{fieldErrors.targetValue}</FieldError>}
+          <div className="relative">
+            <input
+              id="goal-target"
+              type="number"
+              inputMode="decimal"
+              min="0"
+              step="any"
+              value={values.weeklyTarget}
+              onChange={(e) => update("weeklyTarget", e.target.value)}
+              placeholder="5"
+              aria-invalid={Boolean(fieldErrors.weeklyTarget)}
+              className={`${FIELD_CLASS} pr-16`}
+            />
+            <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-sm font-medium text-gray-400">
+              / week
+            </span>
+          </div>
+          {fieldErrors.weeklyTarget && <FieldError>{fieldErrors.weeklyTarget}</FieldError>}
         </div>
 
         <div className="xs:flex-1">

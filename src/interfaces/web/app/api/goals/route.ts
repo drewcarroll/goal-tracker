@@ -37,7 +37,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const goal = await createGoalUseCase.execute({
       userId: ownerId,
       name: parsed.data.name,
-      targetValue: parsed.data.targetValue,
+      weeklyTarget: parsed.data.weeklyTarget,
       unit: parsed.data.unit,
       startDate: parsed.data.startDate,
       endDate: parsed.data.endDate,

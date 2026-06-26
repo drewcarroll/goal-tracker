@@ -30,7 +30,7 @@ export async function PUT(
       userId: ownerId,
       goalId: params.id,
       name: parsed.data.name,
-      targetValue: parsed.data.targetValue,
+      weeklyTarget: parsed.data.weeklyTarget,
       unit: parsed.data.unit,
       startDate: parsed.data.startDate,
       endDate: parsed.data.endDate,

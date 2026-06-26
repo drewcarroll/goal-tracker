@@ -5,16 +5,17 @@ import { ValidationError } from "../errors/DomainError";
 
 const service = new ProjectionService();
 
-// A 5-week session: Jan 1 -> Feb 5 (UTC), exclusive end (35 days = 5 weeks).
-const start = new Date("2026-01-01T00:00:00.000Z");
-const end = new Date("2026-02-05T00:00:00.000Z");
+// A 5-week session anchored on a Monday: Jan 5 -> Feb 9 (UTC), exclusive end
+// (35 days = 5 Mon–Sun weeks).
+const start = new Date("2026-01-05T00:00:00.000Z");
+const end = new Date("2026-02-09T00:00:00.000Z");
 const timeframe = SessionTimeframe.create({ start, end });
 
-// Target 50 over 5 weeks -> weekly target of 10.
-const targetValue = 50;
+// Weekly target of 10 over a 5-week session -> total of 50.
+const weeklyTarget = 10;
 
-// "Week 3": today sits in week index 2 (Jan 15 onward, before Jan 22).
-const inWeek3 = new Date("2026-01-16T00:00:00.000Z");
+// "Week 3": today sits in week index 2 (Jan 19 onward, before Jan 26).
+const inWeek3 = new Date("2026-01-20T00:00:00.000Z");
 
 describe("ProjectionService — week-3 example (AC #5)", () => {
   // Weeks 1-2 (index 0,1) under target; week 3 (index 2) is current; rest future.
@@ -25,9 +26,9 @@ describe("ProjectionService — week-3 example (AC #5)", () => {
     { weekIndex: 2, value: 4 }, // current week, partial so far (under 10)
   ];
 
-  const projection = service.project({ timeframe, targetValue, today: inWeek3, logs });
+  const projection = service.project({ timeframe, weeklyTarget, today: inWeek3, logs });
 
-  it("derives the weekly target by splitting the timeframe", () => {
+  it("carries the weekly target through and counts the weeks", () => {
     expect(projection.weeklyTarget).toBe(10);
     expect(projection.totalWeeks).toBe(5);
   });
@@ -47,11 +48,11 @@ describe("ProjectionService — week-3 example (AC #5)", () => {
     });
   });
 
-  it("current and future weeks contribute at least the weekly target (AC #2)", () => {
+  it("the current week counts its actual; future weeks the weekly target (AC #2)", () => {
     expect(projection.weeks[2]).toMatchObject({
       weekIndex: 2,
       actual: 4,
-      contribution: 10,
+      contribution: 4, // current week counts what's logged so far, not the target
       kind: "current",
     });
     expect(projection.weeks[3]).toMatchObject({
@@ -68,8 +69,8 @@ describe("ProjectionService — week-3 example (AC #5)", () => {
     });
   });
 
-  it("projects 6 + 8 + 10 + 10 + 10 = 44", () => {
-    expect(projection.total).toBe(44);
+  it("projects 6 + 8 + 4 + 10 + 10 = 38", () => {
+    expect(projection.total).toBe(38);
   });
 });
 
@@ -80,7 +81,7 @@ describe("over-delivery is a bonus, never a penalty (AC #3)", () => {
     { weekIndex: 2, value: 12 }, // current week OVER target -> bonus kept
   ];
 
-  const projection = service.project({ timeframe, targetValue, today: inWeek3, logs });
+  const projection = service.project({ timeframe, weeklyTarget, today: inWeek3, logs });
 
   it("keeps over-delivery from a past week", () => {
     expect(projection.weeks[0]?.contribution).toBe(15);
@@ -102,32 +103,34 @@ describe("recalculates when the goal is edited (AC #4)", () => {
     { weekIndex: 1, value: 8 },
     { weekIndex: 2, value: 4 },
   ];
-  const base = service.project({ timeframe, targetValue, today: inWeek3, logs });
+  const base = service.project({ timeframe, weeklyTarget, today: inWeek3, logs });
 
   it("changes when the target changes", () => {
-    const doubled = service.project({ timeframe, targetValue: 100, today: inWeek3, logs });
-    // weekly target 20: past 6 + 8, then 20 + 20 + 20 = 74
+    const doubled = service.project({ timeframe, weeklyTarget: 20, today: inWeek3, logs });
+    // weekly target 20: started weeks 6 + 8 + 4 (current actual), then 20 + 20 = 58
     expect(doubled.weeklyTarget).toBe(20);
-    expect(doubled.total).toBe(74);
+    expect(doubled.total).toBe(58);
     expect(doubled.total).not.toBe(base.total);
   });
 
   it("changes when the timeframe changes", () => {
-    // Extend to 10 weeks -> weekly target 5; today is still in week index 2.
-    const longer = SessionTimeframe.create({ start, end: new Date("2026-03-12T00:00:00.000Z") });
-    const projection = service.project({ timeframe: longer, targetValue, today: inWeek3, logs });
-    // past 6 + 8 = 14; eight current/future weeks at 5 = 40 -> 54
+    // Extend to 10 weeks; the weekly target stays 10 (it's the source of truth),
+    // so the projection grows. Today is still in week index 2.
+    const longer = SessionTimeframe.create({ start, end: new Date("2026-03-16T00:00:00.000Z") });
+    const projection = service.project({ timeframe: longer, weeklyTarget, today: inWeek3, logs });
+    // started weeks 6 + 8 + 4 (current) = 18; seven future weeks at 10 = 70 -> 88
     expect(projection.totalWeeks).toBe(10);
-    expect(projection.weeklyTarget).toBe(5);
-    expect(projection.total).toBe(54);
+    expect(projection.weeklyTarget).toBe(10);
+    expect(projection.total).toBe(88);
+    expect(projection.total).not.toBe(base.total);
   });
 
   it("ignores logs left outside the range after the timeframe is shortened", () => {
-    const shorter = SessionTimeframe.create({ start, end: new Date("2026-01-22T00:00:00.000Z") }); // 3 weeks
+    const shorter = SessionTimeframe.create({ start, end: new Date("2026-01-26T00:00:00.000Z") }); // 3 weeks
     const withStale: WeeklyLogEntry[] = [...logs, { weekIndex: 4, value: 999 }];
     const projection = service.project({
       timeframe: shorter,
-      targetValue,
+      weeklyTarget,
       today: inWeek3,
       logs: withStale,
     });
@@ -146,19 +149,19 @@ describe("session boundaries", () => {
   it("before the session, every week is projected at the weekly target", () => {
     const projection = service.project({
       timeframe,
-      targetValue,
-      today: new Date("2025-12-01T00:00:00.000Z"),
+      weeklyTarget,
+      today: new Date("2025-12-05T00:00:00.000Z"),
       logs: [],
     });
     expect(projection.weeks.every((w) => w.kind !== "past")).toBe(true);
-    expect(projection.total).toBe(targetValue); // 5 * 10
+    expect(projection.total).toBe(50); // weekly 10 × 5 weeks
   });
 
   it("after the session ends, the total is exactly the actual logged sum", () => {
     const projection = service.project({
       timeframe,
-      targetValue,
-      today: new Date("2026-03-01T00:00:00.000Z"),
+      weeklyTarget,
+      today: new Date("2026-03-05T00:00:00.000Z"),
       logs,
     });
     expect(projection.weeks.every((w) => w.kind === "past")).toBe(true);
@@ -167,8 +170,8 @@ describe("session boundaries", () => {
 });
 
 describe("validation", () => {
-  it("rejects a negative target value", () => {
-    expect(() => service.project({ timeframe, targetValue: -1, today: inWeek3, logs: [] })).toThrow(
+  it("rejects a negative weekly target", () => {
+    expect(() => service.project({ timeframe, weeklyTarget: -1, today: inWeek3, logs: [] })).toThrow(
       ValidationError,
     );
   });

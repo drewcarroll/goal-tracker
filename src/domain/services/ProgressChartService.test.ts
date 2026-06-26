@@ -6,19 +6,20 @@ import { SessionTimeframe } from "../value-objects/SessionTimeframe";
 const projectionService = new ProjectionService();
 const chartService = new ProgressChartService();
 
-// A 5-week session: Jan 1 -> Feb 5 (UTC), exclusive end (35 days = 5 weeks).
-const start = new Date("2026-01-01T00:00:00.000Z");
-const end = new Date("2026-02-05T00:00:00.000Z");
+// A 5-week session anchored on a Monday: Jan 5 -> Feb 9 (UTC), exclusive end
+// (35 days = 5 Mon–Sun weeks).
+const start = new Date("2026-01-05T00:00:00.000Z");
+const end = new Date("2026-02-09T00:00:00.000Z");
 const timeframe = SessionTimeframe.create({ start, end });
 
-// Target 50 over 5 weeks -> weekly target of 10.
-const targetValue = 50;
+// Weekly target of 10 over a 5-week session -> total of 50.
+const weeklyTarget = 10;
 
-// "today" sits in week index 2 (Jan 15 onward, before Jan 22).
-const inWeek3 = new Date("2026-01-16T00:00:00.000Z");
+// "today" sits in week index 2 (Jan 19 onward, before Jan 26).
+const inWeek3 = new Date("2026-01-20T00:00:00.000Z");
 
 function chartFor(today: Date, logs: WeeklyLogEntry[]) {
-  return chartService.build(projectionService.project({ timeframe, targetValue, today, logs }));
+  return chartService.build(projectionService.project({ timeframe, weeklyTarget, today, logs }));
 }
 
 describe("ProgressChartService — mid-session", () => {
@@ -34,8 +35,8 @@ describe("ProgressChartService — mid-session", () => {
     expect(chart.weeklyTarget).toBe(10);
     expect(chart.totalWeeks).toBe(5);
     expect(chart.targetTotal).toBe(50);
-    // 6 + 8 + max(10,4) + 10 + 10 = 44
-    expect(chart.projectedTotal).toBe(44);
+    // 6 + 8 + 4 (current actual) + 10 + 10 = 38
+    expect(chart.projectedTotal).toBe(38);
   });
 
   it("returns per-week logged totals and the flat weekly target line (AC #1, #2)", () => {
@@ -53,8 +54,8 @@ describe("ProgressChartService — mid-session", () => {
   });
 
   it("accumulates the projected series across the whole session (AC #3)", () => {
-    // running contributions: 6, 14, 24, 34, 44
-    expect(chart.weeks.map((w) => w.cumulativeProjected)).toEqual([6, 14, 24, 34, 44]);
+    // running contributions: 6, 14, 18 (actual through current), then +10, +10
+    expect(chart.weeks.map((w) => w.cumulativeProjected)).toEqual([6, 14, 18, 28, 38]);
     expect(chart.weeks.at(-1)?.cumulativeProjected).toBe(chart.projectedTotal);
   });
 
@@ -65,7 +66,7 @@ describe("ProgressChartService — mid-session", () => {
 
 describe("ProgressChartService — boundaries", () => {
   it("before the session, no actuals have accrued yet", () => {
-    const chart = chartFor(new Date("2025-12-01T00:00:00.000Z"), []);
+    const chart = chartFor(new Date("2025-12-05T00:00:00.000Z"), []);
     // Week 0 is treated as current (non-future) so it carries a 0 actual; rest null.
     expect(chart.weeks.map((w) => w.cumulativeActual)).toEqual([0, null, null, null, null]);
     expect(chart.projectedTotal).toBe(50); // 5 * 10
@@ -77,7 +78,7 @@ describe("ProgressChartService — boundaries", () => {
       { weekIndex: 1, value: 8 },
       { weekIndex: 2, value: 4 },
     ];
-    const chart = chartFor(new Date("2026-03-01T00:00:00.000Z"), logs);
+    const chart = chartFor(new Date("2026-03-05T00:00:00.000Z"), logs);
     expect(chart.weeks.map((w) => w.cumulativeActual)).toEqual([6, 14, 18, 18, 18]);
     // With no padding once ended, projected equals actual.
     expect(chart.weeks.map((w) => w.cumulativeProjected)).toEqual([6, 14, 18, 18, 18]);

@@ -23,7 +23,7 @@ export class CreateGoalUseCase {
       sessionId: this.idGenerator.generate(),
       userId: dto.userId,
       name: dto.name,
-      targetValue: dto.targetValue,
+      weeklyTarget: dto.weeklyTarget,
       unit: dto.unit,
       startDate: new Date(dto.startDate),
       endDate: new Date(dto.endDate),

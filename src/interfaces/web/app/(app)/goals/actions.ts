@@ -5,10 +5,22 @@ import { getContainer } from "@/infrastructure/container";
 import type { GoalDTO } from "@/application/dtos/GoalDTO";
 import { createGoalSchema, updateGoalSchema } from "@/interfaces/web/http/validation";
 
+/**
+ * Goals feed every tab: Home (quick-log + this-week status) and Progress
+ * (charts) are derived from them, so a goal mutation must revalidate them all,
+ * not just /goals — otherwise a freshly created goal won't appear on Home.
+ */
+function revalidateGoalDerivedPages(): void {
+  revalidatePath("/home");
+  revalidatePath("/goals");
+  revalidatePath("/progress");
+}
+
 /** Raw values as they arrive from the form (all strings). */
 export interface GoalFormValues {
   name: string;
-  targetValue: string;
+  /** Per-week rate, as typed; the session total is derived server-side. */
+  weeklyTarget: string;
   unit: string;
   startDate: string;
   endDate: string;
@@ -23,7 +35,7 @@ export type GoalActionResult =
 /** Map a ZodError's flattened field errors to one message per field. */
 function toFieldErrors(fieldErrors: Record<string, string[] | undefined>): GoalFieldErrors {
   const result: GoalFieldErrors = {};
-  for (const key of ["name", "targetValue", "unit", "startDate", "endDate"] as const) {
+  for (const key of ["name", "weeklyTarget", "unit", "startDate", "endDate"] as const) {
     const message = fieldErrors[key]?.[0];
     if (message) {
       result[key] = message;
@@ -55,7 +67,7 @@ export async function createGoalAction(values: GoalFormValues): Promise<GoalActi
 
   try {
     const goal = await createGoalUseCase.execute({ userId: ownerId, ...parsed.data });
-    revalidatePath("/goals");
+    revalidateGoalDerivedPages();
     return { ok: true, goal };
   } catch (error) {
     return { ok: false, error: toErrorMessage(error) };
@@ -79,7 +91,7 @@ export async function updateGoalAction(
 
   try {
     const goal = await updateGoalUseCase.execute({ userId: ownerId, goalId, ...parsed.data });
-    revalidatePath("/goals");
+    revalidateGoalDerivedPages();
     return { ok: true, goal };
   } catch (error) {
     return { ok: false, error: toErrorMessage(error) };
@@ -93,7 +105,7 @@ export async function deleteGoalAction(goalId: string): Promise<DeleteActionResu
 
   try {
     await deleteGoalUseCase.execute({ userId: ownerId, goalId });
-    revalidatePath("/goals");
+    revalidateGoalDerivedPages();
     return { ok: true };
   } catch (error) {
     return { ok: false, error: toErrorMessage(error) };

@@ -9,7 +9,9 @@
 -- role) can. This is a single-user app: every row's user_id is the fixed owner
 -- id from src/infrastructure/config/owner.ts.
 
--- A goal, e.g. name "Read books", target_value 12, unit "books".
+-- A goal, e.g. name "Read books", 5 pages per week, unit "books".
+-- `target_value` holds the PER-WEEK rate (the source of truth); the whole-
+-- session total is derived in the app as rate × number of weeks.
 create table if not exists public.goals (
   id           uuid primary key default gen_random_uuid(),
   user_id      uuid not null,

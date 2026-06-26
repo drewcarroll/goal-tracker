@@ -27,8 +27,8 @@ class InMemoryLogRepository implements LogRepository {
   }
 }
 
-// Jan 16 sits in week index 2 of a Jan 1 -> Feb 5 session.
-const NOW = new Date("2026-01-16T00:00:00.000Z");
+// Jan 20 sits in week index 2 of a Jan 5 -> Feb 9 session.
+const NOW = new Date("2026-01-20T00:00:00.000Z");
 const fixedClock: Clock = { now: () => NOW };
 const fixedIds: IdGenerator = { generate: () => "log-1" };
 
@@ -38,11 +38,11 @@ function makeGoal() {
     userId: "user-1",
     sessionId: "session-1",
     name: "Read books",
-    targetValue: 50,
+    weeklyTarget: 10, // 10/week × 5 weeks = 50 total
     unit: "books",
-    startDate: new Date("2026-01-01T00:00:00.000Z"),
-    endDate: new Date("2026-02-05T00:00:00.000Z"),
-    now: new Date("2026-01-01T00:00:00.000Z"),
+    startDate: new Date("2026-01-05T00:00:00.000Z"),
+    endDate: new Date("2026-02-09T00:00:00.000Z"),
+    now: new Date("2026-01-05T00:00:00.000Z"),
   });
 }
 

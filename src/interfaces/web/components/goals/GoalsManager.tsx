@@ -13,10 +13,13 @@ import { GoalForm } from "./GoalForm";
 type View = { kind: "list" } | { kind: "create" } | { kind: "edit"; goalId: string };
 
 function formatDate(iso: string): string {
+  // Session dates are calendar dates pinned to UTC midnight; render them in UTC
+  // so the day shown matches what was entered regardless of the viewer's zone.
   return new Date(iso).toLocaleDateString(undefined, {
     year: "numeric",
     month: "short",
     day: "numeric",
+    timeZone: "UTC",
   });
 }
 

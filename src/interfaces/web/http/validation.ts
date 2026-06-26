@@ -19,10 +19,10 @@ const dateString = z
 export const goalInputSchema = z
   .object({
     name: z.string().trim().min(1, "Name is required").max(200, "Name is too long"),
-    targetValue: z.coerce
-      .number({ invalid_type_error: "Target value must be a number" })
-      .finite("Target value must be a number")
-      .positive("Target value must be greater than zero"),
+    weeklyTarget: z.coerce
+      .number({ invalid_type_error: "Weekly target must be a number" })
+      .finite("Weekly target must be a number")
+      .positive("Weekly target must be greater than zero"),
     unit: z.string().trim().min(1, "Unit is required").max(50, "Unit is too long"),
     startDate: dateString,
     endDate: dateString,

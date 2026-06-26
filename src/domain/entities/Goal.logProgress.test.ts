@@ -2,23 +2,23 @@ import { describe, it, expect } from "vitest";
 import { Goal } from "./Goal";
 import { ValidationError } from "../errors/DomainError";
 
-// A 5-week session: Jan 1 -> Feb 5 (UTC), exclusive end (35 days = 5 weeks).
+// A 5-week session anchored on a Monday: Jan 5 -> Feb 9 (UTC), exclusive end.
 function makeGoal() {
   return Goal.create({
     id: "goal-1",
     userId: "user-1",
     sessionId: "session-1",
     name: "Read books",
-    targetValue: 50,
+    weeklyTarget: 10, // 10/week × 5 weeks = 50 total
     unit: "books",
-    startDate: new Date("2026-01-01T00:00:00.000Z"),
-    endDate: new Date("2026-02-05T00:00:00.000Z"),
-    now: new Date("2026-01-01T00:00:00.000Z"),
+    startDate: new Date("2026-01-05T00:00:00.000Z"),
+    endDate: new Date("2026-02-09T00:00:00.000Z"),
+    now: new Date("2026-01-05T00:00:00.000Z"),
   });
 }
 
-// Jan 16 sits in week index 2 (the third week).
-const inWeek3 = new Date("2026-01-16T00:00:00.000Z");
+// Jan 20 sits in week index 2 (the third week).
+const inWeek3 = new Date("2026-01-20T00:00:00.000Z");
 
 describe("Goal.logProgress", () => {
   it("attributes the log to the week containing `today`", () => {
@@ -80,7 +80,7 @@ describe("Goal.logProgress", () => {
 
     it("allows backfilling any week once the session has ended", () => {
       const goal = makeGoal();
-      const afterEnd = new Date("2026-03-01T00:00:00.000Z");
+      const afterEnd = new Date("2026-03-05T00:00:00.000Z");
       const entry = goal.logProgress({ id: "log-1", value: 5, today: afterEnd, weekIndex: 4 });
       expect(entry.weekIndex).toBe(4);
     });

@@ -46,7 +46,8 @@ export interface CreateGoalDTO {
   /** Owner of the goal — always derived from the session, never client input. */
   userId: string;
   name: string;
-  targetValue: number;
+  /** Per-week rate; the session total is derived as weeklyTarget × weeks. */
+  weeklyTarget: number;
   unit: string;
   startDate: string; // ISO 8601
   endDate: string; // ISO 8601
@@ -57,7 +58,8 @@ export interface UpdateGoalDTO {
   userId: string;
   goalId: string;
   name: string;
-  targetValue: number;
+  /** Per-week rate; the session total is derived as weeklyTarget × weeks. */
+  weeklyTarget: number;
   unit: string;
   startDate: string; // ISO 8601
   endDate: string; // ISO 8601

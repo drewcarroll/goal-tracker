@@ -82,7 +82,9 @@ export class SupabaseGoalRepository implements GoalRepository {
         id: goal.id,
         user_id: goal.userId,
         name: goal.name,
-        target_value: goal.targetValue,
+        // `target_value` stores the per-week rate (the source of truth); the
+        // whole-session total is derived from it and never persisted.
+        target_value: goal.weeklyTarget(),
         unit: goal.unit,
         updated_at: goal.updatedAt.toISOString(),
       },
@@ -125,7 +127,7 @@ export class SupabaseGoalRepository implements GoalRepository {
       userId: row.user_id,
       sessionId: session.id,
       name: row.name,
-      targetValue: Number(row.target_value),
+      weeklyTarget: Number(row.target_value),
       unit: row.unit,
       timeframe: SessionTimeframe.create({
         start: new Date(session.start_date),

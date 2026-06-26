@@ -1,6 +1,7 @@
 import { ValidationError } from "../errors/DomainError";
 
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const WEEK_MS = 7 * DAY_MS;
 
 /** Where `today` falls relative to a session's window. */
 export type SessionPhase = "before" | "active" | "after";
@@ -20,19 +21,26 @@ export interface WeekDerivation {
 /**
  * Value Object for a goal session's [start, end) window.
  *
- * Splits the timeframe into fixed 7-day buckets measured from `start`:
- * week 0 is [start, start+7d), week 1 is [start+7d, start+14d), and so on.
- * The window is half-open — `end` is the exclusive upper boundary — so a
- * duration that is an exact multiple of 7 days yields exactly that many weeks.
+ * Splits the timeframe into calendar weeks that run Monday 00:00 → the
+ * following Monday 00:00 (UTC), i.e. Monday through Sunday inclusive. Week
+ * boundaries are anchored to the Monday of the week containing `start`, so the
+ * first week begins on `start` (and is short when the session starts mid-week)
+ * and the final week ends at `end`; every week in between is a full Mon–Sun
+ * week. The window is half-open — `end` is the exclusive upper boundary.
  *
- * Buckets are measured in absolute elapsed time (UTC instants), so they are
- * unaffected by DST or local-timezone offsets. Immutable; equality by value.
+ * Boundaries are computed from absolute UTC instants, so they are unaffected by
+ * DST or local-timezone offsets. Immutable; equality by value.
  */
 export class SessionTimeframe {
+  /** Monday 00:00 UTC of the week containing `start`; the week-bucket origin. */
+  private readonly weekAnchor: number;
+
   private constructor(
     private readonly start: Date,
     private readonly end: Date,
-  ) {}
+  ) {
+    this.weekAnchor = SessionTimeframe.mondayOf(start.getTime());
+  }
 
   static create(params: { start: Date; end: Date }): SessionTimeframe {
     const { start, end } = params;
@@ -55,9 +63,9 @@ export class SessionTimeframe {
     return new Date(this.end.getTime());
   }
 
-  /** Total number of weekly buckets covering the window (always >= 1). */
+  /** Total number of Mon–Sun weeks the window touches (always >= 1). */
   totalWeeks(): number {
-    return Math.ceil((this.end.getTime() - this.start.getTime()) / WEEK_MS);
+    return Math.ceil((this.end.getTime() - this.weekAnchor) / WEEK_MS);
   }
 
   /** Where `date` sits relative to the [start, end) window. */
@@ -73,22 +81,24 @@ export class SessionTimeframe {
    * after the session it is the final week index (totalWeeks - 1).
    */
   weekIndexOn(date: Date): number {
-    const raw = Math.floor((date.getTime() - this.start.getTime()) / WEEK_MS);
+    const raw = Math.floor((date.getTime() - this.weekAnchor) / WEEK_MS);
     return this.clampWeekIndex(raw);
   }
 
   /**
-   * The [start, end) bounds of the 0-based week bucket at `index`. The final
-   * bucket is truncated to the session end when the window is not an exact
-   * multiple of 7 days. Throws if `index` is outside [0, totalWeeks - 1].
+   * The [start, end) bounds of the 0-based Mon–Sun week bucket at `index`,
+   * clipped to the session window: week 0 begins at the session start (short
+   * when it starts mid-week) and the final week ends at the session end. Throws
+   * if `index` is outside [0, totalWeeks - 1].
    */
   weekRange(index: number): { start: Date; end: Date } {
     const lastIndex = this.totalWeeks() - 1;
     if (!Number.isInteger(index) || index < 0 || index > lastIndex) {
       throw new ValidationError(`Week index must be between 0 and ${lastIndex}.`);
     }
-    const start = this.start.getTime() + index * WEEK_MS;
-    const end = Math.min(start + WEEK_MS, this.end.getTime());
+    const bucketStart = this.weekAnchor + index * WEEK_MS;
+    const start = Math.max(bucketStart, this.start.getTime());
+    const end = Math.min(bucketStart + WEEK_MS, this.end.getTime());
     return { start: new Date(start), end: new Date(end) };
   }
 
@@ -128,5 +138,13 @@ export class SessionTimeframe {
     if (index < 0) return 0;
     if (index > lastIndex) return lastIndex;
     return index;
+  }
+
+  /** Monday 00:00 UTC of the week containing the instant `t` (ms since epoch). */
+  private static mondayOf(t: number): number {
+    const dayOfWeek = new Date(t).getUTCDay(); // 0 = Sunday … 6 = Saturday
+    const daysSinceMonday = (dayOfWeek + 6) % 7; // Monday = 0 … Sunday = 6
+    const midnight = Math.floor(t / DAY_MS) * DAY_MS;
+    return midnight - daysSinceMonday * DAY_MS;
   }
 }

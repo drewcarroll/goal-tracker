@@ -18,7 +18,9 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** "Jan 8 – Jan 14" — endDate is exclusive, so show the last included day. */
 function formatWeekRange(week: GoalWeekDTO): string {
-  const opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" };
+  // Week bounds are calendar dates pinned to UTC midnight; render them in UTC so
+  // the days shown match the session regardless of the viewer's zone.
+  const opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric", timeZone: "UTC" };
   const start = new Date(week.startDate);
   const lastDay = new Date(new Date(week.endDate).getTime() - DAY_MS);
   return `${start.toLocaleDateString(undefined, opts)} – ${lastDay.toLocaleDateString(undefined, opts)}`;

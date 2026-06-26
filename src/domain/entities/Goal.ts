@@ -14,8 +14,12 @@ export interface GoalProps {
   /** Identity of the goal's one-to-one session (its [start, end) window). */
   sessionId: string;
   name: string;
-  /** The numeric target the user is working toward (e.g. 12). Always > 0. */
-  targetValue: number;
+  /**
+   * The per-week rate the user commits to (e.g. 5). Always > 0. The whole-
+   * session total is derived from it (weeklyTarget × number of weeks), so the
+   * weekly figure stays exactly what the user entered — never a division result.
+   */
+  weeklyTarget: number;
   /** Freeform unit the target is measured in (e.g. "books", "km"). */
   unit: string;
   /** The timeframe the goal is pursued over. */
@@ -29,7 +33,8 @@ export interface GoalProps {
 /** The mutable fields a user can supply when creating or editing a goal. */
 interface GoalDetails {
   name: string;
-  targetValue: number;
+  /** The per-week rate the user commits to. The session total is derived from it. */
+  weeklyTarget: number;
   unit: string;
   startDate: Date;
   endDate: Date;
@@ -52,7 +57,7 @@ export class Goal {
   /** Reconstitute an existing Goal (e.g. from a repository). */
   static rehydrate(props: GoalProps): Goal {
     Goal.assertValidName(props.name);
-    Goal.assertValidTargetValue(props.targetValue);
+    Goal.assertValidWeeklyTarget(props.weeklyTarget);
     Goal.assertValidUnit(props.unit);
     return new Goal(props);
   }
@@ -63,24 +68,26 @@ export class Goal {
     userId: string;
     sessionId: string;
     name: string;
-    targetValue: number;
+    /** The per-week rate; the session total is derived as weeklyTarget × weeks. */
+    weeklyTarget: number;
     unit: string;
     startDate: Date;
     endDate: Date;
     now?: Date;
   }): Goal {
     Goal.assertValidName(params.name);
-    Goal.assertValidTargetValue(params.targetValue);
+    Goal.assertValidWeeklyTarget(params.weeklyTarget);
     Goal.assertValidUnit(params.unit);
+    const timeframe = SessionTimeframe.create({ start: params.startDate, end: params.endDate });
     const now = params.now ?? new Date();
     return new Goal({
       id: params.id,
       userId: params.userId,
       sessionId: params.sessionId,
       name: params.name.trim(),
-      targetValue: params.targetValue,
+      weeklyTarget: params.weeklyTarget,
       unit: params.unit.trim(),
-      timeframe: SessionTimeframe.create({ start: params.startDate, end: params.endDate }),
+      timeframe,
       logs: [],
       createdAt: now,
       updatedAt: now,
@@ -90,15 +97,16 @@ export class Goal {
   /** Apply user edits to an existing goal, re-validating every invariant. */
   edit(details: GoalDetails, now: Date = new Date()): void {
     Goal.assertValidName(details.name);
-    Goal.assertValidTargetValue(details.targetValue);
+    Goal.assertValidWeeklyTarget(details.weeklyTarget);
     Goal.assertValidUnit(details.unit);
-    this.props.name = details.name.trim();
-    this.props.targetValue = details.targetValue;
-    this.props.unit = details.unit.trim();
-    this.props.timeframe = SessionTimeframe.create({
+    const timeframe = SessionTimeframe.create({
       start: details.startDate,
       end: details.endDate,
     });
+    this.props.name = details.name.trim();
+    this.props.weeklyTarget = details.weeklyTarget;
+    this.props.unit = details.unit.trim();
+    this.props.timeframe = timeframe;
     this.props.updatedAt = now;
   }
 
@@ -163,12 +171,12 @@ export class Goal {
     }
   }
 
-  private static assertValidTargetValue(targetValue: number): void {
-    if (!Number.isFinite(targetValue)) {
-      throw new ValidationError("Target value must be a number.");
+  private static assertValidWeeklyTarget(weeklyTarget: number): void {
+    if (!Number.isFinite(weeklyTarget)) {
+      throw new ValidationError("Weekly target must be a number.");
     }
-    if (targetValue <= 0) {
-      throw new ValidationError("Target value must be greater than zero.");
+    if (weeklyTarget <= 0) {
+      throw new ValidationError("Weekly target must be greater than zero.");
     }
   }
 
@@ -195,8 +203,9 @@ export class Goal {
   get name(): string {
     return this.props.name;
   }
+  /** The whole-session total, derived as the weekly rate × number of weeks. */
   get targetValue(): number {
-    return this.props.targetValue;
+    return this.props.weeklyTarget * this.props.timeframe.totalWeeks();
   }
   get unit(): string {
     return this.props.unit;
@@ -210,7 +219,7 @@ export class Goal {
    * user must sustain). Mirrors the weekly target used by the projection.
    */
   weeklyTarget(): number {
-    return this.props.targetValue / this.props.timeframe.totalWeeks();
+    return this.props.weeklyTarget;
   }
 
   /**
@@ -221,7 +230,7 @@ export class Goal {
   project(today: Date): Projection {
     return Goal.projectionService.project({
       timeframe: this.props.timeframe,
-      targetValue: this.props.targetValue,
+      weeklyTarget: this.props.weeklyTarget,
       today,
       logs: this.props.logs,
     });

@@ -24,7 +24,7 @@ export interface WeekProjection {
 export interface Projection {
   /** Σ contributions across every week of the session. */
   total: number;
-  /** targetValue split evenly across the session's weeks. */
+  /** The per-week rate the user committed to (the goal's weekly target). */
   weeklyTarget: number;
   totalWeeks: number;
   weeks: WeekProjection[];
@@ -33,12 +33,18 @@ export interface Projection {
 /**
  * Domain Service — computes the "what you'll accomplish" projection for a goal.
  *
- * Past completed weeks count their actual logged totals (under-delivery is real
- * and is not padded up). The current week and all future weeks are assumed to
- * reach at least the weekly target, while any over-delivery is kept on top as a
- * bonus — it adds to the total and never subtracts.
+ * Every week that has already started — past weeks AND the current, in-progress
+ * one — counts its actual logged total, so the projection reflects what has
+ * really been accomplished so far (over-delivery is kept, under-delivery is not
+ * padded up). Only weeks that are still entirely ahead are assumed to reach the
+ * weekly target.
  *
- *   total = Σ(actual_past_weeks) + Σ(max(weeklyTarget, actual) for current + future weeks)
+ *   total = Σ(actual for weeks already started, incl. the current one)
+ *         + Σ(weeklyTarget for weeks still ahead)
+ *
+ * Before the session starts no week has begun, so every week is projected at the
+ * weekly target (total === targetValue). After it ends every week has elapsed,
+ * so the total is exactly the actual logged sum.
  *
  * Pure; no I/O. Re-deriving everything from the supplied target and timeframe on
  * each call means the projection recalculates correctly whenever a goal's target
@@ -47,23 +53,29 @@ export interface Projection {
 export class ProjectionService {
   project(params: {
     timeframe: SessionTimeframe;
-    targetValue: number;
+    weeklyTarget: number;
     today: Date;
     logs: ReadonlyArray<WeeklyLogEntry>;
   }): Projection {
-    const { timeframe, targetValue, today, logs } = params;
+    const { timeframe, weeklyTarget, today, logs } = params;
 
-    if (!Number.isFinite(targetValue) || targetValue < 0) {
-      throw new ValidationError("Goal target value must be a non-negative number.");
+    if (!Number.isFinite(weeklyTarget) || weeklyTarget < 0) {
+      throw new ValidationError("Goal weekly target must be a non-negative number.");
     }
 
     const totalWeeks = timeframe.totalWeeks();
-    const weeklyTarget = targetValue / totalWeeks;
+    const phase = timeframe.phaseOn(today);
 
-    // First week that is still current or in the future. Before the session
-    // every week is projected; after it ends every week is in the past.
-    const firstProjectedWeek =
-      timeframe.phaseOn(today) === "after" ? totalWeeks : timeframe.weekIndexOn(today);
+    // The last week that has already started as of `today`. Weeks through here
+    // (past + the current one) count their actual logged amounts; weeks still
+    // ahead are projected at the weekly target. Before the session no week has
+    // begun (-1 → everything projected); after it ends every week has.
+    const lastStartedWeek =
+      phase === "before" ? -1 : phase === "after" ? totalWeeks - 1 : timeframe.weekIndexOn(today);
+
+    // The week `today` falls in, used only to label past/current/future. Before
+    // the session this clamps to 0 and after it to the final week.
+    const currentWeekIndex = phase === "after" ? totalWeeks : timeframe.weekIndexOn(today);
 
     const actualByWeek = this.aggregateByWeek(logs);
 
@@ -72,18 +84,23 @@ export class ProjectionService {
 
     for (let weekIndex = 0; weekIndex < totalWeeks; weekIndex += 1) {
       const actual = actualByWeek.get(weekIndex) ?? 0;
-      const isPast = weekIndex < firstProjectedWeek;
+      const hasStarted = weekIndex <= lastStartedWeek;
 
-      // Past weeks contribute their actual total; current/future weeks contribute
-      // at least the weekly target, with over-delivery kept as bonus.
-      const contribution = isPast ? actual : Math.max(weeklyTarget, actual);
+      // Started weeks (past + current) contribute what was actually logged; weeks
+      // still ahead are projected at the weekly target.
+      const contribution = hasStarted ? actual : weeklyTarget;
       total += contribution;
 
       weeks.push({
         weekIndex,
         actual,
         contribution,
-        kind: isPast ? "past" : weekIndex === firstProjectedWeek ? "current" : "future",
+        kind:
+          weekIndex < currentWeekIndex
+            ? "past"
+            : weekIndex === currentWeekIndex
+              ? "current"
+              : "future",
       });
     }
 
