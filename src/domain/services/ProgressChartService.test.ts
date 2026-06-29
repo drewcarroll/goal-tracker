@@ -35,8 +35,8 @@ describe("ProgressChartService — mid-session", () => {
     expect(chart.weeklyTarget).toBe(10);
     expect(chart.totalWeeks).toBe(5);
     expect(chart.targetTotal).toBe(50);
-    // 6 + 8 + 4 (current actual) + 10 + 10 = 38
-    expect(chart.projectedTotal).toBe(38);
+    // 6 + 8 + max(10,4) + 10 + 10 = 44
+    expect(chart.projectedTotal).toBe(44);
   });
 
   it("returns per-week logged totals and the flat weekly target line (AC #1, #2)", () => {
@@ -54,8 +54,8 @@ describe("ProgressChartService — mid-session", () => {
   });
 
   it("accumulates the projected series across the whole session (AC #3)", () => {
-    // running contributions: 6, 14, 18 (actual through current), then +10, +10
-    expect(chart.weeks.map((w) => w.cumulativeProjected)).toEqual([6, 14, 18, 28, 38]);
+    // running contributions: 6, 14, 24 (current at target), 34, 44
+    expect(chart.weeks.map((w) => w.cumulativeProjected)).toEqual([6, 14, 24, 34, 44]);
     expect(chart.weeks.at(-1)?.cumulativeProjected).toBe(chart.projectedTotal);
   });
 

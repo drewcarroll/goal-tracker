@@ -58,12 +58,12 @@ describe("GetProgressDataUseCase", () => {
       weeklyTarget: 10,
       totalWeeks: 5,
       currentWeekIndex: 2,
-      projectedTotal: 38,
+      projectedTotal: 44,
     });
     expect(chart.weeks).toHaveLength(5);
     expect(chart.weeks.map((w) => w.weeklyActual)).toEqual([6, 8, 4, 0, 0]);
     expect(chart.weeks.map((w) => w.cumulativeActual)).toEqual([6, 14, 18, null, null]);
-    expect(chart.weeks.map((w) => w.cumulativeProjected)).toEqual([6, 14, 18, 28, 38]);
+    expect(chart.weeks.map((w) => w.cumulativeProjected)).toEqual([6, 14, 24, 34, 44]);
     expect(chart.weeks.map((w) => w.cumulativeTarget)).toEqual([10, 20, 30, 40, 50]);
     // Each week is labelled with its calendar date range.
     expect(chart.weeks[0]?.startDate).toBe("2026-01-05T00:00:00.000Z");

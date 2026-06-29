@@ -48,11 +48,11 @@ describe("ProjectionService — week-3 example (AC #5)", () => {
     });
   });
 
-  it("the current week counts its actual; future weeks the weekly target (AC #2)", () => {
+  it("current and future weeks contribute at least the weekly target (AC #2)", () => {
     expect(projection.weeks[2]).toMatchObject({
       weekIndex: 2,
       actual: 4,
-      contribution: 4, // current week counts what's logged so far, not the target
+      contribution: 10, // current week stays at the target until you exceed it
       kind: "current",
     });
     expect(projection.weeks[3]).toMatchObject({
@@ -69,8 +69,8 @@ describe("ProjectionService — week-3 example (AC #5)", () => {
     });
   });
 
-  it("projects 6 + 8 + 4 + 10 + 10 = 38", () => {
-    expect(projection.total).toBe(38);
+  it("projects 6 + 8 + 10 + 10 + 10 = 44", () => {
+    expect(projection.total).toBe(44);
   });
 });
 
@@ -107,9 +107,9 @@ describe("recalculates when the goal is edited (AC #4)", () => {
 
   it("changes when the target changes", () => {
     const doubled = service.project({ timeframe, weeklyTarget: 20, today: inWeek3, logs });
-    // weekly target 20: started weeks 6 + 8 + 4 (current actual), then 20 + 20 = 58
+    // weekly target 20: past 6 + 8, then current/future at 20 each -> 6+8+20+20+20 = 74
     expect(doubled.weeklyTarget).toBe(20);
-    expect(doubled.total).toBe(58);
+    expect(doubled.total).toBe(74);
     expect(doubled.total).not.toBe(base.total);
   });
 
@@ -118,10 +118,10 @@ describe("recalculates when the goal is edited (AC #4)", () => {
     // so the projection grows. Today is still in week index 2.
     const longer = SessionTimeframe.create({ start, end: new Date("2026-03-16T00:00:00.000Z") });
     const projection = service.project({ timeframe: longer, weeklyTarget, today: inWeek3, logs });
-    // started weeks 6 + 8 + 4 (current) = 18; seven future weeks at 10 = 70 -> 88
+    // past 6 + 8; current at target 10; seven future weeks at 10 = 70 -> 6+8+10+70 = 94
     expect(projection.totalWeeks).toBe(10);
     expect(projection.weeklyTarget).toBe(10);
-    expect(projection.total).toBe(88);
+    expect(projection.total).toBe(94);
     expect(projection.total).not.toBe(base.total);
   });
 

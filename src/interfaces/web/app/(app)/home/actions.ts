@@ -64,6 +64,7 @@ export async function logProgressAction(values: QuickLogFormValues): Promise<Qui
     revalidatePath("/home");
     revalidatePath("/goals");
     revalidatePath("/progress");
+    revalidatePath("/history");
     return { ok: true, log: result.log, goal: result.goal, weekTotal: result.weekTotal };
   } catch (error) {
     return { ok: false, error: toErrorMessage(error) };

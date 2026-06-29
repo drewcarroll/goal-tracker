@@ -19,3 +19,11 @@ export class GoalNotFoundError extends ApplicationError {
     super(`Goal "${goalId}" was not found.`);
   }
 }
+
+export class LogNotFoundError extends ApplicationError {
+  public readonly code = "LOG_NOT_FOUND";
+
+  constructor(logId: string) {
+    super(`Log entry "${logId}" was not found.`);
+  }
+}

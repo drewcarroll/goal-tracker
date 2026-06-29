@@ -38,6 +38,16 @@ function ProgressIcon(props: IconProps) {
   );
 }
 
+function HistoryIcon(props: IconProps) {
+  return (
+    <svg {...baseIconProps} {...props}>
+      <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+      <path d="M3 4v4h4" />
+      <path d="M12 8v4l3 2" />
+    </svg>
+  );
+}
+
 export interface NavItem {
   href: string;
   label: string;
@@ -49,4 +59,5 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { href: "/home", label: "Home", Icon: HomeIcon },
   { href: "/goals", label: "Goals", Icon: GoalsIcon },
   { href: "/progress", label: "Progress", Icon: ProgressIcon },
+  { href: "/history", label: "History", Icon: HistoryIcon },
 ];

@@ -4,6 +4,8 @@ import { DeleteGoalUseCase } from "@/application/use-cases/DeleteGoalUseCase";
 import { ListGoalsUseCase } from "@/application/use-cases/ListGoalsUseCase";
 import { LogProgressUseCase } from "@/application/use-cases/LogProgressUseCase";
 import { GetProgressDataUseCase } from "@/application/use-cases/GetProgressDataUseCase";
+import { GetHistoryUseCase } from "@/application/use-cases/GetHistoryUseCase";
+import { DeleteLogUseCase } from "@/application/use-cases/DeleteLogUseCase";
 import { getServerSupabaseClient } from "./database/supabaseClient";
 import { SupabaseGoalRepository } from "./repositories/SupabaseGoalRepository";
 import { SupabaseLogRepository } from "./repositories/SupabaseLogRepository";
@@ -43,6 +45,8 @@ function buildContainer() {
     listGoalsUseCase: new ListGoalsUseCase(goalRepository, clock),
     logProgressUseCase: new LogProgressUseCase(goalRepository, logRepository, idGenerator, clock),
     getProgressDataUseCase: new GetProgressDataUseCase(goalRepository, clock),
+    getHistoryUseCase: new GetHistoryUseCase(goalRepository, logRepository, clock),
+    deleteLogUseCase: new DeleteLogUseCase(goalRepository, logRepository),
   };
 }
 

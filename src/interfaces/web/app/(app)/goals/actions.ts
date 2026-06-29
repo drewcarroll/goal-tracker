@@ -14,6 +14,7 @@ function revalidateGoalDerivedPages(): void {
   revalidatePath("/home");
   revalidatePath("/goals");
   revalidatePath("/progress");
+  revalidatePath("/history");
 }
 
 /** Raw values as they arrive from the form (all strings). */

@@ -25,6 +25,16 @@ class InMemoryLogRepository implements LogRepository {
   async add(entry: LogEntry): Promise<void> {
     this.added.push(entry);
   }
+  async findById(id: string): Promise<LogEntry | null> {
+    return this.added.find((l) => l.id === id) ?? null;
+  }
+  async findByGoalId(goalId: string): Promise<LogEntry[]> {
+    return this.added.filter((l) => l.goalId === goalId);
+  }
+  async delete(id: string): Promise<void> {
+    const index = this.added.findIndex((l) => l.id === id);
+    if (index >= 0) this.added.splice(index, 1);
+  }
 }
 
 // Jan 20 sits in week index 2 of a Jan 5 -> Feb 9 session.

@@ -33,18 +33,18 @@ export interface Projection {
 /**
  * Domain Service — computes the "what you'll accomplish" projection for a goal.
  *
- * Every week that has already started — past weeks AND the current, in-progress
- * one — counts its actual logged total, so the projection reflects what has
- * really been accomplished so far (over-delivery is kept, under-delivery is not
- * padded up). Only weeks that are still entirely ahead are assumed to reach the
- * weekly target.
+ * Past completed weeks count their actual logged totals (under-delivery is real
+ * and is not padded up). The current week and all future weeks are assumed to
+ * reach at least the weekly target, while any over-delivery is kept on top as a
+ * bonus — it adds to the total and never subtracts. So logging within the
+ * current week's target leaves the projection flat; only exceeding it (e.g. 8 of
+ * a 7 target) nudges it up, by the overage.
  *
- *   total = Σ(actual for weeks already started, incl. the current one)
- *         + Σ(weeklyTarget for weeks still ahead)
+ *   total = Σ(actual_past_weeks) + Σ(max(weeklyTarget, actual) for current + future weeks)
  *
- * Before the session starts no week has begun, so every week is projected at the
- * weekly target (total === targetValue). After it ends every week has elapsed,
- * so the total is exactly the actual logged sum.
+ * Before the session starts no week has elapsed, so every week is projected at
+ * the weekly target. After it ends every week is past, so the total is exactly
+ * the actual logged sum.
  *
  * Pure; no I/O. Re-deriving everything from the supplied target and timeframe on
  * each call means the projection recalculates correctly whenever a goal's target
@@ -64,18 +64,11 @@ export class ProjectionService {
     }
 
     const totalWeeks = timeframe.totalWeeks();
-    const phase = timeframe.phaseOn(today);
 
-    // The last week that has already started as of `today`. Weeks through here
-    // (past + the current one) count their actual logged amounts; weeks still
-    // ahead are projected at the weekly target. Before the session no week has
-    // begun (-1 → everything projected); after it ends every week has.
-    const lastStartedWeek =
-      phase === "before" ? -1 : phase === "after" ? totalWeeks - 1 : timeframe.weekIndexOn(today);
-
-    // The week `today` falls in, used only to label past/current/future. Before
-    // the session this clamps to 0 and after it to the final week.
-    const currentWeekIndex = phase === "after" ? totalWeeks : timeframe.weekIndexOn(today);
+    // First week that is still current or in the future. Before the session
+    // every week is projected; after it ends every week is in the past.
+    const firstProjectedWeek =
+      timeframe.phaseOn(today) === "after" ? totalWeeks : timeframe.weekIndexOn(today);
 
     const actualByWeek = this.aggregateByWeek(logs);
 
@@ -84,23 +77,19 @@ export class ProjectionService {
 
     for (let weekIndex = 0; weekIndex < totalWeeks; weekIndex += 1) {
       const actual = actualByWeek.get(weekIndex) ?? 0;
-      const hasStarted = weekIndex <= lastStartedWeek;
+      const isPast = weekIndex < firstProjectedWeek;
 
-      // Started weeks (past + current) contribute what was actually logged; weeks
-      // still ahead are projected at the weekly target.
-      const contribution = hasStarted ? actual : weeklyTarget;
+      // Past weeks contribute their actual total; the current and future weeks
+      // contribute at least the weekly target, with over-delivery kept as bonus.
+      // So logging within the current week's target doesn't move the projection.
+      const contribution = isPast ? actual : Math.max(weeklyTarget, actual);
       total += contribution;
 
       weeks.push({
         weekIndex,
         actual,
         contribution,
-        kind:
-          weekIndex < currentWeekIndex
-            ? "past"
-            : weekIndex === currentWeekIndex
-              ? "current"
-              : "future",
+        kind: isPast ? "past" : weekIndex === firstProjectedWeek ? "current" : "future",
       });
     }
 
