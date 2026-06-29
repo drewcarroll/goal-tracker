@@ -5,8 +5,8 @@
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
 
-# Env vars required to run the full app (single-user, Supabase-backed).
-REQUIRED_VARS := NEXT_PUBLIC_SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY APP_PASSWORD
+# Env vars required to run the full app (Supabase-backed; sign-in is by username).
+REQUIRED_VARS := NEXT_PUBLIC_SUPABASE_URL SUPABASE_SERVICE_ROLE_KEY
 
 .PHONY: help
 help: ## Show this help

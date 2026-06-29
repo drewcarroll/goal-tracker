@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getContainer } from "@/infrastructure/container";
+import { currentUserId } from "@/interfaces/web/http/currentUser";
 import { updateGoalSchema } from "../../../../http/validation";
 import { toErrorResponse } from "../../../../http/errorResponse";
 
@@ -15,7 +16,8 @@ export async function PUT(
   { params }: { params: { id: string } },
 ): Promise<NextResponse> {
   try {
-    const { ownerId, updateGoalUseCase } = getContainer();
+    const { updateGoalUseCase } = getContainer();
+    const userId = currentUserId();
 
     const body = await request.json();
     const parsed = updateGoalSchema.safeParse(body);
@@ -27,7 +29,7 @@ export async function PUT(
     }
 
     const goal = await updateGoalUseCase.execute({
-      userId: ownerId,
+      userId,
       goalId: params.id,
       name: parsed.data.name,
       weeklyTarget: parsed.data.weeklyTarget,
@@ -47,8 +49,9 @@ export async function DELETE(
   { params }: { params: { id: string } },
 ): Promise<NextResponse> {
   try {
-    const { ownerId, deleteGoalUseCase } = getContainer();
-    await deleteGoalUseCase.execute({ userId: ownerId, goalId: params.id });
+    const { deleteGoalUseCase } = getContainer();
+    const userId = currentUserId();
+    await deleteGoalUseCase.execute({ userId, goalId: params.id });
     return new NextResponse(null, { status: 204 });
   } catch (error) {
     return toErrorResponse(error);

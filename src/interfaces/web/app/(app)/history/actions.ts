@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getContainer } from "@/infrastructure/container";
+import { currentUserId } from "@/interfaces/web/http/currentUser";
 import { quickLogSchema } from "@/interfaces/web/http/validation";
 
 /** Mutating a log changes every goal-derived tab, so refresh them all. */
@@ -32,9 +33,10 @@ export async function deleteLogAction(
   goalId: string,
   logId: string,
 ): Promise<HistoryActionResult> {
-  const { ownerId, deleteLogUseCase } = getContainer();
+  const { deleteLogUseCase } = getContainer();
+  const userId = currentUserId();
   try {
-    await deleteLogUseCase.execute({ userId: ownerId, goalId, logId });
+    await deleteLogUseCase.execute({ userId, goalId, logId });
     revalidateLogDerivedPages();
     return { ok: true };
   } catch (error) {
@@ -48,7 +50,8 @@ export async function addLogToWeekAction(
   weekIndex: number,
   value: string,
 ): Promise<HistoryActionResult> {
-  const { ownerId, logProgressUseCase } = getContainer();
+  const { logProgressUseCase } = getContainer();
+  const userId = currentUserId();
 
   const parsed = quickLogSchema.safeParse({ goalId, value, weekIndex });
   if (!parsed.success) {
@@ -58,7 +61,7 @@ export async function addLogToWeekAction(
 
   try {
     await logProgressUseCase.execute({
-      userId: ownerId,
+      userId,
       goalId: parsed.data.goalId,
       value: parsed.data.value,
       weekIndex: parsed.data.weekIndex,

@@ -1,23 +1,23 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { AUTH_COOKIE, sha256Hex } from "@/interfaces/web/http/password";
+import { USER_COOKIE } from "@/interfaces/web/http/session";
 
 /**
- * Shared-password gate for the whole app (single-user).
+ * Username gate for the whole app.
  *
- * - Page requests without a valid unlock cookie are redirected to /unlock.
+ * - Page requests without a username cookie are redirected to /login.
  * - API requests without it get a 401 (no HTML redirect for JSON clients).
  *
- * The cookie holds sha256(APP_PASSWORD), set by /api/unlock. Here we recompute
- * that hash from the env var and compare — no database, no accounts. Public
- * paths (landing, the unlock screen + endpoint, and the dev-only demo) are
- * reachable without unlocking.
+ * There is no password: /login just stores whichever username is submitted, and
+ * all data is scoped to an id derived from it (see http/currentUser.ts). Public
+ * paths (landing, the login screen + endpoint, and the dev-only demo) are
+ * reachable without signing in.
  */
 
-/** Exact paths that never require the password. */
+/** Exact paths that never require a username. */
 const PUBLIC_EXACT = new Set<string>(["/"]);
-/** Path prefixes that never require the password. */
+/** Path prefixes that never require a username. */
 // `/demo` is a dev-only mock-data preview (it 404s in production).
-const PUBLIC_PREFIXES = ["/unlock", "/api/unlock", "/demo"];
+const PUBLIC_PREFIXES = ["/login", "/api/login", "/demo"];
 
 function isPublic(pathname: string): boolean {
   if (PUBLIC_EXACT.has(pathname)) {
@@ -26,26 +26,24 @@ function isPublic(pathname: string): boolean {
   return PUBLIC_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 }
 
-export async function middleware(request: NextRequest): Promise<NextResponse> {
+export function middleware(request: NextRequest): NextResponse {
   const { pathname } = request.nextUrl;
   if (isPublic(pathname)) {
     return NextResponse.next();
   }
 
-  const password = process.env.APP_PASSWORD ?? "";
-  const expected = password ? await sha256Hex(password) : "";
-  const token = request.cookies.get(AUTH_COOKIE)?.value;
-  const unlocked = expected !== "" && token === expected;
+  const username = request.cookies.get(USER_COOKIE)?.value ?? "";
+  const signedIn = username.trim().length > 0;
 
-  if (!unlocked) {
+  if (!signedIn) {
     if (pathname.startsWith("/api")) {
       return NextResponse.json(
-        { error: { code: "UNAUTHORIZED", message: "Locked. Unlock the app first." } },
+        { error: { code: "UNAUTHORIZED", message: "Sign in first." } },
         { status: 401 },
       );
     }
     const url = request.nextUrl.clone();
-    url.pathname = "/unlock";
+    url.pathname = "/login";
     url.search = "";
     return NextResponse.redirect(url);
   }

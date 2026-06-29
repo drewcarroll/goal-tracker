@@ -1,11 +1,12 @@
 # Setup
 
-This is a **single-user** app. There are no accounts — the whole app sits behind
-one shared password, and your goals live in a Supabase database. You need exactly
-one free service: **Supabase**.
+Sign-in is by **username only** — no passwords, no accounts to create. You type a
+username on the way in and your goals (stored in a Supabase database) are scoped
+to it; the same username always sees the same data. You need exactly one free
+service: **Supabase**.
 
 > Just want to see the charts with mock data? Run `make demo` and open
-> http://localhost:3000/demo — no Supabase, no password needed.
+> http://localhost:3000/demo — no Supabase, no sign-in needed.
 
 ---
 
@@ -40,21 +41,20 @@ cp .env.example .env
 ```
 NEXT_PUBLIC_SUPABASE_URL=https://YOUR-REF.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=eyJ...your-service-role-key...
-APP_PASSWORD=pick-any-password
 ```
-
-`APP_PASSWORD` is the single password you'll type to unlock the app.
 
 ## 5. Run it
 
 ```bash
 make setup       # first time only — installs dependencies
-make env-check   # confirms the 3 vars above are set
+make env-check   # confirms the 2 vars above are set
 make dev         # http://localhost:3000
 ```
 
-Open http://localhost:3000 → you'll be sent to **/unlock** → enter `APP_PASSWORD`
-→ you're in. Create a goal, log progress, and the Progress tab fills with charts.
+Open http://localhost:3000 → you'll be sent to **/login** → type any username and
+click **Next** → you're in. Create a goal, log progress, and the Progress tab
+fills with charts. Use **Switch user** (top-right) to sign in under a different
+username and see that username's data.
 
 ---
 
@@ -65,19 +65,24 @@ Open http://localhost:3000 → you'll be sent to **/unlock** → enter `APP_PASS
 1. Push this repo to GitHub.
 2. Go to https://vercel.com → **Add New… → Project** → import the repo.
    Framework preset auto-detects **Next.js**; no build settings to change.
-3. Under **Environment Variables**, add the same three from your `.env`:
-   `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `APP_PASSWORD`.
+3. Under **Environment Variables**, add the same two from your `.env`:
+   `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`. Paste the raw values
+   with **no surrounding quotes**.
 4. **Deploy**. You'll get a `https://your-app.vercel.app` URL that works on your
    phone and any browser, all reading/writing the same Supabase data.
 
-The shared-password gate protects the deployed URL. To change the password later,
-update `APP_PASSWORD` in Vercel and redeploy (everyone gets logged out).
+The deployed URL is gated by the username screen. Anyone who knows a username can
+see that username's data, so this is light personal-use protection, not real
+auth — pick a username that isn't easy to guess if that matters to you.
 
 ---
 
 ## Notes
 
 - **Reset/inspect data:** use the Supabase **Table Editor** or **SQL Editor**.
-- **No login screen / Google:** removed on purpose — this is a personal app.
+  Each row's `user_id` is derived from the username, so rows for different
+  usernames don't mix.
+- **No passwords / Google:** sign-in is username-only, on purpose — this is a
+  personal app.
 - **Security:** the database is reachable only via the server-side service-role
   key; the public `anon` key has no access (RLS is on with no policies).

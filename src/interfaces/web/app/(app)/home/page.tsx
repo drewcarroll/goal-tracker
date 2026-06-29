@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { getContainer } from "@/infrastructure/container";
+import { currentUserId } from "@/interfaces/web/http/currentUser";
 import { HomeView } from "@/interfaces/web/components/home/HomeView";
 
 export const metadata: Metadata = { title: "Home · Goal Tracker" };
@@ -8,8 +9,9 @@ export const metadata: Metadata = { title: "Home · Goal Tracker" };
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const { ownerId, listGoalsUseCase } = getContainer();
-  const goals = await listGoalsUseCase.execute({ userId: ownerId });
+  const { listGoalsUseCase } = getContainer();
+  const userId = currentUserId();
+  const goals = await listGoalsUseCase.execute({ userId });
 
   return (
     <section className="mx-auto flex w-full max-w-md flex-col gap-6">

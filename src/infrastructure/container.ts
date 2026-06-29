@@ -11,8 +11,6 @@ import { SupabaseGoalRepository } from "./repositories/SupabaseGoalRepository";
 import { SupabaseLogRepository } from "./repositories/SupabaseLogRepository";
 import { UuidGenerator } from "./id/UuidGenerator";
 import { SystemClock } from "./time/SystemClock";
-import { OWNER_ID } from "./config/owner";
-import { env } from "./config/env";
 
 /**
  * Composition Root.
@@ -22,9 +20,9 @@ import { env } from "./config/env";
  * actions, pages) import pre-assembled use cases from here so they never
  * touch infrastructure or domain directly.
  *
- * This is a single-user app: there is no auth service. `ownerId` is the fixed
- * identity every goal/log is scoped to, and `appPassword` backs the shared
- * password gate (see middleware + /api/unlock).
+ * There is no auth service. The id every goal/log is scoped to is derived per
+ * request from the signed-in username (see interfaces/web/http/currentUser.ts)
+ * and passed into the use cases as `userId`.
  */
 function buildContainer() {
   const supabase = getServerSupabaseClient();
@@ -37,8 +35,6 @@ function buildContainer() {
 
   // Application use cases.
   return {
-    ownerId: OWNER_ID,
-    appPassword: env.appPassword(),
     createGoalUseCase: new CreateGoalUseCase(goalRepository, idGenerator, clock),
     updateGoalUseCase: new UpdateGoalUseCase(goalRepository, clock),
     deleteGoalUseCase: new DeleteGoalUseCase(goalRepository),

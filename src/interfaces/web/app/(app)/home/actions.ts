@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getContainer } from "@/infrastructure/container";
+import { currentUserId } from "@/interfaces/web/http/currentUser";
 import type { GoalDTO } from "@/application/dtos/GoalDTO";
 import type { LogDTO } from "@/application/dtos/LogDTO";
 import { quickLogSchema } from "@/interfaces/web/http/validation";
@@ -42,7 +43,8 @@ function toErrorMessage(error: unknown): string {
 }
 
 export async function logProgressAction(values: QuickLogFormValues): Promise<QuickLogActionResult> {
-  const { ownerId, logProgressUseCase } = getContainer();
+  const { logProgressUseCase } = getContainer();
+  const userId = currentUserId();
 
   const parsed = quickLogSchema.safeParse(values);
   if (!parsed.success) {
@@ -55,7 +57,7 @@ export async function logProgressAction(values: QuickLogFormValues): Promise<Qui
 
   try {
     const result = await logProgressUseCase.execute({
-      userId: ownerId,
+      userId,
       goalId: parsed.data.goalId,
       value: parsed.data.value,
       weekIndex: parsed.data.weekIndex,

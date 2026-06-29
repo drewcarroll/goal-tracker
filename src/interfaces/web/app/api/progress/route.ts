@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getContainer } from "@/infrastructure/container";
+import { currentUserId } from "@/interfaces/web/http/currentUser";
 import { toErrorResponse } from "../../../http/errorResponse";
 
 /**
@@ -11,8 +12,9 @@ import { toErrorResponse } from "../../../http/errorResponse";
  */
 export async function GET(): Promise<NextResponse> {
   try {
-    const { ownerId, getProgressDataUseCase } = getContainer();
-    const progress = await getProgressDataUseCase.execute({ userId: ownerId });
+    const { getProgressDataUseCase } = getContainer();
+    const userId = currentUserId();
+    const progress = await getProgressDataUseCase.execute({ userId });
     return NextResponse.json({ data: progress });
   } catch (error) {
     return toErrorResponse(error);

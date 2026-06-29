@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { getContainer } from "@/infrastructure/container";
+import { currentUserId } from "@/interfaces/web/http/currentUser";
 import { HistoryView } from "@/interfaces/web/components/history/HistoryView";
 
 export const metadata: Metadata = { title: "History · Goal Tracker" };
@@ -8,8 +9,9 @@ export const metadata: Metadata = { title: "History · Goal Tracker" };
 export const dynamic = "force-dynamic";
 
 export default async function HistoryPage() {
-  const { ownerId, getHistoryUseCase } = getContainer();
-  const histories = await getHistoryUseCase.execute({ userId: ownerId });
+  const { getHistoryUseCase } = getContainer();
+  const userId = currentUserId();
+  const histories = await getHistoryUseCase.execute({ userId });
 
   return (
     <section className="mx-auto flex w-full max-w-3xl flex-col gap-6">

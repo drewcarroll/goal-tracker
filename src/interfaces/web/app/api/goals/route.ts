@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getContainer } from "@/infrastructure/container";
+import { currentUserId } from "@/interfaces/web/http/currentUser";
 import { createGoalSchema } from "../../../http/validation";
 import { toErrorResponse } from "../../../http/errorResponse";
 
@@ -13,8 +14,9 @@ import { toErrorResponse } from "../../../http/errorResponse";
 
 export async function GET(): Promise<NextResponse> {
   try {
-    const { ownerId, listGoalsUseCase } = getContainer();
-    const goals = await listGoalsUseCase.execute({ userId: ownerId });
+    const { listGoalsUseCase } = getContainer();
+    const userId = currentUserId();
+    const goals = await listGoalsUseCase.execute({ userId });
     return NextResponse.json({ data: goals });
   } catch (error) {
     return toErrorResponse(error);
@@ -23,7 +25,8 @@ export async function GET(): Promise<NextResponse> {
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
-    const { ownerId, createGoalUseCase } = getContainer();
+    const { createGoalUseCase } = getContainer();
+    const userId = currentUserId();
 
     const body = await request.json();
     const parsed = createGoalSchema.safeParse(body);
@@ -35,7 +38,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const goal = await createGoalUseCase.execute({
-      userId: ownerId,
+      userId,
       name: parsed.data.name,
       weeklyTarget: parsed.data.weeklyTarget,
       unit: parsed.data.unit,

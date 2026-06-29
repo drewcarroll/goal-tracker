@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { getContainer } from "@/infrastructure/container";
+import { currentUserId } from "@/interfaces/web/http/currentUser";
 import { ProgressView } from "@/interfaces/web/components/progress/ProgressView";
 
 export const metadata: Metadata = { title: "Progress · Goal Tracker" };
@@ -8,8 +9,9 @@ export const metadata: Metadata = { title: "Progress · Goal Tracker" };
 export const dynamic = "force-dynamic";
 
 export default async function ProgressPage() {
-  const { ownerId, getProgressDataUseCase } = getContainer();
-  const charts = await getProgressDataUseCase.execute({ userId: ownerId });
+  const { getProgressDataUseCase } = getContainer();
+  const userId = currentUserId();
+  const charts = await getProgressDataUseCase.execute({ userId });
 
   return (
     <section className="mx-auto flex w-full max-w-3xl flex-col gap-6">

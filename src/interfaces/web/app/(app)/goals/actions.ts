@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getContainer } from "@/infrastructure/container";
+import { currentUserId } from "@/interfaces/web/http/currentUser";
 import type { GoalDTO } from "@/application/dtos/GoalDTO";
 import { createGoalSchema, updateGoalSchema } from "@/interfaces/web/http/validation";
 
@@ -55,7 +56,8 @@ function toErrorMessage(error: unknown): string {
 }
 
 export async function createGoalAction(values: GoalFormValues): Promise<GoalActionResult> {
-  const { ownerId, createGoalUseCase } = getContainer();
+  const { createGoalUseCase } = getContainer();
+  const userId = currentUserId();
 
   const parsed = createGoalSchema.safeParse(values);
   if (!parsed.success) {
@@ -67,7 +69,7 @@ export async function createGoalAction(values: GoalFormValues): Promise<GoalActi
   }
 
   try {
-    const goal = await createGoalUseCase.execute({ userId: ownerId, ...parsed.data });
+    const goal = await createGoalUseCase.execute({ userId, ...parsed.data });
     revalidateGoalDerivedPages();
     return { ok: true, goal };
   } catch (error) {
@@ -79,7 +81,8 @@ export async function updateGoalAction(
   goalId: string,
   values: GoalFormValues,
 ): Promise<GoalActionResult> {
-  const { ownerId, updateGoalUseCase } = getContainer();
+  const { updateGoalUseCase } = getContainer();
+  const userId = currentUserId();
 
   const parsed = updateGoalSchema.safeParse(values);
   if (!parsed.success) {
@@ -91,7 +94,7 @@ export async function updateGoalAction(
   }
 
   try {
-    const goal = await updateGoalUseCase.execute({ userId: ownerId, goalId, ...parsed.data });
+    const goal = await updateGoalUseCase.execute({ userId, goalId, ...parsed.data });
     revalidateGoalDerivedPages();
     return { ok: true, goal };
   } catch (error) {
@@ -102,10 +105,11 @@ export async function updateGoalAction(
 export type DeleteActionResult = { ok: true } | { ok: false; error: string };
 
 export async function deleteGoalAction(goalId: string): Promise<DeleteActionResult> {
-  const { ownerId, deleteGoalUseCase } = getContainer();
+  const { deleteGoalUseCase } = getContainer();
+  const userId = currentUserId();
 
   try {
-    await deleteGoalUseCase.execute({ userId: ownerId, goalId });
+    await deleteGoalUseCase.execute({ userId, goalId });
     revalidateGoalDerivedPages();
     return { ok: true };
   } catch (error) {

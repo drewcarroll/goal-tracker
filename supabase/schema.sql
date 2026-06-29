@@ -6,8 +6,9 @@
 -- The app connects with the service-role key, which BYPASSES row-level security,
 -- so no policies are needed. RLS is enabled with no policies below so that the
 -- public anon key cannot read or write this data — only the server (service
--- role) can. This is a single-user app: every row's user_id is the fixed owner
--- id from src/infrastructure/config/owner.ts.
+-- role) can. Sign-in is by username: every row's user_id is a UUID derived from
+-- the signed-in username (see src/interfaces/web/http/currentUser.ts), so each
+-- username's data is kept separate.
 
 -- A goal, e.g. name "Read books", 5 pages per week, unit "books".
 -- `target_value` holds the PER-WEEK rate (the source of truth); the whole-
