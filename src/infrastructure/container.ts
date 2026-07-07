@@ -9,6 +9,7 @@ import { DeleteLogUseCase } from "@/application/use-cases/DeleteLogUseCase";
 import { GetHabitCatalogUseCase } from "@/application/use-cases/GetHabitCatalogUseCase";
 import { CreateHabitsFromOnboardingUseCase } from "@/application/use-cases/CreateHabitsFromOnboardingUseCase";
 import { GetActiveHabitsUseCase } from "@/application/use-cases/GetActiveHabitsUseCase";
+import { GetAllHabitsUseCase } from "@/application/use-cases/GetAllHabitsUseCase";
 import { UpdateHabitUseCase } from "@/application/use-cases/UpdateHabitUseCase";
 import { CreateDailyPlanUseCase } from "@/application/use-cases/CreateDailyPlanUseCase";
 import { GetTodayPlanUseCase } from "@/application/use-cases/GetTodayPlanUseCase";
@@ -67,6 +68,7 @@ function buildContainer() {
       clock,
     ),
     getActiveHabitsUseCase: new GetActiveHabitsUseCase(habitRepository),
+    getAllHabitsUseCase: new GetAllHabitsUseCase(habitRepository),
     updateHabitUseCase: new UpdateHabitUseCase(habitRepository),
     createDailyPlanUseCase: new CreateDailyPlanUseCase(
       habitRepository,

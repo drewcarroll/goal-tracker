@@ -28,6 +28,9 @@ export default function AppShellLayout({ children }: { children: ReactNode }) {
           <span>
             Signed in as <span className="font-medium text-gray-700">{username}</span>
           </span>
+          <a href="/settings" className="font-medium text-brand hover:underline">
+            Settings
+          </a>
           <a href="/api/logout" className="font-medium text-brand hover:underline">
             Switch user
           </a>
