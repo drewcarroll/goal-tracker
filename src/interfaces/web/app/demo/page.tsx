@@ -105,7 +105,12 @@ export default function DemoPage() {
             Three goals with different timeframes (5, 16, and 2 weeks).
           </p>
         </div>
-        <ProgressView charts={charts} />
+        <ProgressView
+          charts={charts}
+          habitStats={[]}
+          checkIns={[]}
+          today={new Date().toISOString().slice(0, 10)}
+        />
       </section>
     </main>
   );

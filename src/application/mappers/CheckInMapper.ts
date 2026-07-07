@@ -12,4 +12,8 @@ export class CheckInMapper {
       createdAt: checkIn.createdAt.toISOString(),
     };
   }
+
+  static toDTOList(checkIns: CheckIn[]): CheckInDTO[] {
+    return checkIns.map((c) => CheckInMapper.toDTO(c));
+  }
 }
