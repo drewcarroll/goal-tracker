@@ -113,11 +113,12 @@ Working features that must keep working:
   - [x] (2026-07-07) Screen 2 (optional): Private Journal — lock emoji, "nobody can see this" copy, short text note (280 char cap), mood 1–5. **Photo still deferred** — blocked on the Storage bucket, same as the Phase 1 note
 - [x] (2026-07-07) Apply lock-cost adjustments on submit via `SubmitCheckInUseCase` (already built in Phase 1) — "transactional" caveat from that phase still applies (habits save before the check-in row, see code comment)
   - Verified end-to-end against the live Supabase project, specifically the uniform-day-result rule: a habit individually marked passed still got the FAIL cost bump because a different scheduled habit was missed (25→28, 35→39, matching `LockCostService` exactly). Already-checked-in days correctly show a read-only summary instead of re-prompting. Test data cleaned up after.
-- [ ] `/progress` additions:
-  - [ ] Per-habit lock-cost trajectory chart ("distance to habit formed")
-  - [ ] % of planned days passed, last 30
-  - [ ] Summary strip between graph and goals: "+X% vs yesterday / +X% avg this week"
-  - [ ] Day pass/fail calendar view
+- [x] (2026-07-07) `/progress` additions:
+  - [x] (2026-07-07) Per-habit lock-cost trajectory chart ("distance to habit formed") — `HabitTrajectoryService` (domain) replays each habit's check-ins through `LockCostService` from its difficulty's starting cost, since no cost-history table exists; `GetHabitStatsUseCase` exposes it
+  - [x] (2026-07-07) % of planned days passed, last 30 — same use case, windowed to the habit's check-ins in the last 30 days
+  - [ ] Summary strip between graph and goals: "+X% vs yesterday / +X% avg this week" — **not built, deliberately**: unclear what metric this refers to (habit pass rate? goal completion? both?) and guessing risked throwaway work: needs a product call
+  - [x] (2026-07-07) Day pass/fail calendar view — `GetCheckInHistoryUseCase` + `DayResultCalendar`, 30-day grid, grey (not red) for days with no check-in per the "unplanned days are neutral" rule
+  - Verified end-to-end against the live Supabase project: 5 real check-ins produced a trajectory (24,23,25,24,23) and 80% pass rate matching manual calculation exactly. Test data cleaned up after.
 - [ ] `/history` additions: past check-ins, edit/add/delete with forward cost recompute
 - [ ] Journal history view (private, chronological)
 
