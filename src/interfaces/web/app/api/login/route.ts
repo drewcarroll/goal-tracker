@@ -1,10 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
-import { USER_COOKIE, normalizeUsername } from "../../../http/session";
+import {
+  USER_COOKIE,
+  TIMEZONE_COOKIE,
+  DEFAULT_TIMEZONE,
+  normalizeUsername,
+  isValidTimezone,
+} from "../../../http/session";
 
 /**
  * Stores the submitted username in an httpOnly cookie and redirects to /home.
  * There is no password — the username alone selects which data you see. An empty
  * username bounces back to /login with an error flag.
+ *
+ * Also captures the browser's IANA timezone (sent via a hidden field the login
+ * page's inline script fills in — see login/page.tsx) so habit day boundaries
+ * can use the user's local day instead of server UTC. Falls back to UTC if
+ * absent or unrecognized (e.g. JS disabled).
  */
 export async function POST(request: NextRequest): Promise<NextResponse> {
   const form = await request.formData();
@@ -14,13 +25,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.redirect(new URL("/login?error=1", request.url), 303);
   }
 
+  const submittedTimezone = String(form.get("timezone") ?? "");
+  const timezone = isValidTimezone(submittedTimezone) ? submittedTimezone : DEFAULT_TIMEZONE;
+
   const response = NextResponse.redirect(new URL("/home", request.url), 303);
-  response.cookies.set(USER_COOKIE, username, {
+  const cookieOptions = {
     httpOnly: true,
-    sameSite: "lax",
+    sameSite: "lax" as const,
     secure: process.env.NODE_ENV === "production",
     path: "/",
     maxAge: 60 * 60 * 24 * 365, // 1 year
-  });
+  };
+  response.cookies.set(USER_COOKIE, username, cookieOptions);
+  response.cookies.set(TIMEZONE_COOKIE, timezone, cookieOptions);
   return response;
 }

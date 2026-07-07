@@ -13,6 +13,22 @@ const DATE_FORMAT = /^(\d{4})-(\d{2})-(\d{2})$/;
 export class LocalDate {
   private constructor(private readonly value: string) {}
 
+  /** The current calendar day in `timezone` (an IANA name, e.g. "America/Denver"). */
+  static todayInTimezone(now: Date, timezone: string): LocalDate {
+    let formatted: string;
+    try {
+      formatted = new Intl.DateTimeFormat("en-CA", {
+        timeZone: timezone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(now);
+    } catch {
+      throw new ValidationError(`"${timezone}" is not a recognized timezone.`);
+    }
+    return LocalDate.create(formatted);
+  }
+
   static create(value: string): LocalDate {
     const match = DATE_FORMAT.exec(value);
     if (!match) {

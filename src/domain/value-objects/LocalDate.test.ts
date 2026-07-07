@@ -33,6 +33,26 @@ describe("LocalDate", () => {
     expect(LocalDate.create("2026-07-06").equals(LocalDate.create("2026-07-07"))).toBe(false);
   });
 
+  describe("todayInTimezone", () => {
+    it("derives the local calendar day for a timezone behind UTC", () => {
+      // 2026-07-06 03:00 UTC is still 2026-07-05 evening in Los Angeles (UTC-7 in July).
+      const now = new Date("2026-07-06T03:00:00.000Z");
+      expect(LocalDate.todayInTimezone(now, "America/Los_Angeles").toString()).toBe(
+        "2026-07-05",
+      );
+    });
+
+    it("derives the local calendar day for a timezone ahead of UTC", () => {
+      // 2026-07-06 22:00 UTC is already 2026-07-07 in Tokyo (UTC+9).
+      const now = new Date("2026-07-06T22:00:00.000Z");
+      expect(LocalDate.todayInTimezone(now, "Asia/Tokyo").toString()).toBe("2026-07-07");
+    });
+
+    it("rejects an unrecognized timezone", () => {
+      expect(() => LocalDate.todayInTimezone(new Date(), "Not/AZone")).toThrow(ValidationError);
+    });
+  });
+
   it("orders chronologically", () => {
     const earlier = LocalDate.create("2026-07-06");
     const later = LocalDate.create("2026-07-07");

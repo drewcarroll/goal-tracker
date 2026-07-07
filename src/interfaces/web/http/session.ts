@@ -14,7 +14,28 @@
 /** Name of the cookie holding the active username. */
 export const USER_COOKIE = "gt_user";
 
+/**
+ * Name of the cookie holding the signed-in user's IANA timezone (e.g.
+ * "America/Los_Angeles"), captured client-side at login. Habit day
+ * boundaries are always this timezone's local day, never server UTC.
+ */
+export const TIMEZONE_COOKIE = "gt_tz";
+
+/** Fallback when no timezone cookie is present (JS-disabled login, or a
+ * session predating this feature). */
+export const DEFAULT_TIMEZONE = "UTC";
+
 /** Canonical form of a username: trimmed and lowercased. */
 export function normalizeUsername(raw: string): string {
   return raw.trim().toLowerCase();
+}
+
+/** Whether `tz` is a timezone the Intl API recognizes (e.g. "Europe/Paris"). */
+export function isValidTimezone(tz: string): boolean {
+  try {
+    new Intl.DateTimeFormat(undefined, { timeZone: tz });
+    return true;
+  } catch {
+    return false;
+  }
 }

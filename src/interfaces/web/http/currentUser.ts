@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { createHash } from "crypto";
-import { USER_COOKIE, normalizeUsername } from "./session";
+import { USER_COOKIE, TIMEZONE_COOKIE, DEFAULT_TIMEZONE, normalizeUsername } from "./session";
 
 /**
  * Resolves the active user for the current request (server-only).
@@ -37,4 +37,14 @@ export function currentUserId(): string {
     throw new Error("No active user session.");
   }
   return usernameToUserId(username);
+}
+
+/**
+ * The signed-in user's IANA timezone, captured client-side at login (see
+ * TIMEZONE_COOKIE). Falls back to UTC for sessions predating this feature or
+ * where JS was disabled at login — better a wrong-but-valid timezone than a
+ * thrown error on every request.
+ */
+export function currentTimezone(): string {
+  return cookies().get(TIMEZONE_COOKIE)?.value || DEFAULT_TIMEZONE;
 }

@@ -6,9 +6,11 @@ export const metadata: Metadata = { title: "Sign in · Goal Tracker" };
 export const dynamic = "force-dynamic";
 
 /**
- * Username gate. A plain HTML form (no client JS) posts to /api/login, which
- * stores the username in a cookie and redirects to /home. There is no password:
- * the username alone identifies which data you see.
+ * Username gate. A plain HTML form posts to /api/login, which stores the
+ * username (and the browser's timezone, captured by a small inline script —
+ * everything still works with JS disabled, just defaulting to UTC) in
+ * cookies and redirects to /home. There is no password: the username alone
+ * identifies which data you see.
  */
 export default function LoginPage({ searchParams }: { searchParams: { error?: string } }) {
   const hasError = searchParams.error != null;
@@ -37,6 +39,19 @@ export default function LoginPage({ searchParams }: { searchParams: { error?: st
             className="rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
           />
         </label>
+
+        {/* Progressive enhancement: filled in by the inline script below so
+            habit day boundaries can use the user's local day. Falls back to
+            UTC server-side if JS is disabled and this stays empty. */}
+        <input type="hidden" name="timezone" id="timezone-input" />
+        <script
+          // Static, no user input interpolated — safe as an inline script.
+          dangerouslySetInnerHTML={{
+            __html:
+              "document.getElementById('timezone-input').value = " +
+              "Intl.DateTimeFormat().resolvedOptions().timeZone;",
+          }}
+        />
 
         {hasError && (
           <p role="alert" className="text-sm text-red-600">
