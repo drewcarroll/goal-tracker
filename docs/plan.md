@@ -47,23 +47,23 @@ Working features that must keep working:
 ### Phase 1: Domain model + persistence
 
 **Entities & value objects (`domain/`)**
-- [ ] `Habit` entity: id, userId, catalogId, difficulty (easy/medium/hard), currentLockCost, state (active/paused/formed), createdAt. Self-validating invariants (cost between 1–50, valid catalogId).
-- [ ] `HabitCatalog` domain constant (NOT a DB table) — full list:
+- [x] (2026-07-06) `Habit` entity: id, userId, catalogId, difficulty (easy/medium/hard), currentLockCost, state (active/paused/formed), createdAt. Self-validating invariants (cost between 1–50, valid catalogId).
+- [x] (2026-07-06) `HabitCatalog` domain constant (NOT a DB table) — full list:
   - Physical: exercise, cold shower, stretch, floss, brush teeth twice, 10min morning walk
   - Addiction: no alcohol, no drugs, no fap, no soda, no smoking, no caffeine after noon
   - Mind: read 15min+, meditate 5min+
   - Skills: code 20min+, practice music 20min+
   - Misc: cook a meal, eat a serving of vegetables, reach out to friend/family, make bed, wear sunscreen
-- [ ] Each catalog entry: id, label, category, type (binary | timed), minMinutes where timed (20min rule: one session ≥20min counts, no extra credit for longer, never hourly)
-- [ ] `DailyPlan` entity: date (user-local), userId, scheduled habit ids, locksSpent (invariant: ≤100)
-- [ ] `CheckIn` entity: date, userId, per-habit pass/fail marks, derived dayResult (PASS = all passed, FAIL = any failed)
-- [ ] `JournalEntry` entity: date, userId, text?, mood?, photoUrl? (all optional)
-- [ ] `LockCostService` domain service:
-  - [ ] Initial costs: easy=25, medium=35, hard=45
-  - [ ] Day PASS → each habit in that day's plan: cost −1, floor 1
-  - [ ] Day FAIL → each habit in that day's plan: cost ×1.1 rounded, cap 50
-  - [ ] Cost reaches 1 → habit state transitions to `formed`
-- [ ] Unit tests for all entities + `LockCostService` (esp. rounding, cap, floor, formed transition)
+- [x] (2026-07-06) Each catalog entry: id, label, category, type (binary | timed), minMinutes where timed (20min rule: one session ≥20min counts, no extra credit for longer, never hourly)
+- [x] (2026-07-06) `DailyPlan` entity: date (user-local), userId, scheduled habit ids, locksSpent (invariant: ≤100)
+- [x] (2026-07-06) `CheckIn` entity: date, userId, per-habit pass/fail marks, derived dayResult (PASS = all passed, FAIL = any failed)
+- [x] (2026-07-06) `JournalEntry` entity: date, userId, text?, mood?, photoUrl? (all optional)
+- [x] (2026-07-06) `LockCostService` domain service:
+  - [x] (2026-07-06) Initial costs: easy=25, medium=35, hard=45
+  - [x] (2026-07-06) Day PASS → each habit in that day's plan: cost −1, floor 1
+  - [x] (2026-07-06) Day FAIL → each habit in that day's plan: cost ×1.1 rounded, cap 50
+  - [x] (2026-07-06) Cost reaches 1 → habit state transitions to `formed`
+- [x] (2026-07-06) Unit tests for all entities + `LockCostService` (esp. rounding, cap, floor, formed transition) — 117 tests passing (`npm test`)
 
 **Persistence (`infrastructure/`)**
 - [ ] Supabase migrations: `habits`, `daily_plans`, `check_ins`, `journal_entries` tables
@@ -129,3 +129,6 @@ Working features that must keep working:
 - 2026-07-06 — Initial plan created from idea-dump scoping session.
 - 2026-07-06 — Converted open questions to resolved decisions (coexist model, local-timezone day boundaries, unplanned days neutral, Supabase Storage for photos, simple ± lock rule).
 - 2026-07-06 — Restructured into Claude Code-optimized format: vision/current-state/TODO/changelog only; deferred and out-of-scope sections moved to separate scoping doc; maintenance protocol added; TODO expanded to granular task level.
+- 2026-07-06 — Housekeeping before Phase 1: moved plan.md to docs/, wired maintenance protocol + architecture rules + a testing requirement into CLAUDE.md, added a Supabase keepalive cron, removed a stale scaffold README.md and a stale unused `supabase/migrations/0001_create_goals.sql` that described a different, never-built app (real schema stays in `supabase/schema.sql`), added `.claude/skills/supabase-migration`.
+- 2026-07-06 — Switched the Supabase backend to a new project (old one is left alone, not deleted) and redeployed to Vercel production so the app is reachable on mobile; production env vars updated accordingly.
+- 2026-07-06 — Phase 1 domain layer: added an unplanned `LocalDate` value object (not in the original task list) to carry the user-local calendar day used by `DailyPlan`/`CheckIn`/`JournalEntry`, since the non-negotiable "local timezone, never server UTC" rule needed a shared, unambiguous day type rather than reusing `Date`.
