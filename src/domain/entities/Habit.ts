@@ -72,6 +72,26 @@ export class Habit {
     }
   }
 
+  /**
+   * Overwrite the lock cost with an already-computed value — used after
+   * replaying a habit's check-in history from scratch (e.g. HabitTrajectoryService,
+   * following an edit to a past check-in), as opposed to `applyDayResult`'s
+   * single incremental step. Re-derives the formed transition both ways: a
+   * habit can un-form if a correction pushes its cost back above 1. Leaves a
+   * paused habit's pause alone — pausing is a separate, explicit user action.
+   */
+  recomputeCost(newCost: number): void {
+    Habit.assertValidLockCost(newCost);
+    this.props.currentLockCost = newCost;
+    if (Habit.lockCostService.isFormed(newCost)) {
+      if (this.props.state === "active") {
+        this.props.state = "formed";
+      }
+    } else if (this.props.state === "formed") {
+      this.props.state = "active";
+    }
+  }
+
   /** Pause an active habit — it stops being schedulable in future plans. */
   pause(): void {
     if (this.props.state !== "active") {

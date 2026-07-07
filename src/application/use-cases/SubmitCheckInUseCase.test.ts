@@ -24,8 +24,8 @@ class InMemoryCheckInRepository implements CheckInRepository {
   async findByUserIdAndDate(): Promise<CheckIn | null> {
     return null;
   }
-  async findByUserId(): Promise<CheckIn[]> {
-    return [];
+  async findByUserId(userId: string): Promise<CheckIn[]> {
+    return this.saved.filter((c) => c.userId === userId);
   }
   async save(checkIn: CheckIn): Promise<void> {
     this.saved.push(checkIn);

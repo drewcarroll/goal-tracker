@@ -17,6 +17,8 @@ import { SubmitCheckInUseCase } from "@/application/use-cases/SubmitCheckInUseCa
 import { GetTodayCheckInUseCase } from "@/application/use-cases/GetTodayCheckInUseCase";
 import { GetHabitStatsUseCase } from "@/application/use-cases/GetHabitStatsUseCase";
 import { GetCheckInHistoryUseCase } from "@/application/use-cases/GetCheckInHistoryUseCase";
+import { EditCheckInUseCase } from "@/application/use-cases/EditCheckInUseCase";
+import { DeleteCheckInUseCase } from "@/application/use-cases/DeleteCheckInUseCase";
 import { CreateJournalEntryUseCase } from "@/application/use-cases/CreateJournalEntryUseCase";
 import { LocalDateService } from "@/application/services/LocalDateService";
 import { getServerSupabaseClient } from "./database/supabaseClient";
@@ -89,6 +91,8 @@ function buildContainer() {
     getTodayCheckInUseCase: new GetTodayCheckInUseCase(checkInRepository),
     getHabitStatsUseCase: new GetHabitStatsUseCase(habitRepository, checkInRepository),
     getCheckInHistoryUseCase: new GetCheckInHistoryUseCase(checkInRepository),
+    editCheckInUseCase: new EditCheckInUseCase(habitRepository, checkInRepository),
+    deleteCheckInUseCase: new DeleteCheckInUseCase(habitRepository, checkInRepository),
     createJournalEntryUseCase: new CreateJournalEntryUseCase(journalRepository, idGenerator, clock),
     localDateService: new LocalDateService(clock),
   };

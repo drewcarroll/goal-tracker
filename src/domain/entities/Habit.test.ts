@@ -83,6 +83,47 @@ describe("Habit", () => {
     });
   });
 
+  describe("recomputeCost", () => {
+    it("overwrites the cost directly", () => {
+      const habit = Habit.create(base);
+      habit.recomputeCost(10);
+      expect(habit.currentLockCost).toBe(10);
+    });
+
+    it("transitions active -> formed when the recomputed cost hits the floor", () => {
+      const habit = Habit.create(base);
+      habit.recomputeCost(1);
+      expect(habit.state).toBe("formed");
+    });
+
+    it("un-forms a formed habit when a correction pushes cost back above 1", () => {
+      const habit = Habit.rehydrate({
+        id: "habit-1",
+        userId: "user-1",
+        catalogId: "exercise",
+        difficulty: "easy",
+        currentLockCost: 1,
+        state: "formed",
+        createdAt: base.now,
+      });
+      habit.recomputeCost(5);
+      expect(habit.state).toBe("active");
+    });
+
+    it("leaves a paused habit paused regardless of the recomputed cost", () => {
+      const habit = Habit.create(base);
+      habit.pause();
+      habit.recomputeCost(1);
+      expect(habit.state).toBe("paused");
+    });
+
+    it("rejects an out-of-range cost", () => {
+      const habit = Habit.create(base);
+      expect(() => habit.recomputeCost(0)).toThrow(ValidationError);
+      expect(() => habit.recomputeCost(51)).toThrow(ValidationError);
+    });
+  });
+
   describe("pause / resume", () => {
     it("pauses an active habit", () => {
       const habit = Habit.create(base);

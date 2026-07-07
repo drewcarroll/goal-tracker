@@ -51,3 +51,11 @@ export class HabitNotSchedulableError extends ApplicationError {
     super(`Habit "${habitId}" is paused and cannot be scheduled.`);
   }
 }
+
+export class CheckInNotFoundError extends ApplicationError {
+  public readonly code = "CHECK_IN_NOT_FOUND";
+
+  constructor(date: string) {
+    super(`No check-in for "${date}" was found.`);
+  }
+}

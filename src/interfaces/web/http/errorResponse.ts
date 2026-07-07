@@ -23,6 +23,7 @@ export function toErrorResponse(error: unknown): NextResponse {
     HABIT_NOT_FOUND: 404,
     LOCK_BUDGET_EXCEEDED: 409,
     HABIT_NOT_SCHEDULABLE: 409,
+    CHECK_IN_NOT_FOUND: 404,
   };
 
   const status = statusByCode[code] ?? 500;
