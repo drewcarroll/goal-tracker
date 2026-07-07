@@ -97,6 +97,12 @@ export function SettingsView({ habits: initialHabits }: { habits: HabitDTO[] }) 
       >
         Add more habits
       </Link>
+      <Link
+        href="/journal"
+        className="rounded-xl border border-gray-300 bg-white px-5 py-3.5 text-center text-base font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-100"
+      >
+        🔒 Private journal
+      </Link>
     </div>
   );
 }
