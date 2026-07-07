@@ -66,24 +66,26 @@ Working features that must keep working:
 - [x] (2026-07-06) Unit tests for all entities + `LockCostService` (esp. rounding, cap, floor, formed transition) — 117 tests passing (`npm test`)
 
 **Persistence (`infrastructure/`)**
-- [ ] Supabase migrations: `habits`, `daily_plans`, `check_ins`, `journal_entries` tables
-- [ ] `SupabaseHabitRepository` implementing domain interface
-- [ ] `SupabaseDailyPlanRepository`
-- [ ] `SupabaseCheckInRepository`
-- [ ] `SupabaseJournalRepository`
-- [ ] Supabase Storage bucket for journal photos (private, per-user path, ~2MB cap, one/day)
-- [ ] Register all new repos in composition root
+- [x] (2026-07-06) `habits`, `daily_plans`, `check_ins`, `journal_entries` tables — added to `supabase/schema.sql` (this project has no `supabase/migrations/` — schema.sql is the single applied-by-hand source of truth, see `.claude/skills/supabase-migration`)
+- [x] (2026-07-06) `SupabaseHabitRepository` implementing domain interface
+- [x] (2026-07-06) `SupabaseDailyPlanRepository`
+- [x] (2026-07-06) `SupabaseCheckInRepository`
+- [x] (2026-07-06) `SupabaseJournalRepository`
+- [ ] Supabase Storage bucket for journal photos (private, per-user path, ~2MB cap, one/day) — needs a bucket created in the Supabase dashboard (can't be done from the CLI/API keys on hand); `CreateJournalEntryUseCase` already accepts a `photoUrl` so wiring the actual upload is what's left
+- [x] (2026-07-06) Register all new repos in composition root
 
 **Use cases (`application/`)**
-- [ ] `CreateHabitsFromOnboardingUseCase` (bulk create from catalog selections + difficulty sort)
-- [ ] `GetActiveHabitsUseCase`
-- [ ] `UpdateHabitUseCase` (pause/resume, re-sort difficulty)
-- [ ] `CreateDailyPlanUseCase` (validates lock budget)
-- [ ] `GetTodayPlanUseCase`
-- [ ] `SubmitCheckInUseCase` (records marks, computes dayResult, applies LockCostService, all transactional)
-- [ ] `CreateJournalEntryUseCase` (incl. photo upload path)
-- [ ] `GetHabitStatsUseCase` (lock-cost trajectory, pass % last 30)
-- [ ] `EditPastCheckInUseCase` (correct/add/delete past entries, recompute costs forward)
+- [x] (2026-07-06) `CreateHabitsFromOnboardingUseCase` (bulk create from catalog selections + difficulty sort)
+- [x] (2026-07-06) `GetActiveHabitsUseCase`
+- [x] (2026-07-06) `UpdateHabitUseCase` — pause/resume done; "re-sort difficulty" split out below, deferred
+- [ ] Re-sort a habit's difficulty post-creation — deferred: unclear whether changing difficulty should reset `currentLockCost` to the new difficulty's starting cost (erasing trajectory progress) or leave it as-is; needs a product decision before implementing
+- [x] (2026-07-06) `CreateDailyPlanUseCase` (validates lock budget server-side from habits' actual current costs, never trusts client-supplied totals)
+- [x] (2026-07-06) `GetTodayPlanUseCase`
+- [x] (2026-07-06) `SubmitCheckInUseCase` (records marks, computes dayResult, applies LockCostService uniformly to every habit in the day's plan — not just the missed one) — "all transactional" not literally true: Supabase's client here has no cross-table transaction API, so habits are saved before the check-in itself to fail safer (see code comment)
+- [x] (2026-07-06) `CreateJournalEntryUseCase` — entry creation done; "incl. photo upload path" split out below, deferred
+- [ ] Wire actual photo upload to Supabase Storage in the journal flow — blocked on the Storage bucket task above
+- [ ] `GetHabitStatsUseCase` (lock-cost trajectory, pass % last 30) — not started. Note: no cost-history table exists; the trajectory has to be reconstructed by replaying each habit's check-ins forward from its `initialCostFor(difficulty)` through `LockCostService.nextCost`, in date order. Worth a quick sanity-check before building since it's a new pattern (a replay/projection service), not just another repository-backed use case.
+- [ ] `EditPastCheckInUseCase` (correct/add/delete past entries, recompute costs forward) — not started. Shares the same replay logic as `GetHabitStatsUseCase` above (editing a past day means replaying every check-in after it forward again) — likely worth factoring both into a shared domain/application service rather than duplicating the replay.
 
 ### Phase 2: Onboarding + planning UI
 
@@ -132,3 +134,4 @@ Working features that must keep working:
 - 2026-07-06 — Housekeeping before Phase 1: moved plan.md to docs/, wired maintenance protocol + architecture rules + a testing requirement into CLAUDE.md, added a Supabase keepalive cron, removed a stale scaffold README.md and a stale unused `supabase/migrations/0001_create_goals.sql` that described a different, never-built app (real schema stays in `supabase/schema.sql`), added `.claude/skills/supabase-migration`.
 - 2026-07-06 — Switched the Supabase backend to a new project (old one is left alone, not deleted) and redeployed to Vercel production so the app is reachable on mobile; production env vars updated accordingly.
 - 2026-07-06 — Phase 1 domain layer: added an unplanned `LocalDate` value object (not in the original task list) to carry the user-local calendar day used by `DailyPlan`/`CheckIn`/`JournalEntry`, since the non-negotiable "local timezone, never server UTC" rule needed a shared, unambiguous day type rather than reusing `Date`.
+- 2026-07-06 — Phase 1 persistence + most use cases done. Split two tasks: `UpdateHabitUseCase`'s "re-sort difficulty" deferred (ambiguous whether it should reset lock cost — needs a product call); `CreateJournalEntryUseCase`'s "photo upload path" deferred (blocked on creating the Supabase Storage bucket, which needs the dashboard, not just API keys). `GetHabitStatsUseCase` and `EditPastCheckInUseCase` not started — both require replaying a habit's check-in history through `LockCostService` since no cost-history table exists; flagged as one shared piece of new design rather than two independent use cases. Also fixed `vitest.config.ts`, which had no "@/" alias resolution configured — a pre-existing gap, not introduced by this work, that only hadn't surfaced yet because every prior alias import happened to be type-only.
