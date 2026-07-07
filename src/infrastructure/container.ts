@@ -14,6 +14,7 @@ import { UpdateHabitUseCase } from "@/application/use-cases/UpdateHabitUseCase";
 import { CreateDailyPlanUseCase } from "@/application/use-cases/CreateDailyPlanUseCase";
 import { GetTodayPlanUseCase } from "@/application/use-cases/GetTodayPlanUseCase";
 import { SubmitCheckInUseCase } from "@/application/use-cases/SubmitCheckInUseCase";
+import { GetTodayCheckInUseCase } from "@/application/use-cases/GetTodayCheckInUseCase";
 import { CreateJournalEntryUseCase } from "@/application/use-cases/CreateJournalEntryUseCase";
 import { LocalDateService } from "@/application/services/LocalDateService";
 import { getServerSupabaseClient } from "./database/supabaseClient";
@@ -83,6 +84,7 @@ function buildContainer() {
       idGenerator,
       clock,
     ),
+    getTodayCheckInUseCase: new GetTodayCheckInUseCase(checkInRepository),
     createJournalEntryUseCase: new CreateJournalEntryUseCase(journalRepository, idGenerator, clock),
     localDateService: new LocalDateService(clock),
   };

@@ -76,6 +76,12 @@ export function TodayHabits({
           );
         })}
       </ul>
+      <Link
+        href="/checkin"
+        className="rounded-xl bg-brand px-5 py-3 text-center text-base font-semibold text-white shadow-sm transition-colors hover:bg-brand-dark"
+      >
+        Check in
+      </Link>
       <Link href="/plan" className="self-start text-sm font-medium text-brand hover:underline">
         Plan tomorrow →
       </Link>
