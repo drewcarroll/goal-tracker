@@ -90,10 +90,12 @@ Working features that must keep working:
 ### Phase 2: Onboarding + planning UI
 
 - [x] (2026-07-06) Timezone capture at login (cookie/setting) + user-local "today" helper used everywhere — `gt_tz` cookie via progressive-enhancement inline script on `/login`, `currentTimezone()`, `LocalDate.todayInTimezone()`; verified end-to-end against a running dev server (valid tz stored, invalid tz falls back to UTC, `/home` loads)
-- [ ] Onboarding route (first visit post-login, re-runnable from settings):
-  - [ ] Step 1: show full catalog, select only habits user does NOT already do
-  - [ ] Step 2: sort selections into easy/medium/hard buckets (green/yellow/orange), drag or tap
-  - [ ] Step 3: confirm → bulk create via use case
+- [x] (2026-07-07) Onboarding route (`/onboarding`, standalone outside the tab shell — reachable on first visit or again later, re-runnable from Settings once Settings exists):
+  - [x] (2026-07-07) Step 1: show full catalog grouped by category, select only habits user does NOT already track (existing habits shown disabled as "Already tracking")
+  - [x] (2026-07-07) Step 2: sort selections into easy/medium/hard (green/amber/orange chips, tap to pick — not drag, simpler on mobile)
+  - [x] (2026-07-07) Step 3: confirm → bulk create via `CreateHabitsFromOnboardingUseCase`
+  - Verified end-to-end against the live Supabase project: page render (200), plus a direct use-case smoke test confirming create + fetch + already-tracked exclusion round-trip correctly (test rows cleaned up after)
+  - Not yet wired: auto-redirect to `/onboarding` on first visit post-login — deferred to the Home page update task below, since that's where "first visit" would naturally be detected (no habits yet)
 - [ ] Night-before planning screen: pick tomorrow's tasks from active habits, live remaining-lock counter, block submit over 100
 - [ ] Home page update: show today's scheduled tasks from last night's plan alongside existing measurable-goal quick-log
 - [ ] Grace path: no plan for today → prompt to plan now (don't dead-end)
