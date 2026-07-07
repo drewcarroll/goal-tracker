@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { getContainer } from "@/infrastructure/container";
-import { currentUserId } from "@/interfaces/web/http/currentUser";
+import { currentUserId, currentTimezone } from "@/interfaces/web/http/currentUser";
 import { HomeView } from "@/interfaces/web/components/home/HomeView";
 
 export const metadata: Metadata = { title: "Home · Goal Tracker" };
@@ -9,9 +9,16 @@ export const metadata: Metadata = { title: "Home · Goal Tracker" };
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const { listGoalsUseCase } = getContainer();
+  const { listGoalsUseCase, getActiveHabitsUseCase, getTodayPlanUseCase, localDateService } =
+    getContainer();
   const userId = currentUserId();
-  const goals = await listGoalsUseCase.execute({ userId });
+  const today = localDateService.today(currentTimezone());
+
+  const [goals, habits, todayPlan] = await Promise.all([
+    listGoalsUseCase.execute({ userId }),
+    getActiveHabitsUseCase.execute({ userId }),
+    getTodayPlanUseCase.execute({ userId, date: today }),
+  ]);
 
   return (
     <section className="mx-auto flex w-full max-w-md flex-col gap-6">
@@ -19,7 +26,7 @@ export default async function HomePage() {
         <h1 className="text-2xl font-bold tracking-tight">Home</h1>
         <p className="mt-1 text-gray-600">Quickly log progress toward a goal.</p>
       </div>
-      <HomeView goals={goals} />
+      <HomeView goals={goals} habits={habits} todayPlan={todayPlan} />
     </section>
   );
 }

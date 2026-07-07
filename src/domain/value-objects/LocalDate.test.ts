@@ -33,6 +33,29 @@ describe("LocalDate", () => {
     expect(LocalDate.create("2026-07-06").equals(LocalDate.create("2026-07-07"))).toBe(false);
   });
 
+  describe("addDays", () => {
+    it("adds days within a month", () => {
+      expect(LocalDate.create("2026-07-06").addDays(1).toString()).toBe("2026-07-07");
+    });
+
+    it("rolls over a month boundary", () => {
+      expect(LocalDate.create("2026-07-31").addDays(1).toString()).toBe("2026-08-01");
+    });
+
+    it("rolls over a year boundary", () => {
+      expect(LocalDate.create("2026-12-31").addDays(1).toString()).toBe("2027-01-01");
+    });
+
+    it("supports negative offsets", () => {
+      expect(LocalDate.create("2026-07-06").addDays(-1).toString()).toBe("2026-07-05");
+    });
+
+    it("handles a leap day correctly", () => {
+      expect(LocalDate.create("2024-02-28").addDays(1).toString()).toBe("2024-02-29");
+      expect(LocalDate.create("2024-02-29").addDays(1).toString()).toBe("2024-03-01");
+    });
+  });
+
   describe("todayInTimezone", () => {
     it("derives the local calendar day for a timezone behind UTC", () => {
       // 2026-07-06 03:00 UTC is still 2026-07-05 evening in Los Angeles (UTC-7 in July).

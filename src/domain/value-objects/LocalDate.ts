@@ -46,6 +46,19 @@ export class LocalDate {
     return new LocalDate(value);
   }
 
+  /** A new LocalDate offset by `days` (negative to go backward). */
+  addDays(days: number): LocalDate {
+    const match = DATE_FORMAT.exec(this.value)!;
+    const [, year, month, day] = match.map(Number);
+    const shifted = new Date(Date.UTC(year!, month! - 1, day! + days));
+    const formatted = [
+      shifted.getUTCFullYear(),
+      String(shifted.getUTCMonth() + 1).padStart(2, "0"),
+      String(shifted.getUTCDate()).padStart(2, "0"),
+    ].join("-");
+    return LocalDate.create(formatted);
+  }
+
   toString(): string {
     return this.value;
   }
