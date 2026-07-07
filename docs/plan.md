@@ -96,9 +96,10 @@ Working features that must keep working:
   - [x] (2026-07-07) Step 3: confirm → bulk create via `CreateHabitsFromOnboardingUseCase`
   - Verified end-to-end against the live Supabase project: page render (200), plus a direct use-case smoke test confirming create + fetch + already-tracked exclusion round-trip correctly (test rows cleaned up after)
   - Not yet wired: auto-redirect to `/onboarding` on first visit post-login — deferred to the Home page update task below, since that's where "first visit" would naturally be detected (no habits yet)
-- [ ] Night-before planning screen: pick tomorrow's tasks from active habits, live remaining-lock counter, block submit over 100
-- [ ] Home page update: show today's scheduled tasks from last night's plan alongside existing measurable-goal quick-log
-- [ ] Grace path: no plan for today → prompt to plan now (don't dead-end)
+- [x] (2026-07-07) Night-before planning screen (`/plan`): pick tomorrow's tasks from active habits, live remaining-lock counter (sticky bar, turns red over budget), submit disabled over 100
+- [x] (2026-07-07) Home page update: today's scheduled habits (from `/plan`'s output) shown above the existing measurable-goal quick-log, read-only for now — checking them off is the Phase 3 check-in flow
+- [x] (2026-07-07) Grace path: `/plan?for=today` — Home prompts "Plan today" when today has no plan at all, rather than dead-ending; target date (today vs. tomorrow) is still resolved server-side from the timezone, never a literal date from the client
+  - Verified end-to-end against the live Supabase project: no-habits nudge, grace-path prompt, today's list, tomorrow's picker, and the already-planned view all confirmed working (test data cleaned up after)
 - [ ] Settings: edit habit list / re-run onboarding / pause habits
 
 ### Phase 3: Check-in + journal + stats
