@@ -27,3 +27,27 @@ export class LogNotFoundError extends ApplicationError {
     super(`Log entry "${logId}" was not found.`);
   }
 }
+
+export class HabitNotFoundError extends ApplicationError {
+  public readonly code = "HABIT_NOT_FOUND";
+
+  constructor(habitId: string) {
+    super(`Habit "${habitId}" was not found.`);
+  }
+}
+
+export class LockBudgetExceededError extends ApplicationError {
+  public readonly code = "LOCK_BUDGET_EXCEEDED";
+
+  constructor(locksRequested: number) {
+    super(`That plan would spend ${locksRequested} locks, over the 100-lock daily budget.`);
+  }
+}
+
+export class HabitNotSchedulableError extends ApplicationError {
+  public readonly code = "HABIT_NOT_SCHEDULABLE";
+
+  constructor(habitId: string) {
+    super(`Habit "${habitId}" is paused and cannot be scheduled.`);
+  }
+}

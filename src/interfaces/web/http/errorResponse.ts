@@ -19,6 +19,10 @@ export function toErrorResponse(error: unknown): NextResponse {
     FORBIDDEN: 403,
     GOAL_ALREADY_COMPLETED: 409,
     GOAL_NOT_FOUND: 404,
+    LOG_NOT_FOUND: 404,
+    HABIT_NOT_FOUND: 404,
+    LOCK_BUDGET_EXCEEDED: 409,
+    HABIT_NOT_SCHEDULABLE: 409,
   };
 
   const status = statusByCode[code] ?? 500;

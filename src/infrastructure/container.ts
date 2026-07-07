@@ -6,9 +6,20 @@ import { LogProgressUseCase } from "@/application/use-cases/LogProgressUseCase";
 import { GetProgressDataUseCase } from "@/application/use-cases/GetProgressDataUseCase";
 import { GetHistoryUseCase } from "@/application/use-cases/GetHistoryUseCase";
 import { DeleteLogUseCase } from "@/application/use-cases/DeleteLogUseCase";
+import { CreateHabitsFromOnboardingUseCase } from "@/application/use-cases/CreateHabitsFromOnboardingUseCase";
+import { GetActiveHabitsUseCase } from "@/application/use-cases/GetActiveHabitsUseCase";
+import { UpdateHabitUseCase } from "@/application/use-cases/UpdateHabitUseCase";
+import { CreateDailyPlanUseCase } from "@/application/use-cases/CreateDailyPlanUseCase";
+import { GetTodayPlanUseCase } from "@/application/use-cases/GetTodayPlanUseCase";
+import { SubmitCheckInUseCase } from "@/application/use-cases/SubmitCheckInUseCase";
+import { CreateJournalEntryUseCase } from "@/application/use-cases/CreateJournalEntryUseCase";
 import { getServerSupabaseClient } from "./database/supabaseClient";
 import { SupabaseGoalRepository } from "./repositories/SupabaseGoalRepository";
 import { SupabaseLogRepository } from "./repositories/SupabaseLogRepository";
+import { SupabaseHabitRepository } from "./repositories/SupabaseHabitRepository";
+import { SupabaseDailyPlanRepository } from "./repositories/SupabaseDailyPlanRepository";
+import { SupabaseCheckInRepository } from "./repositories/SupabaseCheckInRepository";
+import { SupabaseJournalRepository } from "./repositories/SupabaseJournalRepository";
 import { UuidGenerator } from "./id/UuidGenerator";
 import { SystemClock } from "./time/SystemClock";
 
@@ -30,6 +41,10 @@ function buildContainer() {
   // Infrastructure adapters (implementing domain/application ports).
   const goalRepository = new SupabaseGoalRepository(supabase);
   const logRepository = new SupabaseLogRepository(supabase);
+  const habitRepository = new SupabaseHabitRepository(supabase);
+  const dailyPlanRepository = new SupabaseDailyPlanRepository(supabase);
+  const checkInRepository = new SupabaseCheckInRepository(supabase);
+  const journalRepository = new SupabaseJournalRepository(supabase);
   const idGenerator = new UuidGenerator();
   const clock = new SystemClock();
 
@@ -43,6 +58,27 @@ function buildContainer() {
     getProgressDataUseCase: new GetProgressDataUseCase(goalRepository, clock),
     getHistoryUseCase: new GetHistoryUseCase(goalRepository, logRepository, clock),
     deleteLogUseCase: new DeleteLogUseCase(goalRepository, logRepository),
+    createHabitsFromOnboardingUseCase: new CreateHabitsFromOnboardingUseCase(
+      habitRepository,
+      idGenerator,
+      clock,
+    ),
+    getActiveHabitsUseCase: new GetActiveHabitsUseCase(habitRepository),
+    updateHabitUseCase: new UpdateHabitUseCase(habitRepository),
+    createDailyPlanUseCase: new CreateDailyPlanUseCase(
+      habitRepository,
+      dailyPlanRepository,
+      idGenerator,
+      clock,
+    ),
+    getTodayPlanUseCase: new GetTodayPlanUseCase(dailyPlanRepository),
+    submitCheckInUseCase: new SubmitCheckInUseCase(
+      habitRepository,
+      checkInRepository,
+      idGenerator,
+      clock,
+    ),
+    createJournalEntryUseCase: new CreateJournalEntryUseCase(journalRepository, idGenerator, clock),
   };
 }
 
