@@ -6,6 +6,7 @@ import { LogProgressUseCase } from "@/application/use-cases/LogProgressUseCase";
 import { GetProgressDataUseCase } from "@/application/use-cases/GetProgressDataUseCase";
 import { GetHistoryUseCase } from "@/application/use-cases/GetHistoryUseCase";
 import { DeleteLogUseCase } from "@/application/use-cases/DeleteLogUseCase";
+import { GetHabitCatalogUseCase } from "@/application/use-cases/GetHabitCatalogUseCase";
 import { CreateHabitsFromOnboardingUseCase } from "@/application/use-cases/CreateHabitsFromOnboardingUseCase";
 import { GetActiveHabitsUseCase } from "@/application/use-cases/GetActiveHabitsUseCase";
 import { UpdateHabitUseCase } from "@/application/use-cases/UpdateHabitUseCase";
@@ -58,6 +59,7 @@ function buildContainer() {
     getProgressDataUseCase: new GetProgressDataUseCase(goalRepository, clock),
     getHistoryUseCase: new GetHistoryUseCase(goalRepository, logRepository, clock),
     deleteLogUseCase: new DeleteLogUseCase(goalRepository, logRepository),
+    getHabitCatalogUseCase: new GetHabitCatalogUseCase(),
     createHabitsFromOnboardingUseCase: new CreateHabitsFromOnboardingUseCase(
       habitRepository,
       idGenerator,
