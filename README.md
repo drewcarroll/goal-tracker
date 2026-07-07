@@ -1,180 +1,140 @@
 # Goal Tracker
 
-A production-ready goal tracking application built with **Next.js**, **TypeScript**,
-**Tailwind CSS**, **Supabase**, and **PostgreSQL**, deployable to **Vercel** —
-structured according to **Clean Architecture**.
+A personal-use app for tracking measurable goals (e.g. "read 5 books/week until
+June") over a fixed session, plus (in progress) a non-punitive habit-formation
+system built around a daily lock budget. Next.js + Supabase, deployed to Vercel,
+structured as a strict four-layer Clean Architecture.
 
-Create goals, track progress, auto-complete goals at 100%, and view aggregate
-statistics — all behind a strictly layered, dependency-inverted codebase.
+There's no accounts system — sign-in is a username typed on `/login`, hashed
+into a deterministic UUID that scopes all of that person's data. See
+[SETUP.md](SETUP.md) for how to get it running.
 
 ---
 
 ## Tech Stack
 
-| Concern          | Technology                          |
-| ---------------- | ----------------------------------- |
-| Framework        | Next.js 14 (App Router)             |
-| Language         | TypeScript (strict)                 |
-| Styling          | Tailwind CSS                        |
-| Backend / DB     | Supabase (PostgreSQL + Auth + RLS)  |
-| Validation       | Zod                                 |
-| Hosting          | Vercel                              |
-| Lint / Format    | ESLint + Prettier                   |
+| Concern       | Technology                         |
+| ------------- | ----------------------------------- |
+| Framework     | Next.js 14 (App Router)             |
+| Language      | TypeScript (strict)                 |
+| Styling       | Tailwind CSS                        |
+| Backend / DB  | Supabase (PostgreSQL), service-role key only, no Supabase Auth |
+| Charts        | Recharts                            |
+| Validation    | Zod                                 |
+| Testing       | Vitest                              |
+| Hosting       | Vercel (+ a daily keepalive cron)   |
+| Lint / Format | ESLint + Prettier                   |
 
 ---
 
 ## Getting Started
 
-### 1. Prerequisites
-
-- Node.js `>= 18.17`
-- A [Supabase](https://supabase.com) project
-
-### 2. Install dependencies
+See [SETUP.md](SETUP.md) — it walks through creating the Supabase project,
+applying `supabase/schema.sql`, and running locally or deploying to Vercel.
 
 ```bash
 npm install
-```
-
-### 3. Configure environment
-
-Copy the example env file and fill in your Supabase credentials:
-
-```bash
-cp .env.example .env.local
-```
-
-| Variable                        | Description                                            |
-| ------------------------------- | ------------------------------------------------------ |
-| `NEXT_PUBLIC_SUPABASE_URL`      | Your Supabase project URL                              |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Public anon key (client-safe)                          |
-| `SUPABASE_SERVICE_ROLE_KEY`     | Service-role key — **server only, never expose**       |
-| `DATABASE_URL`                  | Direct Postgres connection (optional, for migrations)  |
-
-### 4. Apply the database schema
-
-Run the migration in the Supabase SQL editor, or via the Supabase CLI:
-
-```bash
-supabase db push
-# or paste supabase/migrations/0001_create_goals.sql into the SQL editor
-```
-
-### 5. Run the dev server
-
-```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
-
----
-
 ## Available Scripts
 
-| Script                 | Purpose                          |
-| ---------------------- | -------------------------------- |
-| `npm run dev`          | Start the dev server             |
-| `npm run build`        | Production build                 |
-| `npm run start`        | Run the production build         |
-| `npm run lint`         | Lint with ESLint                 |
-| `npm run type-check`   | Type-check without emitting      |
-| `npm run format`       | Format with Prettier             |
+| Script                  | Purpose                       |
+| ------------------------ | ------------------------------ |
+| `npm run dev`            | Start the dev server           |
+| `npm run build`          | Production build               |
+| `npm run start`           | Run the production build       |
+| `npm run lint`            | Lint with ESLint (`next lint`) |
+| `npm run type-check`      | Type-check without emitting    |
+| `npm test`                | Run the Vitest suite           |
+| `npm run format`          | Format with Prettier           |
+| `npm run format:check`    | Check formatting without writing |
 
 ---
 
-## API
+## Pages & API
 
-| Method  | Endpoint                      | Description                |
-| ------- | ----------------------------- | -------------------------- |
-| `GET`   | `/api/goals?userId=<uuid>`    | List a user's goals        |
-| `POST`  | `/api/goals`                  | Create a goal              |
-| `PATCH` | `/api/goals/:id/progress`     | Update a goal's progress   |
-| `GET`   | `/api/goals/stats?userId=`    | Aggregate goal statistics  |
-
-Example:
-
-```bash
-curl -X POST http://localhost:3000/api/goals \
-  -H "Content-Type: application/json" \
-  -d '{"userId":"00000000-0000-0000-0000-000000000000","title":"Read 12 books"}'
-```
+| Route                      | Description                                  |
+| --------------------------- | --------------------------------------------- |
+| `/login`                    | Username entry (no password)                  |
+| `/home`                      | Quick-log form + this-week status per goal    |
+| `/goals`                     | Goal CRUD                                      |
+| `/progress`                  | Cumulative/weekly charts + completion donut   |
+| `/history`                   | Past log entries                              |
+| `GET/POST /api/goals`        | List / create goals                            |
+| `PUT/DELETE /api/goals/:id`  | Update / delete a goal                         |
+| `GET /api/progress`          | Progress-chart data                            |
+| `POST /api/login`            | Set the username cookie                        |
+| `GET /api/logout`            | Clear the username cookie                      |
+| `GET /api/cron/keepalive`    | Daily Supabase keepalive ping (see `vercel.json`) |
 
 ---
 
 ## Clean Architecture
 
-This project enforces a strict, inward-pointing dependency rule. Each layer has
-its own `CLAUDE.md` describing its responsibilities and constraints.
+Strict, inward-pointing dependency rule — see [`CLAUDE.md`](CLAUDE.md) for the
+full rules, and each layer's own `CLAUDE.md` for its constraints.
 
 ```
-interfaces  ──▶  application  ──▶  domain
-infrastructure ─▶ application ──▶  domain
+interfaces     ──▶ application ──▶ domain
+infrastructure ──▶ application ──▶ domain
 domain imports NOTHING from outside itself
 ```
 
 ### `src/domain/` — the core
 
-Pure business rules with **zero** outside dependencies.
+Pure business rules, zero outside dependencies.
 
-- `entities/Goal.ts` — the `Goal` entity; protects its own invariants and holds
-  behavior (`updateProgress`, `complete`, `archive`).
-- `value-objects/` — `GoalStatus`, `Progress` (immutable, validated by value).
-- `repositories/GoalRepository.ts` — repository **interface** (a port).
-- `services/GoalStatsService.ts` — domain service for cross-entity stats.
+- `entities/Goal.ts` — self-validating entity; a goal spans a `SessionTimeframe`
+  and accumulates `LogEntry` values.
+- `value-objects/SessionTimeframe.ts`
+- `services/ProjectionService.ts`, `ProgressChartService.ts` — pace projections
+  and chart-ready series derived from logs.
+- `repositories/GoalRepository.ts` — repository interface (a port).
 - `errors/` — domain exceptions.
 
 ### `src/application/` — use cases
 
-Orchestrates the domain to fulfill use cases. Knows *what*, not *how*.
-
-- `use-cases/` — one class per use case, each with an `execute(dto)` method
-  (`CreateGoalUseCase`, `ListGoalsUseCase`, `UpdateGoalProgressUseCase`,
-  `GetGoalStatsUseCase`).
-- `dtos/` — input/output contracts crossing the boundary.
-- `mappers/GoalMapper.ts` — domain ↔ DTO mapping.
-- `ports/IdGenerator.ts` — abstraction for infrastructure needs.
-- `errors/` — application-level exceptions.
+One class per use case, each with `execute(dto)`, returning DTOs never entities:
+`CreateGoalUseCase`, `UpdateGoalUseCase`, `DeleteGoalUseCase`, `ListGoalsUseCase`,
+`LogProgressUseCase`, `DeleteLogUseCase`, `GetProgressDataUseCase`,
+`GetHistoryUseCase`.
 
 ### `src/infrastructure/` — implementations & I/O
 
-Implements the ports/interfaces defined inward. All I/O lives here.
-
-- `database/supabaseClient.ts` — Supabase client factory.
-- `repositories/SupabaseGoalRepository.ts` — implements `GoalRepository`,
-  maps DB rows ↔ domain entities.
-- `id/UuidGenerator.ts` — implements the `IdGenerator` port.
-- `config/env.ts` — the **only** place env vars are read.
-- `container.ts` — the **composition root**: the single place where concrete
-  implementations are wired to use cases.
+- `database/supabaseClient.ts` — server-side Supabase client (service-role key).
+- `repositories/SupabaseGoalRepository.ts`, `SupabaseLogRepository.ts` — implement
+  the domain repository interfaces; map DB rows ↔ entities.
+- `config/env.ts` — the only place env vars are read.
+- `container.ts` — composition root wiring concrete repositories into use cases.
 
 ### `src/interfaces/` — entry points
 
-Thin adapters that translate external input into use case calls.
-
-- `web/app/` — Next.js App Router pages and API route handlers.
-- `web/http/` — request validation (Zod) and error → HTTP mapping.
-- `cli/createGoal.ts` — a CLI entry point reusing the same use case.
+- `web/app/` — Next.js App Router pages and route handlers.
+- `web/http/` — session/username handling, request validation, error → HTTP mapping.
+- `web/components/` — client components (home, goals, progress, history).
 
 > **Why the re-exports in root `app/`?** Next.js requires the App Router at
 > `app/` or `src/app/`. To keep presentation code inside the Clean Architecture
 > layout, the real handlers live in `src/interfaces/web/app/` and the root
 > `app/` files are thin re-exports.
 
-### Dependency rule enforcement
+---
 
-- `tsconfig.json` path aliases (`@/domain`, `@/application`, …) make layers explicit.
-- `.eslintrc.json` `no-restricted-imports` rules forbid illegal cross-layer imports
-  (e.g. `domain` importing `application`/`infrastructure`/`interfaces`).
+## Database
+
+`supabase/schema.sql` is the single source of truth for the schema (three
+tables: `goals`, `goal_sessions`, `logs`) — see the file header for how to apply
+it. RLS is enabled with no policies; only the server-side service-role key can
+read/write, so the public `anon` key has no access.
 
 ---
 
 ## Deployment (Vercel)
 
 1. Push to a Git repository.
-2. Import the project in Vercel.
-3. Add the environment variables from `.env.example` in the Vercel dashboard.
-4. Deploy — `vercel.json` configures the Next.js framework preset.
+2. Import the project in Vercel; add the env vars from `.env.example`.
+3. Deploy — `vercel.json` configures the Next.js preset and the keepalive cron.
 
 ---
 
