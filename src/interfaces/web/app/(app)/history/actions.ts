@@ -2,8 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { getContainer } from "@/infrastructure/container";
-import { currentUserId } from "@/interfaces/web/http/currentUser";
+import { currentUserId, currentTimezone } from "@/interfaces/web/http/currentUser";
 import { quickLogSchema } from "@/interfaces/web/http/validation";
+import type { CheckInDTO, HabitMarkDTO } from "@/application/dtos/CheckInDTO";
 
 /** Mutating a log changes every goal-derived tab, so refresh them all. */
 function revalidateLogDerivedPages(): void {
@@ -19,7 +20,9 @@ function toErrorMessage(error: unknown): string {
   if (
     coded?.code === "VALIDATION_ERROR" ||
     coded?.code === "GOAL_NOT_FOUND" ||
-    coded?.code === "LOG_NOT_FOUND"
+    coded?.code === "LOG_NOT_FOUND" ||
+    coded?.code === "HABIT_NOT_FOUND" ||
+    coded?.code === "CHECK_IN_NOT_FOUND"
   ) {
     return coded.message ?? "That change could not be saved.";
   }
@@ -38,6 +41,81 @@ export async function deleteLogAction(
   try {
     await deleteLogUseCase.execute({ userId, goalId, logId });
     revalidateLogDerivedPages();
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: toErrorMessage(error) };
+  }
+}
+
+/** Mutating a check-in changes every habit-derived tab, so refresh them all. */
+function revalidateCheckInDerivedPages(): void {
+  revalidatePath("/home");
+  revalidatePath("/progress");
+  revalidatePath("/history");
+  revalidatePath("/checkin");
+}
+
+export type CheckInActionResult =
+  | { ok: true; checkIn: CheckInDTO }
+  | { ok: false; error: string };
+
+/**
+ * Backfill a missed day. The date must be in the past (never today or the
+ * future — today goes through /checkin, and "the future" isn't a thing you
+ * can have checked in for yet) relative to the signed-in user's timezone.
+ */
+export async function addPastCheckInAction(
+  date: string,
+  marks: HabitMarkDTO[],
+): Promise<CheckInActionResult> {
+  if (marks.length === 0) {
+    return { ok: false, error: "Mark at least one habit." };
+  }
+
+  const { submitCheckInUseCase, localDateService } = getContainer();
+  const userId = currentUserId();
+  const today = localDateService.today(currentTimezone());
+  if (date >= today) {
+    return { ok: false, error: "Pick a date before today — today's check-in happens on /checkin." };
+  }
+
+  try {
+    const checkIn = await submitCheckInUseCase.execute({ userId, date, marks });
+    revalidateCheckInDerivedPages();
+    return { ok: true, checkIn };
+  } catch (error) {
+    return { ok: false, error: toErrorMessage(error) };
+  }
+}
+
+/** Correct an existing day's marks. */
+export async function editCheckInAction(
+  date: string,
+  marks: HabitMarkDTO[],
+): Promise<CheckInActionResult> {
+  if (marks.length === 0) {
+    return { ok: false, error: "Mark at least one habit." };
+  }
+
+  const { editCheckInUseCase } = getContainer();
+  const userId = currentUserId();
+
+  try {
+    const checkIn = await editCheckInUseCase.execute({ userId, date, marks });
+    revalidateCheckInDerivedPages();
+    return { ok: true, checkIn };
+  } catch (error) {
+    return { ok: false, error: toErrorMessage(error) };
+  }
+}
+
+export async function deleteCheckInAction(date: string): Promise<HistoryActionResult> {
+  const { deleteCheckInUseCase } = getContainer();
+  const userId = currentUserId();
+
+  try {
+    await deleteCheckInUseCase.execute({ userId, date });
+    revalidateCheckInDerivedPages();
     return { ok: true };
   } catch (error) {
     return { ok: false, error: toErrorMessage(error) };
