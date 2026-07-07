@@ -17,6 +17,10 @@ Dependencies must ONLY point inward:
 - `application/` imports only from `domain/`
 - `infrastructure/` implements interfaces defined in `domain/` or `application/`
 - `interfaces/` orchestrates use cases, never contains business logic
+- One use case per action
+- Repositories are injected into use cases via constructor
+- Use cases return DTOs, never raw domain entities
+- Nothing above `infrastructure/` touches Supabase directly — always go through a repository/use case
 
 ## Forbidden patterns
 - Never import infrastructure directly into domain or application
@@ -28,3 +32,11 @@ Dependencies must ONLY point inward:
 - Before creating a file, identify which layer it belongs to
 - If a concept doesn't fit cleanly in one layer, ask before proceeding
 - Prefer extending existing abstractions over creating new ones
+
+## Project plan
+docs/plan.md is the single source of truth for scope and progress. At the start of
+every session, read docs/plan.md before doing anything else, and follow its
+Maintenance Protocol exactly: check off tasks with dates when completed, add
+newly-discovered work as tasks immediately, and log every scope change in its
+Changelog. Other reference docs live in docs/ — read them only when relevant to
+the current task.
