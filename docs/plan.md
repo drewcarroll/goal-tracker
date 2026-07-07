@@ -89,7 +89,7 @@ Working features that must keep working:
 
 ### Phase 2: Onboarding + planning UI
 
-- [ ] Timezone capture at login (cookie/setting) + user-local "today" helper used everywhere
+- [x] (2026-07-06) Timezone capture at login (cookie/setting) + user-local "today" helper used everywhere — `gt_tz` cookie via progressive-enhancement inline script on `/login`, `currentTimezone()`, `LocalDate.todayInTimezone()`; verified end-to-end against a running dev server (valid tz stored, invalid tz falls back to UTC, `/home` loads)
 - [ ] Onboarding route (first visit post-login, re-runnable from settings):
   - [ ] Step 1: show full catalog, select only habits user does NOT already do
   - [ ] Step 2: sort selections into easy/medium/hard buckets (green/yellow/orange), drag or tap
