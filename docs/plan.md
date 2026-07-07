@@ -107,11 +107,12 @@ Working features that must keep working:
 
 ### Phase 3: Check-in + journal + stats
 
-- [ ] End-of-day check-in flow:
-  - [ ] Screen 1 (mandatory): green check / red X per scheduled task — no rewards or cost changes shown here, just marks
-  - [ ] Pre-submit confirm dialog: "Is this truthful?" + no-lost-progress reassurance copy
-  - [ ] Screen 2 (optional): Private Journal — lock icon, explicit "nobody can see this" copy, 1–2 sentence note, mood rating, one photo
-- [ ] Apply lock-cost adjustments on submit (via use case, transactional)
+- [x] (2026-07-07) End-of-day check-in flow (`/checkin`, linked from Home):
+  - [x] (2026-07-07) Screen 1 (mandatory): green ✓ / red ✗ per scheduled habit — no cost/reward numbers shown here, just marks; "Continue" disabled until every habit is marked
+  - [x] (2026-07-07) Pre-submit confirm dialog: "Is this truthful?" + no-lost-progress reassurance copy
+  - [x] (2026-07-07) Screen 2 (optional): Private Journal — lock emoji, "nobody can see this" copy, short text note (280 char cap), mood 1–5. **Photo still deferred** — blocked on the Storage bucket, same as the Phase 1 note
+- [x] (2026-07-07) Apply lock-cost adjustments on submit via `SubmitCheckInUseCase` (already built in Phase 1) — "transactional" caveat from that phase still applies (habits save before the check-in row, see code comment)
+  - Verified end-to-end against the live Supabase project, specifically the uniform-day-result rule: a habit individually marked passed still got the FAIL cost bump because a different scheduled habit was missed (25→28, 35→39, matching `LockCostService` exactly). Already-checked-in days correctly show a read-only summary instead of re-prompting. Test data cleaned up after.
 - [ ] `/progress` additions:
   - [ ] Per-habit lock-cost trajectory chart ("distance to habit formed")
   - [ ] % of planned days passed, last 30
