@@ -33,6 +33,16 @@ Dependencies must ONLY point inward:
 - If a concept doesn't fit cleanly in one layer, ask before proceeding
 - Prefer extending existing abstractions over creating new ones
 
+## Testing
+Every domain entity, value object, and domain service needs a co-located
+`*.test.ts` (Vitest), same for every application use case and mapper — follow
+the existing pattern (`Goal.logProgress.test.ts`, `ProjectionService.test.ts`,
+`SessionTimeframe.test.ts`, `LogProgressUseCase.test.ts`, `GoalMapper.test.ts`).
+Cover invariant violations and boundary conditions (floors/caps/rounding,
+state transitions), not just the happy path. New use cases and domain logic
+are not done until their tests exist and `npm test` passes. Repository
+implementations are thin mappers and are not required to have unit tests.
+
 ## Project plan
 docs/plan.md is the single source of truth for scope and progress. At the start of
 every session, read docs/plan.md before doing anything else, and follow its
