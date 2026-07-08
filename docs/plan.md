@@ -119,8 +119,12 @@ Working features that must keep working:
   - [ ] Summary strip between graph and goals: "+X% vs yesterday / +X% avg this week" — **not built, deliberately**: unclear what metric this refers to (habit pass rate? goal completion? both?) and guessing risked throwaway work: needs a product call
   - [x] (2026-07-07) Day pass/fail calendar view — `GetCheckInHistoryUseCase` + `DayResultCalendar`, 30-day grid, grey (not red) for days with no check-in per the "unplanned days are neutral" rule
   - Verified end-to-end against the live Supabase project: 5 real check-ins produced a trajectory (24,23,25,24,23) and 80% pass rate matching manual calculation exactly. Test data cleaned up after.
-- [ ] `/history` additions: past check-ins, edit/add/delete with forward cost recompute
-- [ ] Journal history view (private, chronological)
+- [x] (2026-07-07) `/history` additions: past check-ins (Check-ins section, above the existing goal-log history), edit/add/delete with forward cost recompute
+  - Along the way, refactored the cost-update mechanism itself: `SubmitCheckInUseCase` previously incremented from the habit's currently-stored cost, which silently assumed check-ins always arrive in date order — backfilling a missed past day would have broken that. Replaced with `HabitCostRecomputeService`, which always replays a habit's full check-in history from scratch (`HabitTrajectoryService`) and overwrites the stored cost. `EditCheckInUseCase` and `DeleteCheckInUseCase` use the same primitive, so there's no separate "forward recompute" algorithm to get wrong — correcting or removing any day is the same operation as submitting one.
+  - Verified end-to-end against the live Supabase project: submit (25→28 on FAIL, 28→27 on PASS), edit the first day FAIL→PASS recomputed forward to 23, delete that day recomputed to 24 from the remaining history alone — all matched hand-calculated expectations exactly.
+- [x] (2026-07-07) Journal history view (private, chronological) — `/journal`, linked from Settings, read-only, mood emoji
+
+**Phase 3 complete.**
 
 ### Phase 4: Polish + integration
 
