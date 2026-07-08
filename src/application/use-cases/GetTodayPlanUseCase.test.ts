@@ -18,7 +18,7 @@ describe("GetTodayPlanUseCase", () => {
       id: "plan-1",
       userId: "user-1",
       date: LocalDate.create("2026-01-21"),
-      habitIds: ["h1"],
+      goalIds: ["g1"],
       locksSpent: 25,
     });
     const useCase = new GetTodayPlanUseCase(new InMemoryDailyPlanRepository([plan]));

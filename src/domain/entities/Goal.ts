@@ -1,191 +1,164 @@
 import { ValidationError } from "../errors/DomainError";
-import { ProgressChartService, type ProgressChart } from "../services/ProgressChartService";
-import {
-  ProjectionService,
-  type Projection,
-  type WeeklyLogEntry,
-} from "../services/ProjectionService";
-import { SessionTimeframe } from "../value-objects/SessionTimeframe";
-import { LogEntry } from "./LogEntry";
+import { LockCostService, type GoalDifficulty } from "../services/LockCostService";
+
+export type { GoalDifficulty } from "../services/LockCostService";
+export type GoalState = "active" | "paused" | "formed";
+
+const NAME_MAX_LENGTH = 200;
+const MIN_WEEKLY_FREQUENCY = 1;
+const MAX_WEEKLY_FREQUENCY = 7;
 
 export interface GoalProps {
   id: string;
   userId: string;
-  /** Identity of the goal's one-to-one session (its [start, end) window). */
-  sessionId: string;
+  /** Freeform — "Read", "No soda", whatever the user typed. */
   name: string;
-  /**
-   * The per-week rate the user commits to (e.g. 5). Always > 0. The whole-
-   * session total is derived from it (weeklyTarget × number of weeks), so the
-   * weekly figure stays exactly what the user entered — never a division result.
-   */
-  weeklyTarget: number;
-  /** Freeform unit the target is measured in (e.g. "books", "km"). */
-  unit: string;
-  /** The timeframe the goal is pursued over. */
-  timeframe: SessionTimeframe;
-  /** Values logged against the goal, attributed to weeks of its session. */
-  logs: ReadonlyArray<WeeklyLogEntry>;
+  /** How many days a week you're committing to, e.g. 3 for "3x/week". */
+  weeklyFrequencyTarget: number;
+  difficulty: GoalDifficulty;
+  currentLockCost: number;
+  state: GoalState;
   createdAt: Date;
-  updatedAt: Date;
-}
-
-/** The mutable fields a user can supply when creating or editing a goal. */
-interface GoalDetails {
-  name: string;
-  /** The per-week rate the user commits to. The session total is derived from it. */
-  weeklyTarget: number;
-  unit: string;
-  startDate: Date;
-  endDate: Date;
 }
 
 /**
- * Goal entity — has identity (id) and a lifecycle.
- * A goal is a measurable target (targetValue + freeform unit) pursued over a
- * single session window. Enforces its own invariants. Knows nothing about
- * persistence or transport.
+ * Goal entity — a single, unified concept for everything you're trying to do
+ * regularly: "read 3x/week," "no soda," "exercise." Replaces the old split
+ * between a separate numeric-target "Goal" and a catalog-bound "Habit" — one
+ * system, one mental model.
+ *
+ * Has a lock cost that trends toward 1 (formed) on passed days and up
+ * (capped at 50) on failed ones — see LockCostService. Has identity and a
+ * lifecycle (active -> formed, or active <-> paused). Enforces its own
+ * invariants and knows nothing about persistence or transport.
  */
 export class Goal {
-  /** Stateless; shared across instances. The engine re-derives on every call. */
-  private static readonly projectionService = new ProjectionService();
-  /** Stateless; derives chart-ready cumulative series from a projection. */
-  private static readonly progressChartService = new ProgressChartService();
+  private static readonly lockCostService = new LockCostService();
 
   private constructor(private props: GoalProps) {}
 
-  /** Reconstitute an existing Goal (e.g. from a repository). */
-  static rehydrate(props: GoalProps): Goal {
-    Goal.assertValidName(props.name);
-    Goal.assertValidWeeklyTarget(props.weeklyTarget);
-    Goal.assertValidUnit(props.unit);
-    return new Goal(props);
-  }
-
-  /** Create a brand new Goal together with its session window. */
+  /** Create a brand new goal at its difficulty's starting lock cost. */
   static create(params: {
     id: string;
     userId: string;
-    sessionId: string;
     name: string;
-    /** The per-week rate; the session total is derived as weeklyTarget × weeks. */
-    weeklyTarget: number;
-    unit: string;
-    startDate: Date;
-    endDate: Date;
+    weeklyFrequencyTarget: number;
+    difficulty: GoalDifficulty;
     now?: Date;
   }): Goal {
     Goal.assertValidName(params.name);
-    Goal.assertValidWeeklyTarget(params.weeklyTarget);
-    Goal.assertValidUnit(params.unit);
-    const timeframe = SessionTimeframe.create({ start: params.startDate, end: params.endDate });
-    const now = params.now ?? new Date();
+    Goal.assertValidWeeklyFrequencyTarget(params.weeklyFrequencyTarget);
+    const currentLockCost = Goal.lockCostService.initialCostFor(params.difficulty);
     return new Goal({
       id: params.id,
       userId: params.userId,
-      sessionId: params.sessionId,
       name: params.name.trim(),
-      weeklyTarget: params.weeklyTarget,
-      unit: params.unit.trim(),
-      timeframe,
-      logs: [],
-      createdAt: now,
-      updatedAt: now,
+      weeklyFrequencyTarget: params.weeklyFrequencyTarget,
+      difficulty: params.difficulty,
+      currentLockCost,
+      state: "active",
+      createdAt: params.now ?? new Date(),
     });
   }
 
-  /** Apply user edits to an existing goal, re-validating every invariant. */
-  edit(details: GoalDetails, now: Date = new Date()): void {
-    Goal.assertValidName(details.name);
-    Goal.assertValidWeeklyTarget(details.weeklyTarget);
-    Goal.assertValidUnit(details.unit);
-    const timeframe = SessionTimeframe.create({
-      start: details.startDate,
-      end: details.endDate,
-    });
-    this.props.name = details.name.trim();
-    this.props.weeklyTarget = details.weeklyTarget;
-    this.props.unit = details.unit.trim();
-    this.props.timeframe = timeframe;
-    this.props.updatedAt = now;
+  /** Reconstitute an existing goal (e.g. from a repository). */
+  static rehydrate(props: GoalProps): Goal {
+    Goal.assertValidName(props.name);
+    Goal.assertValidWeeklyFrequencyTarget(props.weeklyFrequencyTarget);
+    Goal.assertValidLockCost(props.currentLockCost);
+    return new Goal(props);
   }
 
   /**
-   * Log a value against this goal. By default the entry is attributed to the
-   * week that contains `today` (the current week). Pass `weekIndex` to backfill
-   * a specific earlier week — e.g. an entry the user forgot after a week reset.
-   *
-   * The chosen week must lie within the session and must not be in the future
-   * (you cannot log progress for a week that hasn't started). Multiple logs in
-   * the same week accumulate — the new entry is appended in memory so a
-   * subsequent {@link project} call reflects it immediately. Returns the created
-   * entry for the caller to persist.
+   * Edit the name and/or weekly frequency target. Difficulty is intentionally
+   * NOT editable here: it seeds the replayed cost trajectory's starting
+   * point (see GoalTrajectoryService), so changing it after check-in history
+   * exists would retroactively rewrite that history's chart. Simplest to
+   * just not allow it — create a new goal if the difficulty was wrong.
    */
-  logProgress(params: {
-    id: string;
-    value: number;
-    today: Date;
-    weekIndex?: number;
-    now?: Date;
-  }): LogEntry {
-    const weekIndex = params.weekIndex ?? this.props.timeframe.weekIndexOn(params.today);
-    this.assertWeekLoggable(weekIndex, params.today);
-
-    const entry = LogEntry.create({
-      id: params.id,
-      goalId: this.props.id,
-      userId: this.props.userId,
-      weekIndex,
-      value: params.value,
-      now: params.now,
-    });
-    this.props.logs = [...this.props.logs, entry.toWeekly()];
-    return entry;
+  edit(details: { name: string; weeklyFrequencyTarget: number }): void {
+    Goal.assertValidName(details.name);
+    Goal.assertValidWeeklyFrequencyTarget(details.weeklyFrequencyTarget);
+    this.props.name = details.name.trim();
+    this.props.weeklyFrequencyTarget = details.weeklyFrequencyTarget;
   }
 
-  /** Guard that a week can be logged against: in-session and not yet to come. */
-  private assertWeekLoggable(weekIndex: number, today: Date): void {
-    const totalWeeks = this.props.timeframe.totalWeeks();
-    if (!Number.isInteger(weekIndex) || weekIndex < 0 || weekIndex >= totalWeeks) {
-      throw new ValidationError(
-        `That week is outside the goal's session ` +
-          `(the session spans ${totalWeeks} ${totalWeeks === 1 ? "week" : "weeks"}).`,
-      );
+  /**
+   * Apply a day's check-in result to this goal's lock cost, transitioning it
+   * to `formed` once the cost bottoms out at 1. No-op on progression for a
+   * paused goal's cost math — callers should not include paused goals in a
+   * day's plan, but this method does not itself gate on state.
+   */
+  applyDayResult(dayResult: "PASS" | "FAIL"): void {
+    this.props.currentLockCost = Goal.lockCostService.nextCost(
+      this.props.currentLockCost,
+      dayResult,
+    );
+    if (Goal.lockCostService.isFormed(this.props.currentLockCost) && this.props.state === "active") {
+      this.props.state = "formed";
     }
-    // Once the session has ended every week is in the past and open to backfill.
-    // While it is running, weeks beyond the current one have not happened yet.
-    if (
-      this.props.timeframe.phaseOn(today) !== "after" &&
-      weekIndex > this.props.timeframe.weekIndexOn(today)
-    ) {
-      throw new ValidationError("You can't log progress for a week that hasn't started yet.");
+  }
+
+  /**
+   * Overwrite the lock cost with an already-computed value — used after
+   * replaying a goal's check-in history from scratch (e.g. GoalTrajectoryService,
+   * following an edit to a past check-in), as opposed to `applyDayResult`'s
+   * single incremental step. Re-derives the formed transition both ways: a
+   * goal can un-form if a correction pushes its cost back above 1. Leaves a
+   * paused goal's pause alone — pausing is a separate, explicit user action.
+   */
+  recomputeCost(newCost: number): void {
+    Goal.assertValidLockCost(newCost);
+    this.props.currentLockCost = newCost;
+    if (Goal.lockCostService.isFormed(newCost)) {
+      if (this.props.state === "active") {
+        this.props.state = "formed";
+      }
+    } else if (this.props.state === "formed") {
+      this.props.state = "active";
     }
+  }
+
+  /** Pause an active goal — it stops being schedulable in future plans. */
+  pause(): void {
+    if (this.props.state !== "active") {
+      throw new ValidationError(`Cannot pause a goal in state "${this.props.state}".`);
+    }
+    this.props.state = "paused";
+  }
+
+  /** Resume a paused goal. */
+  resume(): void {
+    if (this.props.state !== "paused") {
+      throw new ValidationError(`Cannot resume a goal in state "${this.props.state}".`);
+    }
+    this.props.state = "active";
   }
 
   private static assertValidName(name: string): void {
     if (!name || name.trim().length === 0) {
       throw new ValidationError("Goal name must not be empty.");
     }
-    if (name.trim().length > 200) {
-      throw new ValidationError("Goal name must be 200 characters or fewer.");
+    if (name.trim().length > NAME_MAX_LENGTH) {
+      throw new ValidationError(`Goal name must be ${NAME_MAX_LENGTH} characters or fewer.`);
     }
   }
 
-  private static assertValidWeeklyTarget(weeklyTarget: number): void {
-    if (!Number.isFinite(weeklyTarget)) {
-      throw new ValidationError("Weekly target must be a number.");
-    }
-    if (weeklyTarget <= 0) {
-      throw new ValidationError("Weekly target must be greater than zero.");
+  private static assertValidWeeklyFrequencyTarget(target: number): void {
+    if (
+      !Number.isInteger(target) ||
+      target < MIN_WEEKLY_FREQUENCY ||
+      target > MAX_WEEKLY_FREQUENCY
+    ) {
+      throw new ValidationError(
+        `Weekly frequency target must be an integer between ${MIN_WEEKLY_FREQUENCY} and ${MAX_WEEKLY_FREQUENCY}.`,
+      );
     }
   }
 
-  private static assertValidUnit(unit: string): void {
-    if (!unit || unit.trim().length === 0) {
-      throw new ValidationError("Unit must not be empty.");
-    }
-    if (unit.trim().length > 50) {
-      throw new ValidationError("Unit must be 50 characters or fewer.");
+  private static assertValidLockCost(cost: number): void {
+    if (!Number.isInteger(cost) || cost < 1 || cost > 50) {
+      throw new ValidationError("Goal lock cost must be an integer between 1 and 50.");
     }
   }
 
@@ -197,57 +170,22 @@ export class Goal {
   get userId(): string {
     return this.props.userId;
   }
-  get sessionId(): string {
-    return this.props.sessionId;
-  }
   get name(): string {
     return this.props.name;
   }
-  /** The whole-session total, derived as the weekly rate × number of weeks. */
-  get targetValue(): number {
-    return this.props.weeklyTarget * this.props.timeframe.totalWeeks();
+  get weeklyFrequencyTarget(): number {
+    return this.props.weeklyFrequencyTarget;
   }
-  get unit(): string {
-    return this.props.unit;
+  get difficulty(): GoalDifficulty {
+    return this.props.difficulty;
   }
-  get timeframe(): SessionTimeframe {
-    return this.props.timeframe;
+  get currentLockCost(): number {
+    return this.props.currentLockCost;
   }
-
-  /**
-   * The target split evenly across the session's weeks (the per-week rate a
-   * user must sustain). Mirrors the weekly target used by the projection.
-   */
-  weeklyTarget(): number {
-    return this.props.weeklyTarget;
-  }
-
-  /**
-   * The "what you'll accomplish" projection as of `today`: past weeks count
-   * their actual logged totals, while the current and future weeks are assumed
-   * to hit at least the weekly target (over-delivery kept as bonus).
-   */
-  project(today: Date): Projection {
-    return Goal.projectionService.project({
-      timeframe: this.props.timeframe,
-      weeklyTarget: this.props.weeklyTarget,
-      today,
-      logs: this.props.logs,
-    });
-  }
-
-  /**
-   * Chart-ready progress series as of `today`: per-week actuals and target
-   * reference, plus cumulative target, actual, and projected series. Built from
-   * the same projection as {@link project}, so the two always agree.
-   */
-  progressChart(today: Date): ProgressChart {
-    return Goal.progressChartService.build(this.project(today));
+  get state(): GoalState {
+    return this.props.state;
   }
   get createdAt(): Date {
     return this.props.createdAt;
-  }
-  get updatedAt(): Date {
-    return this.props.updatedAt;
   }
 }

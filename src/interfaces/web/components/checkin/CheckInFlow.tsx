@@ -2,44 +2,44 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import type { HabitDTO } from "@/application/dtos/HabitDTO";
+import type { GoalDTO } from "@/application/dtos/GoalDTO";
 import type { CheckInDTO } from "@/application/dtos/CheckInDTO";
 import { submitCheckInAction, saveJournalAction } from "@/interfaces/web/app/(app)/checkin/actions";
 
 type Step = "marks" | "confirm" | "journal";
 
 export function CheckInFlow({
-  habits,
+  goals,
   existingCheckIn,
 }: {
-  habits: HabitDTO[];
+  goals: GoalDTO[];
   existingCheckIn: CheckInDTO | null;
 }) {
   if (existingCheckIn) {
-    return <AlreadyCheckedIn habits={habits} checkIn={existingCheckIn} />;
+    return <AlreadyCheckedIn goals={goals} checkIn={existingCheckIn} />;
   }
-  return <CheckInWizard habits={habits} />;
+  return <CheckInWizard goals={goals} />;
 }
 
-function AlreadyCheckedIn({ habits, checkIn }: { habits: HabitDTO[]; checkIn: CheckInDTO }) {
-  const byId = new Map(habits.map((h) => [h.id, h]));
+function AlreadyCheckedIn({ goals, checkIn }: { goals: GoalDTO[]; checkIn: CheckInDTO }) {
+  const byId = new Map(goals.map((g) => [g.id, g]));
   const passed = checkIn.dayResult === "PASS";
   return (
     <div className="flex flex-col gap-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
       <p
         className={`text-base font-medium ${passed ? "text-emerald-700" : "text-gray-700"}`}
       >
-        {passed ? "Nice — you passed today." : "Checked in — one or more habits were missed today."}
+        {passed ? "Nice — you passed today." : "Checked in — one or more goals were missed today."}
       </p>
       <ul className="flex flex-col gap-2">
         {checkIn.marks.map((mark) => {
-          const habit = byId.get(mark.habitId);
+          const goal = byId.get(mark.goalId);
           return (
             <li
-              key={mark.habitId}
+              key={mark.goalId}
               className="flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm"
             >
-              <span className="font-medium text-gray-900">{habit?.label ?? "Habit"}</span>
+              <span className="font-medium text-gray-900">{goal?.name ?? "Goal"}</span>
               <span className={mark.passed ? "text-emerald-600" : "text-gray-400"}>
                 {mark.passed ? "✓ Passed" : "✗ Missed"}
               </span>
@@ -54,21 +54,21 @@ function AlreadyCheckedIn({ habits, checkIn }: { habits: HabitDTO[]; checkIn: Ch
   );
 }
 
-function CheckInWizard({ habits }: { habits: HabitDTO[] }) {
+function CheckInWizard({ goals }: { goals: GoalDTO[] }) {
   const router = useRouter();
   const [step, setStep] = useState<Step>("marks");
   const [marks, setMarks] = useState<Record<string, boolean | null>>(
-    Object.fromEntries(habits.map((h) => [h.id, null])),
+    Object.fromEntries(goals.map((g) => [g.id, null])),
   );
   const [text, setText] = useState("");
   const [mood, setMood] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  const allMarked = habits.every((h) => marks[h.id] !== null);
+  const allMarked = goals.every((g) => marks[g.id] !== null);
 
-  function setMark(habitId: string, passed: boolean) {
-    setMarks((prev) => ({ ...prev, [habitId]: passed }));
+  function setMark(goalId: string, passed: boolean) {
+    setMarks((prev) => ({ ...prev, [goalId]: passed }));
   }
 
   function handleSubmitMarks() {
@@ -79,7 +79,7 @@ function CheckInWizard({ habits }: { habits: HabitDTO[] }) {
     setError(null);
     startTransition(async () => {
       const result = await submitCheckInAction(
-        habits.map((h) => ({ habitId: h.id, passed: marks[h.id]! })),
+        goals.map((g) => ({ goalId: g.id, passed: marks[g.id]! })),
       );
       if (result.ok) {
         setStep("journal");
@@ -109,19 +109,19 @@ function CheckInWizard({ habits }: { habits: HabitDTO[] }) {
           </p>
         )}
         <div className="flex flex-col gap-2">
-          {habits.map((habit) => (
+          {goals.map((goal) => (
             <div
-              key={habit.id}
+              key={goal.id}
               className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
             >
-              <span className="truncate font-medium text-gray-900">{habit.label}</span>
+              <span className="truncate font-medium text-gray-900">{goal.name}</span>
               <div className="flex shrink-0 gap-2">
                 <button
                   type="button"
-                  onClick={() => setMark(habit.id, true)}
-                  aria-pressed={marks[habit.id] === true}
+                  onClick={() => setMark(goal.id, true)}
+                  aria-pressed={marks[goal.id] === true}
                   className={`flex h-11 w-11 items-center justify-center rounded-full border-2 text-lg font-bold transition-colors ${
-                    marks[habit.id] === true
+                    marks[goal.id] === true
                       ? "border-emerald-500 bg-emerald-500 text-white"
                       : "border-gray-300 bg-white text-gray-400 hover:border-emerald-400"
                   }`}
@@ -130,10 +130,10 @@ function CheckInWizard({ habits }: { habits: HabitDTO[] }) {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setMark(habit.id, false)}
-                  aria-pressed={marks[habit.id] === false}
+                  onClick={() => setMark(goal.id, false)}
+                  aria-pressed={marks[goal.id] === false}
                   className={`flex h-11 w-11 items-center justify-center rounded-full border-2 text-lg font-bold transition-colors ${
-                    marks[habit.id] === false
+                    marks[goal.id] === false
                       ? "border-red-500 bg-red-500 text-white"
                       : "border-gray-300 bg-white text-gray-400 hover:border-red-400"
                   }`}
@@ -169,7 +169,7 @@ function CheckInWizard({ habits }: { habits: HabitDTO[] }) {
         </h2>
         <p className="text-sm text-gray-600">
           If it&apos;s not, you&apos;re only hurting yourself. And if you missed a day, you won&apos;t
-          lose all your progress — a miss just makes that habit a little more expensive tomorrow,
+          lose all your progress — a miss just makes that goal a little more expensive tomorrow,
           nothing more.
         </p>
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">

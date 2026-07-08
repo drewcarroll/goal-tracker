@@ -3,50 +3,17 @@
 import { revalidatePath } from "next/cache";
 import { getContainer } from "@/infrastructure/container";
 import { currentUserId } from "@/interfaces/web/http/currentUser";
-import type { GoalDTO } from "@/application/dtos/GoalDTO";
-import { createGoalSchema, updateGoalSchema } from "@/interfaces/web/http/validation";
+import type { GoalDTO, GoalDifficulty } from "@/application/dtos/GoalDTO";
 
-/**
- * Goals feed every tab: Home (quick-log + this-week status) and Progress
- * (charts) are derived from them, so a goal mutation must revalidate them all,
- * not just /goals — otherwise a freshly created goal won't appear on Home.
- */
+/** A goal's cost/state feeds Home, Plan, Progress, and History too. */
 function revalidateGoalDerivedPages(): void {
   revalidatePath("/home");
   revalidatePath("/goals");
+  revalidatePath("/plan");
   revalidatePath("/progress");
   revalidatePath("/history");
 }
 
-/** Raw values as they arrive from the form (all strings). */
-export interface GoalFormValues {
-  name: string;
-  /** Per-week rate, as typed; the session total is derived server-side. */
-  weeklyTarget: string;
-  unit: string;
-  startDate: string;
-  endDate: string;
-}
-
-export type GoalFieldErrors = Partial<Record<keyof GoalFormValues, string>>;
-
-export type GoalActionResult =
-  | { ok: true; goal: GoalDTO }
-  | { ok: false; error: string; fieldErrors?: GoalFieldErrors };
-
-/** Map a ZodError's flattened field errors to one message per field. */
-function toFieldErrors(fieldErrors: Record<string, string[] | undefined>): GoalFieldErrors {
-  const result: GoalFieldErrors = {};
-  for (const key of ["name", "weeklyTarget", "unit", "startDate", "endDate"] as const) {
-    const message = fieldErrors[key]?.[0];
-    if (message) {
-      result[key] = message;
-    }
-  }
-  return result;
-}
-
-/** Translate thrown domain/application errors into a user-facing message. */
 function toErrorMessage(error: unknown): string {
   const coded = error as { code?: string; message?: string };
   if (coded?.code === "VALIDATION_ERROR" || coded?.code === "GOAL_NOT_FOUND") {
@@ -55,21 +22,18 @@ function toErrorMessage(error: unknown): string {
   return "Something went wrong. Please try again.";
 }
 
-export async function createGoalAction(values: GoalFormValues): Promise<GoalActionResult> {
+export type GoalActionResult = { ok: true; goal: GoalDTO } | { ok: false; error: string };
+
+export async function createGoalAction(
+  name: string,
+  weeklyFrequencyTarget: number,
+  difficulty: GoalDifficulty,
+): Promise<GoalActionResult> {
   const { createGoalUseCase } = getContainer();
   const userId = currentUserId();
 
-  const parsed = createGoalSchema.safeParse(values);
-  if (!parsed.success) {
-    return {
-      ok: false,
-      error: "Please fix the highlighted fields.",
-      fieldErrors: toFieldErrors(parsed.error.flatten().fieldErrors),
-    };
-  }
-
   try {
-    const goal = await createGoalUseCase.execute({ userId, ...parsed.data });
+    const goal = await createGoalUseCase.execute({ userId, name, weeklyFrequencyTarget, difficulty });
     revalidateGoalDerivedPages();
     return { ok: true, goal };
   } catch (error) {
@@ -77,24 +41,32 @@ export async function createGoalAction(values: GoalFormValues): Promise<GoalActi
   }
 }
 
-export async function updateGoalAction(
+export async function editGoalAction(
   goalId: string,
-  values: GoalFormValues,
+  name: string,
+  weeklyFrequencyTarget: number,
+): Promise<GoalActionResult> {
+  const { editGoalUseCase } = getContainer();
+  const userId = currentUserId();
+
+  try {
+    const goal = await editGoalUseCase.execute({ userId, goalId, name, weeklyFrequencyTarget });
+    revalidateGoalDerivedPages();
+    return { ok: true, goal };
+  } catch (error) {
+    return { ok: false, error: toErrorMessage(error) };
+  }
+}
+
+export async function setGoalPausedAction(
+  goalId: string,
+  action: "pause" | "resume",
 ): Promise<GoalActionResult> {
   const { updateGoalUseCase } = getContainer();
   const userId = currentUserId();
 
-  const parsed = updateGoalSchema.safeParse(values);
-  if (!parsed.success) {
-    return {
-      ok: false,
-      error: "Please fix the highlighted fields.",
-      fieldErrors: toFieldErrors(parsed.error.flatten().fieldErrors),
-    };
-  }
-
   try {
-    const goal = await updateGoalUseCase.execute({ userId, goalId, ...parsed.data });
+    const goal = await updateGoalUseCase.execute({ userId, goalId, action });
     revalidateGoalDerivedPages();
     return { ok: true, goal };
   } catch (error) {
@@ -102,9 +74,9 @@ export async function updateGoalAction(
   }
 }
 
-export type DeleteActionResult = { ok: true } | { ok: false; error: string };
+export type DeleteGoalActionResult = { ok: true } | { ok: false; error: string };
 
-export async function deleteGoalAction(goalId: string): Promise<DeleteActionResult> {
+export async function deleteGoalAction(goalId: string): Promise<DeleteGoalActionResult> {
   const { deleteGoalUseCase } = getContainer();
   const userId = currentUserId();
 

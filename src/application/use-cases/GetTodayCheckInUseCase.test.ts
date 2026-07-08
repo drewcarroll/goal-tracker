@@ -22,7 +22,7 @@ describe("GetTodayCheckInUseCase", () => {
       id: "checkin-1",
       userId: "user-1",
       date: LocalDate.create("2026-01-21"),
-      marks: [{ habitId: "h1", passed: true }],
+      marks: [{ goalId: "g1", passed: true }],
     });
     const useCase = new GetTodayCheckInUseCase(new InMemoryCheckInRepository([checkIn]));
 

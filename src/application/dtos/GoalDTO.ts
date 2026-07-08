@@ -1,66 +1,64 @@
-/**
- * Data Transfer Objects — the contracts crossing the application boundary.
- * Use cases accept and return DTOs, never domain entities.
- */
+import type { GoalDifficulty } from "@/domain/services/LockCostService";
+import type { GoalState } from "@/domain/entities/Goal";
+import type { GoalCategory } from "@/domain/value-objects/GoalSuggestions";
 
-/** Whether a week has fully elapsed, is in progress, or is yet to come. */
-export type WeekKindDTO = "past" | "current" | "future";
-
-/** One week of a goal's session — used to target and label log entries. */
-export interface GoalWeekDTO {
-  /** 0-based index within the session. */
-  index: number;
-  startDate: string; // ISO 8601 (inclusive lower bound)
-  endDate: string; // ISO 8601 (exclusive upper bound)
-  kind: WeekKindDTO;
-  /** Amount already logged against this week (in the goal's unit). */
-  actual: number;
-}
+// Re-exported so interfaces/ never needs to import domain/ directly for these types.
+export type { GoalDifficulty, GoalState, GoalCategory };
 
 export interface GoalDTO {
   id: string;
   userId: string;
   name: string;
-  targetValue: number;
-  unit: string;
-  /** targetValue split evenly across the session's weeks (per-week rate). */
-  weeklyTarget: number;
-  /** Number of weekly buckets the session spans (always >= 1). */
-  totalWeeks: number;
-  /** 0-based index of the week containing "now", clamped to the session. */
-  currentWeekIndex: number;
-  /** Per-week breakdown across the session, oldest first. */
-  weeks: GoalWeekDTO[];
-  /**
-   * Projected end-of-session total from the projection engine: past actuals
-   * plus on-target current/future weeks, with over-delivery kept as bonus.
-   */
-  projectedTotal: number;
-  startDate: string; // ISO 8601
-  endDate: string; // ISO 8601
+  /** How many days a week you're committing to, e.g. 3 for "3x/week". */
+  weeklyFrequencyTarget: number;
+  difficulty: GoalDifficulty;
+  currentLockCost: number;
+  state: GoalState;
   createdAt: string; // ISO 8601
-  updatedAt: string; // ISO 8601
 }
 
 export interface CreateGoalDTO {
-  /** Owner of the goal — always derived from the session, never client input. */
   userId: string;
   name: string;
-  /** Per-week rate; the session total is derived as weeklyTarget × weeks. */
-  weeklyTarget: number;
-  unit: string;
-  startDate: string; // ISO 8601
-  endDate: string; // ISO 8601
+  weeklyFrequencyTarget: number;
+  difficulty: GoalDifficulty;
+}
+
+export interface CreateGoalSelectionDTO {
+  name: string;
+  weeklyFrequencyTarget: number;
+  difficulty: GoalDifficulty;
+}
+
+export interface CreateGoalsFromOnboardingDTO {
+  userId: string;
+  selections: CreateGoalSelectionDTO[];
 }
 
 export interface UpdateGoalDTO {
-  /** Owner of the goal — used to enforce that callers only mutate their own data. */
+  userId: string;
+  goalId: string;
+  action: "pause" | "resume";
+}
+
+/**
+ * Name/frequency are editable freely; difficulty is not — see Goal.edit's
+ * docstring for why (it would retroactively rewrite the cost trajectory).
+ */
+export interface EditGoalDTO {
   userId: string;
   goalId: string;
   name: string;
-  /** Per-week rate; the session total is derived as weeklyTarget × weeks. */
-  weeklyTarget: number;
-  unit: string;
-  startDate: string; // ISO 8601
-  endDate: string; // ISO 8601
+  weeklyFrequencyTarget: number;
+}
+
+export interface DeleteGoalDTO {
+  userId: string;
+  goalId: string;
+}
+
+/** A read-only view of one GOAL_SUGGESTIONS entry, for the "quick add" picker. */
+export interface GoalSuggestionDTO {
+  label: string;
+  category: GoalCategory;
 }

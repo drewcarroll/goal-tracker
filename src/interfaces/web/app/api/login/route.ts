@@ -13,7 +13,7 @@ import {
  * username bounces back to /login with an error flag.
  *
  * Also captures the browser's IANA timezone (sent via a hidden field the login
- * page's inline script fills in — see login/page.tsx) so habit day boundaries
+ * page's inline script fills in — see login/page.tsx) so goal day boundaries
  * can use the user's local day instead of server UTC. Falls back to UTC if
  * absent or unrecognized (e.g. JS disabled).
  */

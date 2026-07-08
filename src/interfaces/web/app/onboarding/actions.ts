@@ -2,34 +2,34 @@
 
 import { getContainer } from "@/infrastructure/container";
 import { currentUserId } from "@/interfaces/web/http/currentUser";
-import type { HabitDTO, CreateHabitSelectionDTO } from "@/application/dtos/HabitDTO";
+import type { GoalDTO, CreateGoalSelectionDTO } from "@/application/dtos/GoalDTO";
 
 export type OnboardingActionResult =
-  | { ok: true; habits: HabitDTO[] }
+  | { ok: true; goals: GoalDTO[] }
   | { ok: false; error: string };
 
 /** Translate thrown domain/application errors into a user-facing message. */
 function toErrorMessage(error: unknown): string {
   const coded = error as { code?: string; message?: string };
   if (coded?.code === "VALIDATION_ERROR") {
-    return coded.message ?? "Those habits could not be created.";
+    return coded.message ?? "Those goals could not be created.";
   }
   return "Something went wrong. Please try again.";
 }
 
-export async function createHabitsFromOnboardingAction(
-  selections: CreateHabitSelectionDTO[],
+export async function createGoalsFromOnboardingAction(
+  selections: CreateGoalSelectionDTO[],
 ): Promise<OnboardingActionResult> {
   if (selections.length === 0) {
-    return { ok: false, error: "Select at least one habit to continue." };
+    return { ok: false, error: "Select at least one goal to continue." };
   }
 
-  const { createHabitsFromOnboardingUseCase } = getContainer();
+  const { createGoalsFromOnboardingUseCase } = getContainer();
   const userId = currentUserId();
 
   try {
-    const habits = await createHabitsFromOnboardingUseCase.execute({ userId, selections });
-    return { ok: true, habits };
+    const goals = await createGoalsFromOnboardingUseCase.execute({ userId, selections });
+    return { ok: true, goals };
   } catch (error) {
     return { ok: false, error: toErrorMessage(error) };
   }

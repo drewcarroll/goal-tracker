@@ -1,8 +1,8 @@
 import { LocalDate } from "@/domain/value-objects/LocalDate";
-import { HabitRepository } from "@/domain/repositories/HabitRepository";
+import { GoalRepository } from "@/domain/repositories/GoalRepository";
 import { CheckInRepository } from "@/domain/repositories/CheckInRepository";
 import { CheckInNotFoundError } from "../errors/ApplicationError";
-import { HabitCostRecomputeService } from "../services/HabitCostRecomputeService";
+import { GoalCostRecomputeService } from "../services/GoalCostRecomputeService";
 
 export interface DeleteCheckInDTO {
   userId: string;
@@ -11,12 +11,12 @@ export interface DeleteCheckInDTO {
 
 /**
  * Use Case: delete a check-in (e.g. it was submitted by mistake). Recomputes
- * every habit that was on it, since removing a day from the history shifts
- * every later day's cost for those habits too.
+ * every goal that was on it, since removing a day from the history shifts
+ * every later day's cost for those goals too.
  */
 export class DeleteCheckInUseCase {
   constructor(
-    private readonly habitRepository: HabitRepository,
+    private readonly goalRepository: GoalRepository,
     private readonly checkInRepository: CheckInRepository,
   ) {}
 
@@ -29,13 +29,13 @@ export class DeleteCheckInUseCase {
 
     await this.checkInRepository.delete(existing.id);
 
-    const recomputeService = new HabitCostRecomputeService(
-      this.habitRepository,
+    const recomputeService = new GoalCostRecomputeService(
+      this.goalRepository,
       this.checkInRepository,
     );
     await recomputeService.recomputeMany(
       dto.userId,
-      existing.marks.map((m) => m.habitId),
+      existing.marks.map((m) => m.goalId),
     );
   }
 }

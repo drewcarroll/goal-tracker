@@ -9,13 +9,20 @@ export const metadata: Metadata = { title: "Goals · Goal Tracker" };
 export const dynamic = "force-dynamic";
 
 export default async function GoalsPage() {
-  const { listGoalsUseCase } = getContainer();
+  const { getAllGoalsUseCase, getGoalSuggestionsUseCase } = getContainer();
   const userId = currentUserId();
-  const goals = await listGoalsUseCase.execute({ userId });
+  const goals = await getAllGoalsUseCase.execute({ userId });
+  const suggestions = getGoalSuggestionsUseCase.execute();
 
   return (
-    <section className="mx-auto w-full max-w-3xl">
-      <GoalsManager initialGoals={goals} />
+    <section className="mx-auto flex w-full max-w-md flex-col gap-6">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Goals</h1>
+        <p className="mt-1 text-gray-600">
+          What you&apos;re committing to, and how often each week.
+        </p>
+      </div>
+      <GoalsManager initialGoals={goals} suggestions={suggestions} />
     </section>
   );
 }

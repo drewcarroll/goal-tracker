@@ -3,12 +3,12 @@
 import { revalidatePath } from "next/cache";
 import { getContainer } from "@/infrastructure/container";
 import { currentUserId, currentTimezone } from "@/interfaces/web/http/currentUser";
-import type { CheckInDTO, HabitMarkDTO } from "@/application/dtos/CheckInDTO";
+import type { CheckInDTO, GoalMarkDTO } from "@/application/dtos/CheckInDTO";
 import type { JournalEntryDTO } from "@/application/dtos/JournalEntryDTO";
 
 function toErrorMessage(error: unknown): string {
   const coded = error as { code?: string; message?: string };
-  if (coded?.code === "VALIDATION_ERROR" || coded?.code === "HABIT_NOT_FOUND") {
+  if (coded?.code === "VALIDATION_ERROR" || coded?.code === "GOAL_NOT_FOUND") {
     return coded.message ?? "That couldn't be saved.";
   }
   return "Something went wrong. Please try again.";
@@ -23,10 +23,10 @@ export type SubmitCheckInActionResult =
  * the signed-in user's timezone, never trusted from the client.
  */
 export async function submitCheckInAction(
-  marks: HabitMarkDTO[],
+  marks: GoalMarkDTO[],
 ): Promise<SubmitCheckInActionResult> {
   if (marks.length === 0) {
-    return { ok: false, error: "Mark at least one habit to check in." };
+    return { ok: false, error: "Mark at least one goal to check in." };
   }
 
   const { submitCheckInUseCase, localDateService } = getContainer();

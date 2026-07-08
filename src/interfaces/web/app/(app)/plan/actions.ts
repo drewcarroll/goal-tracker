@@ -15,8 +15,8 @@ function toErrorMessage(error: unknown): string {
   if (
     coded?.code === "VALIDATION_ERROR" ||
     coded?.code === "LOCK_BUDGET_EXCEEDED" ||
-    coded?.code === "HABIT_NOT_SCHEDULABLE" ||
-    coded?.code === "HABIT_NOT_FOUND"
+    coded?.code === "GOAL_NOT_SCHEDULABLE" ||
+    coded?.code === "GOAL_NOT_FOUND"
   ) {
     return coded.message ?? "That plan could not be saved.";
   }
@@ -30,11 +30,11 @@ function toErrorMessage(error: unknown): string {
  * from the client as a literal date.
  */
 export async function createDailyPlanAction(
-  habitIds: string[],
+  goalIds: string[],
   dateChoice: "today" | "tomorrow" = "tomorrow",
 ): Promise<CreateDailyPlanActionResult> {
-  if (habitIds.length === 0) {
-    return { ok: false, error: "Pick at least one habit to plan." };
+  if (goalIds.length === 0) {
+    return { ok: false, error: "Pick at least one goal to plan." };
   }
 
   const { createDailyPlanUseCase, localDateService } = getContainer();
@@ -44,7 +44,7 @@ export async function createDailyPlanAction(
     dateChoice === "today" ? localDateService.today(timezone) : localDateService.tomorrow(timezone);
 
   try {
-    const plan = await createDailyPlanUseCase.execute({ userId, date, habitIds });
+    const plan = await createDailyPlanUseCase.execute({ userId, date, goalIds });
     revalidatePath("/plan");
     revalidatePath("/home");
     return { ok: true, plan };

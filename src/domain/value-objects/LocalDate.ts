@@ -5,7 +5,7 @@ const DATE_FORMAT = /^(\d{4})-(\d{2})-(\d{2})$/;
 /**
  * Value Object for a user-local calendar day, e.g. "2026-07-06".
  *
- * Habit planning/check-ins/journaling are anchored to the user's local day,
+ * Goal planning/check-ins/journaling are anchored to the user's local day,
  * never server UTC — this type carries that day as an opaque, unambiguous
  * string rather than a `Date` (which always implies an instant + timezone,
  * inviting off-by-one-day bugs). Immutable; equality by value.
@@ -57,6 +57,13 @@ export class LocalDate {
       String(shifted.getUTCDate()).padStart(2, "0"),
     ].join("-");
     return LocalDate.create(formatted);
+  }
+
+  /** Monday of the Mon-Sun week this date falls in (this date if it's already Monday). */
+  startOfWeek(): LocalDate {
+    const dayOfWeek = new Date(`${this.value}T00:00:00Z`).getUTCDay(); // 0 = Sun … 6 = Sat
+    const daysSinceMonday = (dayOfWeek + 6) % 7; // Mon = 0 … Sun = 6
+    return this.addDays(-daysSinceMonday);
   }
 
   toString(): string {

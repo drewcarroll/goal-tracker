@@ -3,8 +3,8 @@ import { LocalDate } from "../value-objects/LocalDate";
 
 export type DayResult = "PASS" | "FAIL";
 
-export interface HabitMark {
-  habitId: string;
+export interface GoalMark {
+  goalId: string;
   passed: boolean;
 }
 
@@ -13,19 +13,19 @@ export interface CheckInProps {
   userId: string;
   /** The user-local day this check-in reports on. */
   date: LocalDate;
-  /** One mark per habit that was scheduled in that day's plan. */
-  marks: readonly HabitMark[];
+  /** One mark per goal that was scheduled in that day's plan. */
+  marks: readonly GoalMark[];
   createdAt: Date;
 }
 
 /**
  * CheckIn entity — the end-of-day honor-system report against a DailyPlan:
- * one pass/fail mark per scheduled habit. Has identity; immutable once
- * submitted (see `EditPastCheckInUseCase` for corrections, which create a new
- * CheckIn rather than mutating this one). Enforces its own invariants and
- * knows nothing about persistence or transport.
+ * one pass/fail mark per scheduled goal. Has identity; immutable once
+ * submitted (see EditCheckInUseCase for corrections, which replace this
+ * check-in's marks rather than mutating it directly). Enforces its own
+ * invariants and knows nothing about persistence or transport.
  *
- * dayResult is derived, never stored: PASS only if every marked habit passed;
+ * dayResult is derived, never stored: PASS only if every marked goal passed;
  * a single miss makes the whole day FAIL. Per the non-negotiable design rules,
  * this is neutral bookkeeping for the lock-cost trajectory — never shame UI,
  * never a streak.
@@ -37,7 +37,7 @@ export class CheckIn {
     id: string;
     userId: string;
     date: LocalDate;
-    marks: readonly HabitMark[];
+    marks: readonly GoalMark[];
     now?: Date;
   }): CheckIn {
     CheckIn.assertValidMarks(params.marks);
@@ -55,24 +55,24 @@ export class CheckIn {
     return new CheckIn(props);
   }
 
-  private static assertValidMarks(marks: readonly HabitMark[]): void {
+  private static assertValidMarks(marks: readonly GoalMark[]): void {
     if (marks.length === 0) {
-      throw new ValidationError("A check-in must mark at least one habit.");
+      throw new ValidationError("A check-in must mark at least one goal.");
     }
-    const habitIds = marks.map((mark) => mark.habitId);
-    if (new Set(habitIds).size !== habitIds.length) {
-      throw new ValidationError("A check-in cannot mark the same habit twice.");
+    const goalIds = marks.map((mark) => mark.goalId);
+    if (new Set(goalIds).size !== goalIds.length) {
+      throw new ValidationError("A check-in cannot mark the same goal twice.");
     }
   }
 
-  /** PASS only if every marked habit passed; any miss makes the day FAIL. */
+  /** PASS only if every marked goal passed; any miss makes the day FAIL. */
   get dayResult(): DayResult {
     return this.props.marks.every((mark) => mark.passed) ? "PASS" : "FAIL";
   }
 
-  /** Whether a specific habit passed on this day. Undefined if it wasn't marked. */
-  markFor(habitId: string): boolean | undefined {
-    return this.props.marks.find((mark) => mark.habitId === habitId)?.passed;
+  /** Whether a specific goal passed on this day. Undefined if it wasn't marked. */
+  markFor(goalId: string): boolean | undefined {
+    return this.props.marks.find((mark) => mark.goalId === goalId)?.passed;
   }
 
   // --- Getters (read-only access to state) ---
@@ -86,7 +86,7 @@ export class CheckIn {
   get date(): LocalDate {
     return this.props.date;
   }
-  get marks(): readonly HabitMark[] {
+  get marks(): readonly GoalMark[] {
     return this.props.marks;
   }
   get createdAt(): Date {

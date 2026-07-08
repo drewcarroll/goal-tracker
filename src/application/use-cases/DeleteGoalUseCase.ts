@@ -1,15 +1,12 @@
 import { GoalRepository } from "@/domain/repositories/GoalRepository";
 import { GoalNotFoundError } from "../errors/ApplicationError";
-
-export interface DeleteGoalDTO {
-  /** Owner of the goal — used to enforce that callers only delete their own data. */
-  userId: string;
-  goalId: string;
-}
+import { DeleteGoalDTO } from "../dtos/GoalDTO";
 
 /**
- * Use Case: delete a goal (and, via the DB cascade, its session and logs).
- * Ownership is enforced here: a caller can only ever delete their own goals.
+ * Use Case: permanently remove a goal. Ownership is enforced here. Past
+ * check-ins referencing this goal's id are left as historical record (marks
+ * are stored inline on the CheckIn, not a foreign key) — they just stop
+ * resolving to a live goal in any UI that looks one up.
  */
 export class DeleteGoalUseCase {
   constructor(private readonly goalRepository: GoalRepository) {}

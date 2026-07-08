@@ -1,4 +1,4 @@
-# plan.md — Goal Tracker Habit Overhaul
+# plan.md — Goal Tracker Habit Overhaul (+ Goal/Habit Unification)
 
 ## ⚠️ MAINTENANCE PROTOCOL — READ FIRST, FOLLOW ALWAYS
 
@@ -17,14 +17,14 @@ This file is the single source of truth for what we're building. You (Claude Cod
 Transform the existing measurable-goal tracker into a habit-formation app built around one core mechanic: **the locks system**. Users have a 100-lock daily budget that limits how much they can schedule, preventing overcommitment. Costs self-calibrate: succeed and habits get cheaper (approaching "habit formed" at cost 1), fail and they get more expensive (forcing focus, capped at 50). Planning happens the night before. Misses are neutral, never punished.
 
 Non-negotiable design rules:
-- **No streaks, ever.** Streaks incentivize lying. Progression = lock-cost trajectory per habit + % of days passed in last 30.
+- **No streaks, ever.** Streaks incentivize lying. Progression = lock-cost trajectory per goal + % of days passed in last 30.
 - **Non-punitive misses.** No streak resets, no shame UI. Copy reinforces: "If you missed a day, you won't lose all your progress."
 - **Unplanned days are neutral.** No plan submitted = no cost adjustment, excluded from pass-rate denominator. FAIL only applies to planned days checked in with ≥1 miss.
 - **Honor system with friction.** Pre-submit confirmation: "Is this truthful? If it's not, you're only hurting yourself."
-- **Hardcoded habit catalog only.** No custom habits in MVP. Habits must be explicitly defined and consistent across people.
 - **No auto-recurring schedules.** Every day is planned manually the night before.
 - **Day boundaries = user's local timezone** (timezone cookie/setting captured at login). Never server UTC.
-- **Measurable goals and habits coexist.** Two goal types, shared navigation. Existing weekly-rate tracker stays untouched.
+- ~~Hardcoded habit catalog only. No custom habits in MVP.~~ **Superseded 2026-07-08** — see Phase 5. Goals are now freeform (any name), with the old catalog kept only as optional "quick add" suggestions.
+- ~~Measurable goals and habits coexist. Two goal types, shared navigation.~~ **Superseded 2026-07-08** — see Phase 5. The two systems were merged into one `Goal` concept; there is no longer a numeric-target goal type.
 
 ---
 
@@ -32,13 +32,21 @@ Non-negotiable design rules:
 
 Next.js 14 App Router on Vercel, Supabase Postgres (service-role key server-side only). Strict four-layer clean architecture: `domain/` → `application/` → `infrastructure/` → `interfaces/`. Dependencies point inward only. One use case per action, repositories injected via constructor, use cases return DTOs never raw entities. A composition root wires concrete repositories into use cases; nothing above infrastructure touches Supabase directly.
 
+As of 2026-07-08 (Phase 5), there is a single unified `Goal` concept — see that
+section below for the full rationale. The old split between a numeric-target
+"goal" and a catalog-bound "habit" no longer exists.
+
 Working features that must keep working:
 - Username-cookie auth gate (`usernameToUserId` deterministic UUID, no passwords), middleware redirect to `/login`
-- `/home` — quick-log form + this-week status per active goal, optimistic client-side updates
-- `/goals` — measurable goal CRUD (name, unit, weekly target rate, start/end date; session total derived from weekly rate)
-- `/progress` — cumulative/weekly bar chart + completion donut via `ProjectionService` / `ProgressChartService` on the Goal entity
-- `/history` — past log entries
-- Daily Vercel keepalive cron (`/api/cron/keepalive`) through `ListGoalsUseCase`
+- `/home` — today's scheduled goals (from last night's `/plan`) + check-in/plan-tomorrow entry points
+- `/goals` — unified goal CRUD: freeform name, weekly frequency target, difficulty (set once, at creation), pause/resume, delete
+- `/onboarding` — first-run wizard: pick suggested goal ideas or type your own, set difficulty + weekly frequency, confirm
+- `/plan` — night-before planning within the 100-lock budget (`?for=today` grace path for a day with no plan at all)
+- `/checkin` — end-of-day pass/fail marks per scheduled goal + optional private journal entry
+- `/progress` — per-goal lock-cost trajectory chart, gamified "this week X/N" pips, 30-day pass rate, pass/fail calendar
+- `/history` — past check-ins: edit, delete, or backfill a missed day
+- `/journal` — private, chronological journal entries
+- Daily Vercel keepalive cron (`/api/cron/keepalive`) through `GetAllGoalsUseCase`
 
 ---
 
@@ -143,6 +151,31 @@ fixed: History had no link to Journal despite being closely related.
 
 **Phase 4 complete. All four phases of the habit system are now built.**
 
+### Phase 5: Unify measurable goals and habits into one `Goal` concept
+
+Prompted directly by user feedback that having two parallel systems (a
+numeric-target "goal" and a catalog-bound "habit") on one screen was
+confusing, given they're conceptually the same thing: "do A N times a week."
+Resolved via four decisions (freeform custom entry integrated into one UI;
+binary check-off only, numeric amount-based logging dropped entirely; fresh
+start, old goals/goal_sessions/logs tables retired rather than migrated;
+leave the existing 50-point lock-cost cap as the "keep missing it → it's the
+only thing you can schedule" mechanic, no new explicit rule).
+
+- [x] (2026-07-08) Domain: replace `Goal` (old numeric) + `Habit` with one `Goal` entity — `{id, userId, name (freeform), weeklyFrequencyTarget (1-7), difficulty, currentLockCost, state, createdAt}`. Difficulty is set at creation and intentionally not editable after (it seeds `GoalTrajectoryService`'s replayed cost trajectory; changing it post-hoc would retroactively rewrite historical chart data). `edit()` covers name/weeklyFrequencyTarget only.
+- [x] (2026-07-08) Domain: `HabitCatalog` → `GoalSuggestions` — simplified `{label, category}`, no longer a binding catalog (no id/type/minMinutes); onboarding/`/goals` treat it as optional autofill, not a closed list.
+- [x] (2026-07-08) Domain: `LocalDate.startOfWeek()` added (Monday-anchored) to support the new "this week X/N" gamification stat.
+- [x] (2026-07-08) Domain: deleted `LogEntry`, `SessionTimeframe`, `ProjectionService`, `ProgressChartService`, and the old `GoalRepository`/`LogRepository` — the numeric-goal system's entire supporting cast.
+- [x] (2026-07-08) Application: rebuilt the use-case set around the unified `Goal` — `CreateGoalUseCase`, `CreateGoalsFromOnboardingUseCase`, `EditGoalUseCase` (new), `UpdateGoalUseCase` (pause/resume), `DeleteGoalUseCase` (new — goals had no delete before), `GetActiveGoalsUseCase`, `GetAllGoalsUseCase`, `GetGoalSuggestionsUseCase`, `GetGoalStatsUseCase` (added a `thisWeek: {completed, target}` field for the gamified Progress badge). Deleted the old numeric-goal use cases (`LogProgressUseCase`, `GetProgressDataUseCase`, `GetHistoryUseCase`, `DeleteLogUseCase`, etc.) wholesale.
+- [x] (2026-07-08) Application: along the way, found `LogMapper.ts` and `ProgressMapper.ts` had zero consumers anywhere in the codebase (confirmed via grep) — deleted as dead scaffold code, not part of the migration itself.
+- [x] (2026-07-08) Infrastructure: `SupabaseGoalRepository` (reusing the freed name) implements the unified repository, `delete()` added. Kept the physical DB names from the old `habits` table/`habit_ids` column/`habitId` jsonb key as-is — translated to the domain's `Goal`/`goalIds`/`goalId` only at the repository boundary — specifically to avoid a data migration on top of the schema migration. Documented inline everywhere this happens so the naming mismatch doesn't confuse a future reader.
+- [x] (2026-07-08) DB: `supabase/schema.sql` rewritten — drops `logs`/`goal_sessions`/`goals`; `habits` table gets `name` (backfilled from `catalog_id`) and `weekly_frequency_target` (backfilled to 3) columns, `catalog_id` dropped. Migration is idempotent (safe to re-run) and was run by the user directly in the Supabase SQL Editor, then verified end-to-end (see below).
+- [x] (2026-07-08) Interfaces: full UI rebuild — `/goals` is now the single create/edit/pause/resume/delete surface (replaces both the old numeric-goal CRUD and `/settings`'s habit pause/resume list); `/settings` deleted entirely, its one other link (Journal) moved into the app shell header. `/onboarding` rewritten for freeform + suggestion-autofill entry with a weekly-frequency stepper added alongside difficulty. `/plan`, `/checkin`, `/home`, `/progress`, `/history` all renamed from Habit-flavored to Goal-flavored (types, props, copy). `/progress` gained a "this week X/N" pip row per goal (the "more gamified" ask) and a "✓ Formed" badge. Deleted the `/demo` mock-data route and its Makefile/`SETUP.md` references (unrelated dead weight surfaced during the sweep, not part of the ask itself).
+- [x] (2026-07-08) Verification: `npm run type-check` / `test` (129 passing) / `lint` / `build` all clean. End-to-end against the live Supabase project after the user ran the migration: goal creation, planning, check-in with the uniform-day-result cost bump, edit-check-in-with-forward-recompute, `thisWeek` stat, goal rename, pause/resume all matched hand-calculated expectations exactly; all 8 pages returned 200 with a signed-in session and rendered the right content (spot-checked via curl against the rendered HTML, since no browser-automation tool was available this session). Test data cleaned up from Supabase after.
+- [x] (2026-07-08) Docs: README.md rewritten (pages table, Clean Architecture section, tech stack) to describe the unified system instead of the old split one; SETUP.md's `/demo` callout removed; this plan updated.
+
+**Phase 5 complete.**
+
 ---
 
 ## Changelog
@@ -157,3 +190,5 @@ fixed: History had no link to Journal despite being closely related.
 - 2026-07-07 — Phase 2 complete: onboarding wizard, `/plan` (tomorrow, plus a `?for=today` grace path), Home integration, and Settings, all verified end-to-end against the live Supabase project (real create/read/pause round-trips, test data cleaned up after each). Two small unplanned additions: `LocalDate.addDays` + an application-layer `LocalDateService` (today/tomorrow-in-a-timezone), and `GetHabitCatalogUseCase`/`GetAllHabitsUseCase` — both needed so `interfaces/` never has to import `domain/` directly, which came up twice as an actual mistake caught and fixed while building the onboarding and planning UI (see CLAUDE.md's dependency rule). First-visit onboarding ended up as a Home nudge card rather than a hard redirect — optional beats gating. "Edit habit list" in Settings is pause/resume only; re-sorting difficulty is still the deferred item from the Phase 1 entry above.
 - 2026-07-07/08 — Phase 3 complete: check-in flow, `/progress` trajectory chart + pass-rate + calendar, `/history` check-in edit/add/delete, `/journal`. The check-in cost math got a real correctness fix along the way (see the `/history` entry above for detail) — `HabitCostRecomputeService`'s full-replay approach is now what every cost update goes through, not just the edit/delete ones that needed it. The ambiguous "summary strip" item from the original Progress spec was deliberately left unbuilt rather than guessed.
 - 2026-07-08 — Phase 4 complete: mostly an audit rather than new work — see that section for what was checked and why each item was already satisfied. One real fix (History → Journal link). **All four phases done.** Known deferred items, still open: re-sorting a habit's difficulty (Phase 1, needs a product call on whether it resets cost), journal photo upload (Phase 1/3, needs a Storage bucket created in the Supabase dashboard), and the Progress page's ambiguous "summary strip" (Phase 3, needs the metric clarified). Everything else across all four phases was verified end-to-end against the live Supabase project, not just unit-tested.
+- 2026-07-08 — **Scope change, user-directed**: user flagged that shipping two parallel systems (numeric-target goals + catalog-bound habits) on one screen was confusing rather than useful, and asked for them to be merged into one `Goal` concept with a rebuilt, more gamified UI — see Phase 5. This retires the "measurable goals and habits coexist" and "hardcoded habit catalog only" rules from the original Vision (struck through above, not deleted, per this file's own protocol) and supersedes several completed Phase 1–4 items' *underlying entities* (the `Habit`/`HabitCatalog`/old-`Goal` types), even though those phases' checklist items themselves stay checked — the work they describe genuinely happened and was verified at the time; Phase 5 is what replaced its outputs, not what undid the effort. The re-sort-difficulty-post-creation deferral (Phase 1) is now resolved as "intentionally never editable" rather than left open — see Phase 5's first entry for why. Photo upload and the ambiguous summary-strip deferrals are unaffected and still open.
+- 2026-07-08 — Phase 5 complete: unification shipped, migration run by the user against the live Supabase project, and verified end-to-end (see Phase 5 section for specifics). This is the plan's current state going forward — treat the "Working features" list under Current State as authoritative over any Phase 1–4 description of `Habit`/old-`Goal` mechanics, which are historical record of how the app got here, not what it currently does.

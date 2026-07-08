@@ -1,26 +1,27 @@
 import { describe, it, expect } from "vitest";
 import { CreateDailyPlanUseCase } from "./CreateDailyPlanUseCase";
-import { Habit } from "../../domain/entities/Habit";
+import { Goal } from "../../domain/entities/Goal";
 import { DailyPlan } from "../../domain/entities/DailyPlan";
-import { HabitRepository } from "../../domain/repositories/HabitRepository";
+import { GoalRepository } from "../../domain/repositories/GoalRepository";
 import { DailyPlanRepository } from "../../domain/repositories/DailyPlanRepository";
 import {
-  HabitNotFoundError,
-  HabitNotSchedulableError,
+  GoalNotFoundError,
+  GoalNotSchedulableError,
   LockBudgetExceededError,
 } from "../errors/ApplicationError";
 import { Clock } from "../ports/Clock";
 import { IdGenerator } from "../ports/IdGenerator";
 
-class InMemoryHabitRepository implements HabitRepository {
-  constructor(private readonly habits: Habit[]) {}
-  async findById(id: string): Promise<Habit | null> {
-    return this.habits.find((h) => h.id === id) ?? null;
+class InMemoryGoalRepository implements GoalRepository {
+  constructor(private readonly goals: Goal[]) {}
+  async findById(id: string): Promise<Goal | null> {
+    return this.goals.find((g) => g.id === id) ?? null;
   }
-  async findByUserId(userId: string): Promise<Habit[]> {
-    return this.habits.filter((h) => h.userId === userId);
+  async findByUserId(userId: string): Promise<Goal[]> {
+    return this.goals.filter((g) => g.userId === userId);
   }
   async save(): Promise<void> {}
+  async delete(): Promise<void> {}
 }
 
 class InMemoryDailyPlanRepository implements DailyPlanRepository {
@@ -37,64 +38,75 @@ const NOW = new Date("2026-01-20T00:00:00.000Z");
 const fixedClock: Clock = { now: () => NOW };
 const fixedIds: IdGenerator = { generate: () => "plan-1" };
 
-function habit(id: string, difficulty: "easy" | "medium" | "hard", userId = "user-1") {
-  return Habit.create({ id, userId, catalogId: "exercise", difficulty, now: NOW });
+function goal(id: string, difficulty: "easy" | "medium" | "hard", userId = "user-1") {
+  return Goal.create({
+    id,
+    userId,
+    name: "Exercise",
+    weeklyFrequencyTarget: 3,
+    difficulty,
+    now: NOW,
+  });
 }
 
 describe("CreateDailyPlanUseCase", () => {
-  it("sums the requested habits' server-side costs into locksSpent", async () => {
-    const habits = new InMemoryHabitRepository([habit("h1", "easy"), habit("h2", "medium")]);
+  it("sums the requested goals' server-side costs into locksSpent", async () => {
+    const goals = new InMemoryGoalRepository([goal("g1", "easy"), goal("g2", "medium")]);
     const plans = new InMemoryDailyPlanRepository();
-    const useCase = new CreateDailyPlanUseCase(habits, plans, fixedIds, fixedClock);
+    const useCase = new CreateDailyPlanUseCase(goals, plans, fixedIds, fixedClock);
 
     const result = await useCase.execute({
       userId: "user-1",
       date: "2026-01-21",
-      habitIds: ["h1", "h2"],
+      goalIds: ["g1", "g2"],
     });
 
     expect(result.locksSpent).toBe(60); // 25 + 35
-    expect(result.habitIds).toEqual(["h1", "h2"]);
+    expect(result.goalIds).toEqual(["g1", "g2"]);
     expect(plans.saved).toHaveLength(1);
   });
 
   it("rejects a plan that exceeds the 100-lock budget", async () => {
-    const habits = new InMemoryHabitRepository([habit("h1", "hard"), habit("h2", "hard"), habit("h3", "hard")]);
+    const goals = new InMemoryGoalRepository([
+      goal("g1", "hard"),
+      goal("g2", "hard"),
+      goal("g3", "hard"),
+    ]);
     const plans = new InMemoryDailyPlanRepository();
-    const useCase = new CreateDailyPlanUseCase(habits, plans, fixedIds, fixedClock);
+    const useCase = new CreateDailyPlanUseCase(goals, plans, fixedIds, fixedClock);
 
     await expect(
-      useCase.execute({ userId: "user-1", date: "2026-01-21", habitIds: ["h1", "h2", "h3"] }),
+      useCase.execute({ userId: "user-1", date: "2026-01-21", goalIds: ["g1", "g2", "g3"] }),
     ).rejects.toBeInstanceOf(LockBudgetExceededError); // 45 * 3 = 135
     expect(plans.saved).toHaveLength(0);
   });
 
-  it("rejects scheduling a habit the caller does not own", async () => {
-    const habits = new InMemoryHabitRepository([habit("h1", "easy", "someone-else")]);
+  it("rejects scheduling a goal the caller does not own", async () => {
+    const goals = new InMemoryGoalRepository([goal("g1", "easy", "someone-else")]);
     const useCase = new CreateDailyPlanUseCase(
-      habits,
+      goals,
       new InMemoryDailyPlanRepository(),
       fixedIds,
       fixedClock,
     );
 
     await expect(
-      useCase.execute({ userId: "user-1", date: "2026-01-21", habitIds: ["h1"] }),
-    ).rejects.toBeInstanceOf(HabitNotFoundError);
+      useCase.execute({ userId: "user-1", date: "2026-01-21", goalIds: ["g1"] }),
+    ).rejects.toBeInstanceOf(GoalNotFoundError);
   });
 
-  it("rejects scheduling a paused habit", async () => {
-    const paused = habit("h1", "easy");
+  it("rejects scheduling a paused goal", async () => {
+    const paused = goal("g1", "easy");
     paused.pause();
     const useCase = new CreateDailyPlanUseCase(
-      new InMemoryHabitRepository([paused]),
+      new InMemoryGoalRepository([paused]),
       new InMemoryDailyPlanRepository(),
       fixedIds,
       fixedClock,
     );
 
     await expect(
-      useCase.execute({ userId: "user-1", date: "2026-01-21", habitIds: ["h1"] }),
-    ).rejects.toBeInstanceOf(HabitNotSchedulableError);
+      useCase.execute({ userId: "user-1", date: "2026-01-21", goalIds: ["g1"] }),
+    ).rejects.toBeInstanceOf(GoalNotSchedulableError);
   });
 });

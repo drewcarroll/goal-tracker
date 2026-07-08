@@ -5,9 +5,6 @@ username on the way in and your goals (stored in a Supabase database) are scoped
 to it; the same username always sees the same data. You need exactly one free
 service: **Supabase**.
 
-> Just want to see the charts with mock data? Run `make demo` and open
-> http://localhost:3000/demo — no Supabase, no sign-in needed.
-
 ---
 
 ## 1. Create a Supabase project (free)
@@ -52,9 +49,10 @@ make dev         # http://localhost:3000
 ```
 
 Open http://localhost:3000 → you'll be sent to **/login** → type any username and
-click **Next** → you're in. Create a goal, log progress, and the Progress tab
-fills with charts. Use **Switch user** (top-right) to sign in under a different
-username and see that username's data.
+click **Next** → you're in. Set up a few goals (either the onboarding wizard or
+`/goals`), plan tomorrow on `/plan`, and check in each day on `/checkin` — the
+Progress tab fills in from there. Use **Switch user** (top-right) to sign in
+under a different username and see that username's data.
 
 ---
 

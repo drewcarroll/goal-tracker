@@ -3,28 +3,28 @@ import { getContainer } from "@/infrastructure/container";
 import { currentUserId } from "@/interfaces/web/http/currentUser";
 import { OnboardingWizard } from "@/interfaces/web/components/onboarding/OnboardingWizard";
 
-export const metadata: Metadata = { title: "Set up habits · Goal Tracker" };
+export const metadata: Metadata = { title: "Set up goals · Goal Tracker" };
 
 // Reads live data per request, so it must never be statically prerendered.
 export const dynamic = "force-dynamic";
 
 /**
- * Habit onboarding: pick catalog habits you don't already do, sort them into
- * a difficulty, confirm. Standalone (outside the tab shell) since it's a
- * wizard, not a persistent tab — reachable on first visit post-login or
- * again later from Settings.
+ * Goal onboarding: pick suggested ideas (or type your own), sort them into a
+ * difficulty + weekly frequency, confirm. Standalone (outside the tab shell)
+ * since it's a wizard, not a persistent tab — reachable on first visit post-
+ * login or again later from /goals.
  */
 export default async function OnboardingPage() {
-  const { getHabitCatalogUseCase, getActiveHabitsUseCase } = getContainer();
+  const { getGoalSuggestionsUseCase, getActiveGoalsUseCase } = getContainer();
   const userId = currentUserId();
 
-  const catalog = getHabitCatalogUseCase.execute();
-  const existingHabits = await getActiveHabitsUseCase.execute({ userId });
-  const alreadyTrackedCatalogIds = existingHabits.map((habit) => habit.catalogId);
+  const suggestions = getGoalSuggestionsUseCase.execute();
+  const existingGoals = await getActiveGoalsUseCase.execute({ userId });
+  const alreadyTrackedNames = existingGoals.map((goal) => goal.name.trim().toLowerCase());
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-lg flex-col px-4 py-8 sm:px-6">
-      <OnboardingWizard catalog={catalog} alreadyTrackedCatalogIds={alreadyTrackedCatalogIds} />
+      <OnboardingWizard suggestions={suggestions} alreadyTrackedNames={alreadyTrackedNames} />
     </main>
   );
 }

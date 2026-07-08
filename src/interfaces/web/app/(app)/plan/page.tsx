@@ -21,13 +21,13 @@ export default async function PlanPage({
   searchParams: { for?: string };
 }) {
   const forToday = searchParams.for === "today";
-  const { getActiveHabitsUseCase, getTodayPlanUseCase, localDateService } = getContainer();
+  const { getActiveGoalsUseCase, getTodayPlanUseCase, localDateService } = getContainer();
   const userId = currentUserId();
   const timezone = currentTimezone();
   const date = forToday ? localDateService.today(timezone) : localDateService.tomorrow(timezone);
 
-  const [habits, existingPlan] = await Promise.all([
-    getActiveHabitsUseCase.execute({ userId }),
+  const [goals, existingPlan] = await Promise.all([
+    getActiveGoalsUseCase.execute({ userId }),
     getTodayPlanUseCase.execute({ userId, date }),
   ]);
 
@@ -42,7 +42,7 @@ export default async function PlanPage({
         </p>
       </div>
       <PlanningScreen
-        habits={habits}
+        goals={goals}
         date={date}
         dateChoice={forToday ? "today" : "tomorrow"}
         existingPlan={existingPlan}

@@ -1,10 +1,10 @@
 import { DailyPlan } from "@/domain/entities/DailyPlan";
 import { LocalDate } from "@/domain/value-objects/LocalDate";
-import { HabitRepository } from "@/domain/repositories/HabitRepository";
+import { GoalRepository } from "@/domain/repositories/GoalRepository";
 import { DailyPlanRepository } from "@/domain/repositories/DailyPlanRepository";
 import {
-  HabitNotFoundError,
-  HabitNotSchedulableError,
+  GoalNotFoundError,
+  GoalNotSchedulableError,
   LockBudgetExceededError,
 } from "../errors/ApplicationError";
 import { CreateDailyPlanDTO, DailyPlanDTO } from "../dtos/DailyPlanDTO";
@@ -13,13 +13,13 @@ import { IdGenerator } from "../ports/IdGenerator";
 import { Clock } from "../ports/Clock";
 
 /**
- * Use Case: build tomorrow's plan from a set of habit ids. The lock cost of
- * each habit is looked up server-side (never trusted from the client) and
+ * Use Case: build tomorrow's plan from a set of goal ids. The lock cost of
+ * each goal is looked up server-side (never trusted from the client) and
  * summed into `locksSpent`, which must not exceed the 100-lock daily budget.
  */
 export class CreateDailyPlanUseCase {
   constructor(
-    private readonly habitRepository: HabitRepository,
+    private readonly goalRepository: GoalRepository,
     private readonly dailyPlanRepository: DailyPlanRepository,
     private readonly idGenerator: IdGenerator,
     private readonly clock: Clock,
@@ -27,15 +27,15 @@ export class CreateDailyPlanUseCase {
 
   async execute(dto: CreateDailyPlanDTO): Promise<DailyPlanDTO> {
     let locksSpent = 0;
-    for (const habitId of dto.habitIds) {
-      const habit = await this.habitRepository.findById(habitId);
-      if (!habit || habit.userId !== dto.userId) {
-        throw new HabitNotFoundError(habitId);
+    for (const goalId of dto.goalIds) {
+      const goal = await this.goalRepository.findById(goalId);
+      if (!goal || goal.userId !== dto.userId) {
+        throw new GoalNotFoundError(goalId);
       }
-      if (habit.state === "paused") {
-        throw new HabitNotSchedulableError(habitId);
+      if (goal.state === "paused") {
+        throw new GoalNotSchedulableError(goalId);
       }
-      locksSpent += habit.currentLockCost;
+      locksSpent += goal.currentLockCost;
     }
 
     if (locksSpent > 100) {
@@ -46,7 +46,7 @@ export class CreateDailyPlanUseCase {
       id: this.idGenerator.generate(),
       userId: dto.userId,
       date: LocalDate.create(dto.date),
-      habitIds: dto.habitIds,
+      goalIds: dto.goalIds,
       locksSpent,
       now: this.clock.now(),
     });

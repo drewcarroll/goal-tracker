@@ -9,15 +9,13 @@ import { USER_COOKIE } from "@/interfaces/web/http/session";
  *
  * There is no password: /login just stores whichever username is submitted, and
  * all data is scoped to an id derived from it (see http/currentUser.ts). Public
- * paths (landing, the login screen + endpoint, and the dev-only demo) are
- * reachable without signing in.
+ * paths (landing, the login screen + endpoint) are reachable without signing in.
  */
 
 /** Exact paths that never require a username. */
 const PUBLIC_EXACT = new Set<string>(["/"]);
 /** Path prefixes that never require a username. */
-// `/demo` is a dev-only mock-data preview (it 404s in production).
-const PUBLIC_PREFIXES = ["/login", "/api/login", "/demo"];
+const PUBLIC_PREFIXES = ["/login", "/api/login"];
 
 function isPublic(pathname: string): boolean {
   if (PUBLIC_EXACT.has(pathname)) {

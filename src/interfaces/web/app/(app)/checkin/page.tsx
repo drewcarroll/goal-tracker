@@ -10,15 +10,15 @@ export const metadata: Metadata = { title: "Check in · Goal Tracker" };
 export const dynamic = "force-dynamic";
 
 export default async function CheckInPage() {
-  const { getTodayPlanUseCase, getTodayCheckInUseCase, getAllHabitsUseCase, localDateService } =
+  const { getTodayPlanUseCase, getTodayCheckInUseCase, getAllGoalsUseCase, localDateService } =
     getContainer();
   const userId = currentUserId();
   const date = localDateService.today(currentTimezone());
 
-  const [todayPlan, existingCheckIn, habits] = await Promise.all([
+  const [todayPlan, existingCheckIn, goals] = await Promise.all([
     getTodayPlanUseCase.execute({ userId, date }),
     getTodayCheckInUseCase.execute({ userId, date }),
-    getAllHabitsUseCase.execute({ userId }),
+    getAllGoalsUseCase.execute({ userId }),
   ]);
 
   if (!todayPlan) {
@@ -38,10 +38,10 @@ export default async function CheckInPage() {
     );
   }
 
-  const byId = new Map(habits.map((h) => [h.id, h]));
-  const plannedHabits = todayPlan.habitIds
+  const byId = new Map(goals.map((g) => [g.id, g]));
+  const plannedGoals = todayPlan.goalIds
     .map((id) => byId.get(id))
-    .filter((h): h is NonNullable<typeof h> => h !== undefined);
+    .filter((g): g is NonNullable<typeof g> => g !== undefined);
 
   return (
     <section className="mx-auto flex w-full max-w-md flex-col gap-6">
@@ -49,7 +49,7 @@ export default async function CheckInPage() {
         <h1 className="text-2xl font-bold tracking-tight">Check in</h1>
         <p className="mt-1 text-gray-600">How did today go?</p>
       </div>
-      <CheckInFlow habits={plannedHabits} existingCheckIn={existingCheckIn} />
+      <CheckInFlow goals={plannedGoals} existingCheckIn={existingCheckIn} />
     </section>
   );
 }

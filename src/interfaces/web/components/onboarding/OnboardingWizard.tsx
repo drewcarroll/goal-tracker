@@ -2,10 +2,10 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import type { HabitCatalogEntryDTO, HabitDifficulty } from "@/application/dtos/HabitDTO";
-import { createHabitsFromOnboardingAction } from "@/interfaces/web/app/onboarding/actions";
+import type { GoalSuggestionDTO, GoalDifficulty, GoalCategory } from "@/application/dtos/GoalDTO";
+import { createGoalsFromOnboardingAction } from "@/interfaces/web/app/onboarding/actions";
 
-const CATEGORY_LABELS: Record<HabitCatalogEntryDTO["category"], string> = {
+const CATEGORY_LABELS: Record<GoalCategory, string> = {
   physical: "Physical",
   addiction: "Addiction",
   mind: "Mind",
@@ -13,15 +13,9 @@ const CATEGORY_LABELS: Record<HabitCatalogEntryDTO["category"], string> = {
   misc: "Misc",
 };
 
-const CATEGORY_ORDER: HabitCatalogEntryDTO["category"][] = [
-  "physical",
-  "addiction",
-  "mind",
-  "skills",
-  "misc",
-];
+const CATEGORY_ORDER: GoalCategory[] = ["physical", "addiction", "mind", "skills", "misc"];
 
-const DIFFICULTIES: { value: HabitDifficulty; label: string; classes: string }[] = [
+const DIFFICULTIES: { value: GoalDifficulty; label: string; classes: string }[] = [
   { value: "easy", label: "Easy", classes: "border-green-300 bg-green-50 text-green-800" },
   { value: "medium", label: "Medium", classes: "border-amber-300 bg-amber-50 text-amber-800" },
   { value: "hard", label: "Hard", classes: "border-orange-300 bg-orange-50 text-orange-800" },
@@ -30,63 +24,85 @@ const DIFFICULTIES: { value: HabitDifficulty; label: string; classes: string }[]
 type Step = 1 | 2 | 3;
 
 export function OnboardingWizard({
-  catalog,
-  alreadyTrackedCatalogIds,
+  suggestions,
+  alreadyTrackedNames,
 }: {
-  catalog: HabitCatalogEntryDTO[];
-  alreadyTrackedCatalogIds: string[];
+  suggestions: GoalSuggestionDTO[];
+  alreadyTrackedNames: string[];
 }) {
   const router = useRouter();
   const [step, setStep] = useState<Step>(1);
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [difficulties, setDifficulties] = useState<Record<string, HabitDifficulty>>({});
+  const [customInput, setCustomInput] = useState("");
+  const [difficulties, setDifficulties] = useState<Record<string, GoalDifficulty>>({});
+  const [frequencies, setFrequencies] = useState<Record<string, number>>({});
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  const alreadyTracked = useMemo(
-    () => new Set(alreadyTrackedCatalogIds),
-    [alreadyTrackedCatalogIds],
-  );
+  const alreadyTracked = useMemo(() => new Set(alreadyTrackedNames), [alreadyTrackedNames]);
   const byCategory = useMemo(() => {
-    const groups = new Map<string, HabitCatalogEntryDTO[]>();
-    for (const entry of catalog) {
+    const groups = new Map<GoalCategory, GoalSuggestionDTO[]>();
+    for (const entry of suggestions) {
       const list = groups.get(entry.category) ?? [];
       list.push(entry);
       groups.set(entry.category, list);
     }
     return groups;
-  }, [catalog]);
-  const selectedEntries = catalog.filter((entry) => selected.has(entry.id));
+  }, [suggestions]);
+  const suggestionLabels = useMemo(() => new Set(suggestions.map((s) => s.label)), [suggestions]);
+  const selectedNames = [...selected];
 
-  function toggle(catalogId: string) {
+  function toggle(label: string) {
     setSelected((prev) => {
       const next = new Set(prev);
-      if (next.has(catalogId)) {
-        next.delete(catalogId);
+      if (next.has(label)) {
+        next.delete(label);
       } else {
-        next.add(catalogId);
+        next.add(label);
       }
       return next;
     });
   }
 
-  function setDifficulty(catalogId: string, difficulty: HabitDifficulty) {
-    setDifficulties((prev) => ({ ...prev, [catalogId]: difficulty }));
+  function addCustom() {
+    const name = customInput.trim();
+    if (!name) return;
+    setSelected((prev) => new Set(prev).add(name));
+    setCustomInput("");
+  }
+
+  function removeCustom(name: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.delete(name);
+      return next;
+    });
+  }
+
+  function setDifficulty(name: string, difficulty: GoalDifficulty) {
+    setDifficulties((prev) => ({ ...prev, [name]: difficulty }));
+  }
+
+  function setFrequency(name: string, target: number) {
+    setFrequencies((prev) => ({ ...prev, [name]: target }));
   }
 
   function goToStep2() {
     if (selected.size === 0) {
-      setError("Pick at least one habit to continue.");
+      setError("Pick or add at least one goal to continue.");
       return;
     }
     setError(null);
-    // Default every newly-selected habit to medium so step 2 isn't a wall of
-    // unset chips, while leaving prior choices untouched.
+    // Default every newly-selected goal so step 2 isn't a wall of unset
+    // controls, while leaving prior choices untouched.
     setDifficulties((prev) => {
       const next = { ...prev };
-      for (const catalogId of selected) {
-        next[catalogId] ??= "medium";
-      }
+      for (const name of selected) next[name] ??= "medium";
+      return next;
+    });
+    setFrequencies((prev) => {
+      const next = { ...prev };
+      for (const name of selected) next[name] ??= 3;
       return next;
     });
     setStep(2);
@@ -95,10 +111,11 @@ export function OnboardingWizard({
   function handleConfirm() {
     setError(null);
     startTransition(async () => {
-      const result = await createHabitsFromOnboardingAction(
-        selectedEntries.map((entry) => ({
-          catalogId: entry.id,
-          difficulty: difficulties[entry.id] ?? "medium",
+      const result = await createGoalsFromOnboardingAction(
+        selectedNames.map((name) => ({
+          name,
+          difficulty: difficulties[name] ?? "medium",
+          weeklyFrequencyTarget: frequencies[name] ?? 3,
         })),
       );
       if (result.ok) {
@@ -109,20 +126,22 @@ export function OnboardingWizard({
     });
   }
 
+  const customSelected = selectedNames.filter((name) => !suggestionLabels.has(name));
+
   return (
     <div className="flex flex-1 flex-col gap-6">
       <div>
         <p className="text-sm font-medium text-brand">Step {step} of 3</p>
         <h1 className="mt-1 text-2xl font-bold tracking-tight text-gray-900">
-          {step === 1 && "Which habits do you want to build?"}
-          {step === 2 && "How hard is each one, right now?"}
-          {step === 3 && "Confirm your habits"}
+          {step === 1 && "What do you want to work on?"}
+          {step === 2 && "How hard, and how often?"}
+          {step === 3 && "Confirm your goals"}
         </h1>
         <p className="mt-1 text-sm text-gray-600">
-          {step === 1 && "Pick the ones you don't already do consistently."}
+          {step === 1 && "Pick from the ideas below, or add your own."}
           {step === 2 &&
-            "Harder habits start at a higher lock cost, so you naturally focus on fewer of them."}
-          {step === 3 && "You can pause or adjust these later from Settings."}
+            "Harder goals start at a higher lock cost, so you naturally focus on fewer of them."}
+          {step === 3 && "You can edit or pause these later from Goals."}
         </p>
       </div>
 
@@ -134,6 +153,57 @@ export function OnboardingWizard({
 
       {step === 1 && (
         <div className="flex flex-col gap-6">
+          <div>
+            <label htmlFor="custom-goal" className="mb-1.5 block text-sm font-medium text-gray-700">
+              Add your own
+            </label>
+            <div className="flex gap-2">
+              <input
+                id="custom-goal"
+                type="text"
+                value={customInput}
+                onChange={(e) => setCustomInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addCustom();
+                  }
+                }}
+                placeholder="e.g. Call mom"
+                maxLength={200}
+                className="w-full rounded-xl border border-gray-300 bg-white px-3.5 py-2.5 text-base text-gray-900 shadow-sm outline-none transition-colors placeholder:text-gray-400 focus:border-brand focus:ring-2 focus:ring-brand/30"
+              />
+              <button
+                type="button"
+                onClick={addCustom}
+                disabled={!customInput.trim()}
+                className="shrink-0 rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-dark disabled:opacity-50"
+              >
+                Add
+              </button>
+            </div>
+            {customSelected.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {customSelected.map((name) => (
+                  <span
+                    key={name}
+                    className="flex items-center gap-1.5 rounded-full border border-brand bg-brand/5 px-2.5 py-1 text-xs font-medium text-brand"
+                  >
+                    {name}
+                    <button
+                      type="button"
+                      onClick={() => removeCustom(name)}
+                      aria-label={`Remove ${name}`}
+                      className="text-brand/60 hover:text-brand"
+                    >
+                      ✕
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
           {CATEGORY_ORDER.filter((category) => byCategory.has(category)).map((category) => (
             <div key={category}>
               <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-gray-500">
@@ -141,11 +211,11 @@ export function OnboardingWizard({
               </h2>
               <div className="flex flex-col gap-2">
                 {byCategory.get(category)!.map((entry) => {
-                  const tracked = alreadyTracked.has(entry.id);
-                  const checked = selected.has(entry.id);
+                  const tracked = alreadyTracked.has(entry.label.trim().toLowerCase());
+                  const checked = selected.has(entry.label);
                   return (
                     <label
-                      key={entry.id}
+                      key={entry.label}
                       className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-3 transition-colors ${
                         tracked
                           ? "cursor-not-allowed border-gray-200 bg-gray-50 text-gray-400"
@@ -154,16 +224,7 @@ export function OnboardingWizard({
                             : "cursor-pointer border-gray-300 bg-white hover:bg-gray-50"
                       }`}
                     >
-                      <span className="flex flex-col">
-                        <span className="text-base font-medium text-gray-900">
-                          {entry.label}
-                        </span>
-                        {entry.type === "timed" && (
-                          <span className="text-xs text-gray-500">
-                            One {entry.minMinutes}min+ session counts — no extra credit for longer.
-                          </span>
-                        )}
-                      </span>
+                      <span className="text-base font-medium text-gray-900">{entry.label}</span>
                       {tracked ? (
                         <span className="shrink-0 text-xs font-medium text-gray-400">
                           Already tracking
@@ -172,7 +233,7 @@ export function OnboardingWizard({
                         <input
                           type="checkbox"
                           checked={checked}
-                          onChange={() => toggle(entry.id)}
+                          onChange={() => toggle(entry.label)}
                           className="h-5 w-5 shrink-0 accent-brand"
                         />
                       )}
@@ -196,20 +257,17 @@ export function OnboardingWizard({
       {step === 2 && (
         <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-3">
-            {selectedEntries.map((entry) => (
-              <div
-                key={entry.id}
-                className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
-              >
-                <p className="mb-2.5 text-base font-medium text-gray-900">{entry.label}</p>
-                <div className="flex gap-2">
+            {selectedNames.map((name) => (
+              <div key={name} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+                <p className="mb-2.5 text-base font-medium text-gray-900">{name}</p>
+                <div className="mb-3 flex gap-2">
                   {DIFFICULTIES.map((d) => {
-                    const active = (difficulties[entry.id] ?? "medium") === d.value;
+                    const active = (difficulties[name] ?? "medium") === d.value;
                     return (
                       <button
                         key={d.value}
                         type="button"
-                        onClick={() => setDifficulty(entry.id, d.value)}
+                        onClick={() => setDifficulty(name, d.value)}
                         className={`flex-1 rounded-lg border px-3 py-2 text-sm font-semibold transition-colors ${
                           active ? d.classes : "border-gray-200 bg-white text-gray-400 hover:bg-gray-50"
                         }`}
@@ -219,6 +277,17 @@ export function OnboardingWizard({
                     );
                   })}
                 </div>
+                <label className="flex items-center gap-2 text-sm text-gray-700">
+                  Times per week
+                  <input
+                    type="number"
+                    min={1}
+                    max={7}
+                    value={frequencies[name] ?? 3}
+                    onChange={(e) => setFrequency(name, Number(e.target.value))}
+                    className="w-16 rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-center text-sm text-gray-900 shadow-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/30"
+                  />
+                </label>
               </div>
             ))}
           </div>
@@ -245,15 +314,20 @@ export function OnboardingWizard({
       {step === 3 && (
         <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-2 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-            {selectedEntries.map((entry) => {
-              const difficulty = difficulties[entry.id] ?? "medium";
+            {selectedNames.map((name) => {
+              const difficulty = difficulties[name] ?? "medium";
               const d = DIFFICULTIES.find((x) => x.value === difficulty)!;
               return (
                 <div
-                  key={entry.id}
+                  key={name}
                   className="flex items-center justify-between gap-3 border-b border-gray-100 py-2 last:border-0"
                 >
-                  <span className="text-sm font-medium text-gray-900">{entry.label}</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    {name}
+                    <span className="ml-2 font-normal text-gray-400">
+                      {frequencies[name] ?? 3}x/week
+                    </span>
+                  </span>
                   <span
                     className={`shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${d.classes}`}
                   >
@@ -279,7 +353,7 @@ export function OnboardingWizard({
               disabled={pending}
               className="rounded-xl bg-brand px-4 py-3 text-base font-semibold text-white shadow-sm transition-colors hover:bg-brand-dark disabled:opacity-60 sm:px-5 sm:text-sm"
             >
-              {pending ? "Creating…" : "Create habits"}
+              {pending ? "Creating…" : "Create goals"}
             </button>
           </div>
         </div>

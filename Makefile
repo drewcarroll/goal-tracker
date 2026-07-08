@@ -44,11 +44,6 @@ env-check: ## Verify .env has the variables needed to run the full app
 dev: ## Start the Next.js dev server on http://localhost:3000
 	npm run dev
 
-.PHONY: demo
-demo: ## View the progress charts with mock data (no Supabase/password needed)
-	@echo "→ Open http://localhost:3000/demo once the server is ready."
-	npm run dev
-
 .PHONY: build
 build: ## Production build
 	npm run build

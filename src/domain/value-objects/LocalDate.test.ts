@@ -33,6 +33,25 @@ describe("LocalDate", () => {
     expect(LocalDate.create("2026-07-06").equals(LocalDate.create("2026-07-07"))).toBe(false);
   });
 
+  describe("startOfWeek", () => {
+    it("returns itself when already a Monday", () => {
+      expect(LocalDate.create("2026-07-06").startOfWeek().toString()).toBe("2026-07-06");
+    });
+
+    it("returns the preceding Monday for a mid-week date", () => {
+      expect(LocalDate.create("2026-07-08").startOfWeek().toString()).toBe("2026-07-06");
+    });
+
+    it("returns the preceding Monday for a Sunday (end of the Mon-Sun week)", () => {
+      expect(LocalDate.create("2026-07-12").startOfWeek().toString()).toBe("2026-07-06");
+    });
+
+    it("rolls back across a month boundary", () => {
+      // 2026-01-01 is a Thursday; the Monday before it is in December 2025.
+      expect(LocalDate.create("2026-01-01").startOfWeek().toString()).toBe("2025-12-29");
+    });
+  });
+
   describe("addDays", () => {
     it("adds days within a month", () => {
       expect(LocalDate.create("2026-07-06").addDays(1).toString()).toBe("2026-07-07");

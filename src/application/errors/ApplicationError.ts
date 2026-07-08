@@ -20,22 +20,6 @@ export class GoalNotFoundError extends ApplicationError {
   }
 }
 
-export class LogNotFoundError extends ApplicationError {
-  public readonly code = "LOG_NOT_FOUND";
-
-  constructor(logId: string) {
-    super(`Log entry "${logId}" was not found.`);
-  }
-}
-
-export class HabitNotFoundError extends ApplicationError {
-  public readonly code = "HABIT_NOT_FOUND";
-
-  constructor(habitId: string) {
-    super(`Habit "${habitId}" was not found.`);
-  }
-}
-
 export class LockBudgetExceededError extends ApplicationError {
   public readonly code = "LOCK_BUDGET_EXCEEDED";
 
@@ -44,11 +28,11 @@ export class LockBudgetExceededError extends ApplicationError {
   }
 }
 
-export class HabitNotSchedulableError extends ApplicationError {
-  public readonly code = "HABIT_NOT_SCHEDULABLE";
+export class GoalNotSchedulableError extends ApplicationError {
+  public readonly code = "GOAL_NOT_SCHEDULABLE";
 
-  constructor(habitId: string) {
-    super(`Habit "${habitId}" is paused and cannot be scheduled.`);
+  constructor(goalId: string) {
+    super(`Goal "${goalId}" is paused and cannot be scheduled.`);
   }
 }
 

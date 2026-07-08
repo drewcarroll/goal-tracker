@@ -7,7 +7,7 @@ const base = {
   id: "plan-1",
   userId: "user-1",
   date: LocalDate.create("2026-07-06"),
-  habitIds: ["habit-1", "habit-2"],
+  goalIds: ["goal-1", "goal-2"],
   locksSpent: 60,
   now: new Date("2026-07-05T22:00:00.000Z"),
 };
@@ -15,17 +15,17 @@ const base = {
 describe("DailyPlan", () => {
   it("creates a valid plan and exposes it", () => {
     const plan = DailyPlan.create(base);
-    expect(plan.habitIds).toEqual(["habit-1", "habit-2"]);
+    expect(plan.goalIds).toEqual(["goal-1", "goal-2"]);
     expect(plan.locksSpent).toBe(60);
     expect(plan.date.equals(base.date)).toBe(true);
   });
 
-  it("rejects an empty habit list", () => {
-    expect(() => DailyPlan.create({ ...base, habitIds: [] })).toThrow(ValidationError);
+  it("rejects an empty goal list", () => {
+    expect(() => DailyPlan.create({ ...base, goalIds: [] })).toThrow(ValidationError);
   });
 
-  it("rejects duplicate habit ids", () => {
-    expect(() => DailyPlan.create({ ...base, habitIds: ["habit-1", "habit-1"] })).toThrow(
+  it("rejects duplicate goal ids", () => {
+    expect(() => DailyPlan.create({ ...base, goalIds: ["goal-1", "goal-1"] })).toThrow(
       ValidationError,
     );
   });
@@ -47,7 +47,7 @@ describe("DailyPlan", () => {
       id: "plan-1",
       userId: "user-1",
       date: LocalDate.create("2026-07-06"),
-      habitIds: ["habit-1"],
+      goalIds: ["goal-1"],
       locksSpent: 25,
       createdAt: new Date("2026-07-05T22:00:00.000Z"),
     };

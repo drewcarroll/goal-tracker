@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import type { HabitDTO } from "@/application/dtos/HabitDTO";
-import type { CheckInDTO, HabitMarkDTO } from "@/application/dtos/CheckInDTO";
+import type { GoalDTO } from "@/application/dtos/GoalDTO";
+import type { CheckInDTO, GoalMarkDTO } from "@/application/dtos/CheckInDTO";
 import {
   addPastCheckInAction,
   editCheckInAction,
@@ -21,20 +21,20 @@ function formatDate(date: string): string {
 
 export function CheckInHistoryView({
   checkIns,
-  habits,
+  goals,
   today,
 }: {
   checkIns: CheckInDTO[];
-  habits: HabitDTO[];
+  goals: GoalDTO[];
   today: string;
 }) {
-  const byId = new Map(habits.map((h) => [h.id, h]));
+  const byId = new Map(goals.map((g) => [g.id, g]));
   const sorted = [...checkIns].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
   const checkedInDates = new Set(checkIns.map((c) => c.date));
 
   return (
     <div className="flex flex-col gap-3">
-      <AddMissedDay habits={habits} today={today} checkedInDates={checkedInDates} />
+      <AddMissedDay goals={goals} today={today} checkedInDates={checkedInDates} />
 
       {sorted.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-gray-300 bg-white p-6 text-center text-sm text-gray-500">
@@ -56,24 +56,24 @@ function CheckInCard({
   byId,
 }: {
   checkIn: CheckInDTO;
-  byId: Map<string, HabitDTO>;
+  byId: Map<string, GoalDTO>;
 }) {
   const [editing, setEditing] = useState(false);
   const [marks, setMarks] = useState<Record<string, boolean>>(
-    Object.fromEntries(checkIn.marks.map((m) => [m.habitId, m.passed])),
+    Object.fromEntries(checkIn.marks.map((m) => [m.goalId, m.passed])),
   );
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  function toggle(habitId: string) {
-    setMarks((prev) => ({ ...prev, [habitId]: !prev[habitId] }));
+  function toggle(goalId: string) {
+    setMarks((prev) => ({ ...prev, [goalId]: !prev[goalId] }));
   }
 
   function handleSave() {
     setError(null);
     startTransition(async () => {
-      const payload: HabitMarkDTO[] = Object.entries(marks).map(([habitId, passed]) => ({
-        habitId,
+      const payload: GoalMarkDTO[] = Object.entries(marks).map(([goalId, passed]) => ({
+        goalId,
         passed,
       }));
       const result = await editCheckInAction(checkIn.date, payload);
@@ -155,15 +155,15 @@ function CheckInCard({
 
       <ul className="mt-3 flex flex-col gap-1.5">
         {checkIn.marks.map((mark) => {
-          const habit = byId.get(mark.habitId);
-          const value = editing ? marks[mark.habitId] : mark.passed;
+          const goal = byId.get(mark.goalId);
+          const value = editing ? marks[mark.goalId] : mark.passed;
           return (
-            <li key={mark.habitId} className="flex items-center justify-between text-sm">
-              <span className="text-gray-700">{habit?.label ?? "Habit"}</span>
+            <li key={mark.goalId} className="flex items-center justify-between text-sm">
+              <span className="text-gray-700">{goal?.name ?? "Goal"}</span>
               {editing ? (
                 <button
                   type="button"
-                  onClick={() => toggle(mark.habitId)}
+                  onClick={() => toggle(mark.goalId)}
                   className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors ${
                     value
                       ? "border-emerald-300 bg-emerald-50 text-emerald-700"
@@ -186,11 +186,11 @@ function CheckInCard({
 }
 
 function AddMissedDay({
-  habits,
+  goals,
   today,
   checkedInDates,
 }: {
-  habits: HabitDTO[];
+  goals: GoalDTO[];
   today: string;
   checkedInDates: Set<string>;
 }) {
@@ -200,17 +200,17 @@ function AddMissedDay({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  function toggle(habitId: string) {
+  function toggle(goalId: string) {
     setSelected((prev) => {
       const next = { ...prev };
-      if (habitId in next) delete next[habitId];
-      else next[habitId] = true;
+      if (goalId in next) delete next[goalId];
+      else next[goalId] = true;
       return next;
     });
   }
 
-  function setPassed(habitId: string, passed: boolean) {
-    setSelected((prev) => ({ ...prev, [habitId]: passed }));
+  function setPassed(goalId: string, passed: boolean) {
+    setSelected((prev) => ({ ...prev, [goalId]: passed }));
   }
 
   function handleSubmit() {
@@ -223,12 +223,12 @@ function AddMissedDay({
       setError("That day already has a check-in — edit it below instead.");
       return;
     }
-    const marks: HabitMarkDTO[] = Object.entries(selected).map(([habitId, passed]) => ({
-      habitId,
+    const marks: GoalMarkDTO[] = Object.entries(selected).map(([goalId, passed]) => ({
+      goalId,
       passed,
     }));
     if (marks.length === 0) {
-      setError("Mark at least one habit.");
+      setError("Mark at least one goal.");
       return;
     }
     startTransition(async () => {
@@ -272,25 +272,25 @@ function AddMissedDay({
       </div>
 
       <div className="flex flex-col gap-1.5">
-        {habits.map((habit) => {
-          const chosen = habit.id in selected;
-          const passed = selected[habit.id];
+        {goals.map((goal) => {
+          const chosen = goal.id in selected;
+          const passed = selected[goal.id];
           return (
-            <div key={habit.id} className="flex items-center justify-between gap-2">
+            <div key={goal.id} className="flex items-center justify-between gap-2">
               <label className="flex items-center gap-2 text-sm text-gray-700">
                 <input
                   type="checkbox"
                   checked={chosen}
-                  onChange={() => toggle(habit.id)}
+                  onChange={() => toggle(goal.id)}
                   className="h-4 w-4 accent-brand"
                 />
-                {habit.label}
+                {goal.name}
               </label>
               {chosen && (
                 <div className="flex gap-1.5">
                   <button
                     type="button"
-                    onClick={() => setPassed(habit.id, true)}
+                    onClick={() => setPassed(goal.id, true)}
                     className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
                       passed
                         ? "border-emerald-300 bg-emerald-50 text-emerald-700"
@@ -301,7 +301,7 @@ function AddMissedDay({
                   </button>
                   <button
                     type="button"
-                    onClick={() => setPassed(habit.id, false)}
+                    onClick={() => setPassed(goal.id, false)}
                     className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
                       passed === false
                         ? "border-red-300 bg-red-50 text-red-700"

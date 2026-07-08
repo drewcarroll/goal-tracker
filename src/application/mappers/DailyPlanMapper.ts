@@ -7,7 +7,7 @@ export class DailyPlanMapper {
       id: plan.id,
       userId: plan.userId,
       date: plan.date.toString(),
-      habitIds: [...plan.habitIds],
+      goalIds: [...plan.goalIds],
       locksSpent: plan.locksSpent,
       createdAt: plan.createdAt.toISOString(),
     };

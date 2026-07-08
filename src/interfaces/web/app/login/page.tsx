@@ -41,7 +41,7 @@ export default function LoginPage({ searchParams }: { searchParams: { error?: st
         </label>
 
         {/* Progressive enhancement: filled in by the inline script below so
-            habit day boundaries can use the user's local day. Falls back to
+            goal day boundaries can use the user's local day. Falls back to
             UTC server-side if JS is disabled and this stays empty. */}
         <input type="hidden" name="timezone" id="timezone-input" />
         <script

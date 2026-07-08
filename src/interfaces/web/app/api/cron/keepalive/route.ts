@@ -19,8 +19,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   try {
-    const { listGoalsUseCase } = getContainer();
-    await listGoalsUseCase.execute({ userId: KEEPALIVE_USER_ID });
+    const { getAllGoalsUseCase } = getContainer();
+    await getAllGoalsUseCase.execute({ userId: KEEPALIVE_USER_ID });
     return NextResponse.json({ ok: true });
   } catch (error) {
     return toErrorResponse(error);

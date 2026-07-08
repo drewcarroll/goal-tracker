@@ -1,215 +1,383 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import type { GoalDTO } from "@/application/dtos/GoalDTO";
+import type { GoalDTO, GoalDifficulty, GoalState } from "@/application/dtos/GoalDTO";
+import type { GoalSuggestionDTO } from "@/application/dtos/GoalDTO";
 import {
   createGoalAction,
-  updateGoalAction,
+  editGoalAction,
+  setGoalPausedAction,
   deleteGoalAction,
-  type GoalFormValues,
 } from "@/interfaces/web/app/(app)/goals/actions";
-import { GoalForm } from "./GoalForm";
 
-type View = { kind: "list" } | { kind: "create" } | { kind: "edit"; goalId: string };
+const DIFFICULTIES: { value: GoalDifficulty; label: string; classes: string }[] = [
+  { value: "easy", label: "Easy", classes: "border-green-300 bg-green-50 text-green-800" },
+  { value: "medium", label: "Medium", classes: "border-amber-300 bg-amber-50 text-amber-800" },
+  { value: "hard", label: "Hard", classes: "border-orange-300 bg-orange-50 text-orange-800" },
+];
 
-function formatDate(iso: string): string {
-  // Session dates are calendar dates pinned to UTC midnight; render them in UTC
-  // so the day shown matches what was entered regardless of the viewer's zone.
-  return new Date(iso).toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    timeZone: "UTC",
-  });
-}
+const STATE_BADGE: Record<GoalState, string> = {
+  active: "border-brand/20 bg-brand/5 text-brand",
+  formed: "border-emerald-300 bg-emerald-50 text-emerald-700",
+  paused: "border-gray-300 bg-gray-100 text-gray-500",
+};
 
-/** Renders a number without noise: integers as-is, otherwise up to 2 decimals. */
-function formatNumber(value: number): string {
-  return Number.isInteger(value) ? String(value) : String(Number(value.toFixed(2)));
-}
+const STATE_LABEL: Record<GoalState, string> = {
+  active: "Active",
+  formed: "Formed",
+  paused: "Paused",
+};
 
-function formatWeeks(weeks: number): string {
-  return `${weeks} ${weeks === 1 ? "week" : "weeks"}`;
-}
-
-export function GoalsManager({ initialGoals }: { initialGoals: GoalDTO[] }) {
+export function GoalsManager({
+  initialGoals,
+  suggestions,
+}: {
+  initialGoals: GoalDTO[];
+  suggestions: GoalSuggestionDTO[];
+}) {
   const [goals, setGoals] = useState<GoalDTO[]>(initialGoals);
-  const [view, setView] = useState<View>({ kind: "list" });
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [pendingDelete, startDelete] = useTransition();
 
-  const busy = view.kind !== "list" || confirmDeleteId !== null;
-
-  function handleCreated(goal: GoalDTO) {
-    setGoals((prev) => [goal, ...prev]);
-    setView({ kind: "list" });
+  function upsert(goal: GoalDTO) {
+    setGoals((prev) =>
+      prev.some((g) => g.id === goal.id) ? prev.map((g) => (g.id === goal.id ? goal : g)) : [goal, ...prev],
+    );
   }
 
-  function handleUpdated(updated: GoalDTO) {
-    setGoals((prev) => prev.map((g) => (g.id === updated.id ? updated : g)));
-    setView({ kind: "list" });
+  function remove(goalId: string) {
+    setGoals((prev) => prev.filter((g) => g.id !== goalId));
   }
 
-  function openDeleteConfirm(goalId: string) {
-    setDeleteError(null);
-    setConfirmDeleteId(goalId);
-  }
+  return (
+    <div className="flex flex-col gap-4">
+      <AddGoalForm suggestions={suggestions} onCreated={upsert} />
 
-  function cancelDelete() {
-    setConfirmDeleteId(null);
-    setDeleteError(null);
-  }
+      {goals.length === 0 ? (
+        <p className="rounded-2xl border border-dashed border-gray-300 bg-white p-6 text-center text-sm text-gray-500">
+          No goals yet — add your first one above.
+        </p>
+      ) : (
+        <ul className="flex flex-col gap-2">
+          {goals.map((goal) => (
+            <GoalCard key={goal.id} goal={goal} onUpdated={upsert} onDeleted={remove} />
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
-  function confirmDelete(goalId: string) {
-    setDeleteError(null);
-    startDelete(async () => {
-      const result = await deleteGoalAction(goalId);
+function GoalCard({
+  goal,
+  onUpdated,
+  onDeleted,
+}: {
+  goal: GoalDTO;
+  onUpdated: (goal: GoalDTO) => void;
+  onDeleted: (goalId: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(goal.name);
+  const [weeklyFrequencyTarget, setWeeklyFrequencyTarget] = useState(goal.weeklyFrequencyTarget);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  function handleSaveEdit() {
+    setError(null);
+    startTransition(async () => {
+      const result = await editGoalAction(goal.id, name, weeklyFrequencyTarget);
       if (result.ok) {
-        setGoals((prev) => prev.filter((g) => g.id !== goalId));
-        setConfirmDeleteId(null);
+        onUpdated(result.goal);
+        setEditing(false);
       } else {
-        setDeleteError(result.error);
+        setError(result.error);
       }
     });
   }
 
+  function handleTogglePause() {
+    setError(null);
+    startTransition(async () => {
+      const result = await setGoalPausedAction(goal.id, goal.state === "paused" ? "resume" : "pause");
+      if (result.ok) {
+        onUpdated(result.goal);
+      } else {
+        setError(result.error);
+      }
+    });
+  }
+
+  function handleDelete() {
+    if (!confirmingDelete) {
+      setConfirmingDelete(true);
+      return;
+    }
+    setError(null);
+    startTransition(async () => {
+      const result = await deleteGoalAction(goal.id);
+      if (result.ok) {
+        onDeleted(goal.id);
+      } else {
+        setError(result.error);
+        setConfirmingDelete(false);
+      }
+    });
+  }
+
+  const difficulty = DIFFICULTIES.find((d) => d.value === goal.difficulty)!;
+
+  if (editing) {
+    return (
+      <li className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        <div className="flex flex-col gap-3">
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            maxLength={200}
+            className="w-full rounded-xl border border-gray-300 bg-white px-3.5 py-2.5 text-base text-gray-900 shadow-sm outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/30"
+          />
+          <label className="flex items-center gap-2 text-sm text-gray-700">
+            Times per week
+            <input
+              type="number"
+              min={1}
+              max={7}
+              value={weeklyFrequencyTarget}
+              onChange={(e) => setWeeklyFrequencyTarget(Number(e.target.value))}
+              className="w-16 rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-center text-sm text-gray-900 shadow-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/30"
+            />
+          </label>
+          {error && <p className="text-sm text-red-600">{error}</p>}
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              onClick={() => {
+                setEditing(false);
+                setName(goal.name);
+                setWeeklyFrequencyTarget(goal.weeklyFrequencyTarget);
+                setError(null);
+              }}
+              disabled={pending}
+              className="rounded-xl border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 disabled:opacity-60"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleSaveEdit}
+              disabled={pending || !name.trim()}
+              className="rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-dark disabled:opacity-60"
+            >
+              {pending ? "Saving…" : "Save"}
+            </button>
+          </div>
+        </div>
+      </li>
+    );
+  }
+
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold tracking-tight">Goals</h1>
-        {view.kind === "list" && confirmDeleteId === null && (
+    <li className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate font-medium text-gray-900">{goal.name}</p>
+          <div className="mt-1 flex flex-wrap items-center gap-1.5">
+            <span className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${STATE_BADGE[goal.state]}`}>
+              {STATE_LABEL[goal.state]}
+            </span>
+            <span className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${difficulty.classes}`}>
+              {difficulty.label}
+            </span>
+            <span className="text-xs text-gray-400">{goal.weeklyFrequencyTarget}x/week</span>
+            <span className="text-xs text-gray-400">· {goal.currentLockCost} locks</span>
+          </div>
+        </div>
+      </div>
+
+      {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => setEditing(true)}
+          disabled={pending}
+          className="rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-50"
+        >
+          Edit
+        </button>
+        {goal.state !== "formed" && (
           <button
             type="button"
-            onClick={() => setView({ kind: "create" })}
-            className="rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-dark"
+            onClick={handleTogglePause}
+            disabled={pending}
+            className="rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-50"
           >
-            New goal
+            {pending ? "Saving…" : goal.state === "paused" ? "Resume" : "Pause"}
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={handleDelete}
+          disabled={pending}
+          className={`rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors disabled:opacity-50 ${
+            confirmingDelete
+              ? "border-red-600 bg-red-600 text-white hover:bg-red-700"
+              : "border-gray-200 text-red-600 hover:bg-red-50"
+          }`}
+        >
+          {confirmingDelete ? "Confirm delete?" : "Delete"}
+        </button>
+        {confirmingDelete && (
+          <button
+            type="button"
+            onClick={() => setConfirmingDelete(false)}
+            className="rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50"
+          >
+            Never mind
           </button>
         )}
       </div>
+    </li>
+  );
+}
 
-      {view.kind === "create" && (
-        <GoalForm
-          onSubmit={(values: GoalFormValues) => createGoalAction(values)}
-          onSuccess={handleCreated}
-          onCancel={() => setView({ kind: "list" })}
+function AddGoalForm({
+  suggestions,
+  onCreated,
+}: {
+  suggestions: GoalSuggestionDTO[];
+  onCreated: (goal: GoalDTO) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [weeklyFrequencyTarget, setWeeklyFrequencyTarget] = useState(3);
+  const [difficulty, setDifficulty] = useState<GoalDifficulty>("medium");
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  function reset() {
+    setName("");
+    setWeeklyFrequencyTarget(3);
+    setDifficulty("medium");
+    setError(null);
+  }
+
+  function handleSubmit() {
+    setError(null);
+    if (!name.trim()) {
+      setError("Give it a name.");
+      return;
+    }
+    startTransition(async () => {
+      const result = await createGoalAction(name, weeklyFrequencyTarget, difficulty);
+      if (result.ok) {
+        onCreated(result.goal);
+        reset();
+        setOpen(false);
+      } else {
+        setError(result.error);
+      }
+    });
+  }
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="rounded-xl bg-brand px-5 py-3.5 text-center text-base font-semibold text-white shadow-sm transition-colors hover:bg-brand-dark"
+      >
+        + Add a goal
+      </button>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+      <div>
+        <label htmlFor="new-goal-name" className="mb-1.5 block text-sm font-medium text-gray-700">
+          What are you committing to?
+        </label>
+        <input
+          id="new-goal-name"
+          type="text"
+          autoFocus
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="e.g. Read, No soda, Exercise"
+          maxLength={200}
+          className="w-full rounded-xl border border-gray-300 bg-white px-3.5 py-2.5 text-base text-gray-900 shadow-sm outline-none transition-colors placeholder:text-gray-400 focus:border-brand focus:ring-2 focus:ring-brand/30"
         />
-      )}
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {suggestions.slice(0, 8).map((s) => (
+            <button
+              key={s.label}
+              type="button"
+              onClick={() => setName(s.label)}
+              className="rounded-full border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50"
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+      </div>
 
-      {goals.length === 0 && view.kind === "list" ? (
-        <p className="rounded-2xl border border-dashed border-gray-300 bg-white p-8 text-center text-gray-500">
-          No goals yet. Tap <span className="font-medium text-gray-700">New goal</span> to add your
-          first one.
+      <label className="flex items-center gap-2 text-sm text-gray-700">
+        Times per week
+        <input
+          type="number"
+          min={1}
+          max={7}
+          value={weeklyFrequencyTarget}
+          onChange={(e) => setWeeklyFrequencyTarget(Number(e.target.value))}
+          className="w-16 rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-center text-sm text-gray-900 shadow-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/30"
+        />
+      </label>
+
+      <div>
+        <p className="mb-1.5 text-sm font-medium text-gray-700">
+          How hard is this, right now?
         </p>
-      ) : (
-        <ul className="flex flex-col gap-3">
-          {goals.map((goal) => {
-            if (view.kind === "edit" && view.goalId === goal.id) {
-              return (
-                <li key={goal.id}>
-                  <GoalForm
-                    goal={goal}
-                    onSubmit={(values: GoalFormValues) => updateGoalAction(goal.id, values)}
-                    onSuccess={handleUpdated}
-                    onCancel={() => setView({ kind: "list" })}
-                  />
-                </li>
-              );
-            }
+        <div className="flex gap-2">
+          {DIFFICULTIES.map((d) => (
+            <button
+              key={d.value}
+              type="button"
+              onClick={() => setDifficulty(d.value)}
+              className={`flex-1 rounded-lg border px-3 py-2 text-sm font-semibold transition-colors ${
+                difficulty === d.value ? d.classes : "border-gray-200 bg-white text-gray-400 hover:bg-gray-50"
+              }`}
+            >
+              {d.label}
+            </button>
+          ))}
+        </div>
+      </div>
 
-            const isConfirming = confirmDeleteId === goal.id;
+      {error && <p className="text-sm text-red-600">{error}</p>}
 
-            return (
-              <li
-                key={goal.id}
-                className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5"
-              >
-                <div className="flex items-center justify-between gap-4">
-                  <div className="min-w-0">
-                    <p className="truncate font-semibold text-gray-900">{goal.name}</p>
-                    <p className="mt-0.5 text-sm font-medium text-gray-700">
-                      {formatNumber(goal.weeklyTarget)} {goal.unit} / week
-                    </p>
-                    <p className="mt-0.5 text-xs text-gray-400">
-                      {formatDate(goal.startDate)} – {formatDate(goal.endDate)} ·{" "}
-                      {formatWeeks(goal.totalWeeks)} · {formatNumber(goal.targetValue)} {goal.unit}{" "}
-                      total
-                    </p>
-                  </div>
-
-                  {!isConfirming && (
-                    <div className="flex shrink-0 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setView({ kind: "edit", goalId: goal.id })}
-                        disabled={busy}
-                        className="rounded-lg border border-gray-300 px-3.5 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 disabled:opacity-50"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => openDeleteConfirm(goal.id)}
-                        disabled={busy}
-                        className="rounded-lg border border-gray-300 px-3.5 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-brand/20 bg-brand/5 px-4 py-3">
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-brand">
-                      Projected by session end
-                    </p>
-                    <p className="mt-0.5 text-xs text-gray-500">
-                      Past progress plus on-target weeks ahead
-                    </p>
-                  </div>
-                  <p className="shrink-0 text-lg font-bold text-gray-900">
-                    {formatNumber(goal.projectedTotal)} {goal.unit}
-                  </p>
-                </div>
-
-                {isConfirming && (
-                  <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4">
-                    <p className="text-sm text-red-800">
-                      Delete <span className="font-semibold">{goal.name}</span>? This also removes its
-                      session and logs and can&apos;t be undone.
-                    </p>
-                    {deleteError && (
-                      <p role="alert" className="mt-2 text-sm font-medium text-red-700">
-                        {deleteError}
-                      </p>
-                    )}
-                    <div className="mt-3 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-                      <button
-                        type="button"
-                        onClick={cancelDelete}
-                        disabled={pendingDelete}
-                        className="rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 disabled:opacity-60"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => confirmDelete(goal.id)}
-                        disabled={pendingDelete}
-                        className="rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-700 disabled:opacity-60"
-                      >
-                        {pendingDelete ? "Deleting…" : "Delete goal"}
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      )}
+      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <button
+          type="button"
+          onClick={() => {
+            setOpen(false);
+            reset();
+          }}
+          disabled={pending}
+          className="rounded-xl border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 disabled:opacity-60"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          onClick={handleSubmit}
+          disabled={pending}
+          className="rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-dark disabled:opacity-60"
+        >
+          {pending ? "Adding…" : "Add goal"}
+        </button>
+      </div>
     </div>
   );
 }

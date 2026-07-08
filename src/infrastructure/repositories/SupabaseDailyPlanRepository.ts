@@ -5,7 +5,11 @@ import { LocalDate } from "@/domain/value-objects/LocalDate";
 
 const DAILY_PLANS_TABLE = "daily_plans";
 
-/** Shape of a row in the `daily_plans` table. */
+/**
+ * Shape of a row in the `daily_plans` table. The `habit_ids` column name
+ * predates the Goal/Habit merge — kept as-is to avoid a data migration; maps
+ * to the domain's `goalIds` here at the repository boundary.
+ */
 interface DailyPlanRow {
   id: string;
   user_id: string;
@@ -44,7 +48,7 @@ export class SupabaseDailyPlanRepository implements DailyPlanRepository {
         id: plan.id,
         user_id: plan.userId,
         date: plan.date.toString(),
-        habit_ids: [...plan.habitIds],
+        habit_ids: [...plan.goalIds],
         locks_spent: plan.locksSpent,
         created_at: plan.createdAt.toISOString(),
       },
@@ -60,7 +64,7 @@ export class SupabaseDailyPlanRepository implements DailyPlanRepository {
       id: row.id,
       userId: row.user_id,
       date: LocalDate.create(row.date),
-      habitIds: row.habit_ids,
+      goalIds: row.habit_ids,
       locksSpent: row.locks_spent,
       createdAt: new Date(row.created_at),
     });

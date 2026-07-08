@@ -16,7 +16,7 @@ export const USER_COOKIE = "gt_user";
 
 /**
  * Name of the cookie holding the signed-in user's IANA timezone (e.g.
- * "America/Los_Angeles"), captured client-side at login. Habit day
+ * "America/Los_Angeles"), captured client-side at login. Goal day
  * boundaries are always this timezone's local day, never server UTC.
  */
 export const TIMEZONE_COOKIE = "gt_tz";

@@ -8,15 +8,15 @@ export interface DailyPlanProps {
   userId: string;
   /** The user-local day this plan is for. */
   date: LocalDate;
-  /** Habit ids scheduled for this day. */
-  habitIds: readonly string[];
-  /** Sum of the scheduled habits' lock costs at planning time. Invariant: <= 100. */
+  /** Goal ids scheduled for this day. */
+  goalIds: readonly string[];
+  /** Sum of the scheduled goals' lock costs at planning time. Invariant: <= 100. */
   locksSpent: number;
   createdAt: Date;
 }
 
 /**
- * DailyPlan entity — the night-before commitment of which habits to attempt
+ * DailyPlan entity — the night-before commitment of which goals to attempt
  * tomorrow, within a 100-lock daily budget. Has identity; is fixed once
  * created (planning happens once, the night before — no auto-recurrence, no
  * same-day edits modeled here). Enforces its own invariants and knows nothing
@@ -29,34 +29,34 @@ export class DailyPlan {
     id: string;
     userId: string;
     date: LocalDate;
-    habitIds: readonly string[];
+    goalIds: readonly string[];
     locksSpent: number;
     now?: Date;
   }): DailyPlan {
-    DailyPlan.assertValidHabitIds(params.habitIds);
+    DailyPlan.assertValidGoalIds(params.goalIds);
     DailyPlan.assertValidLocksSpent(params.locksSpent);
     return new DailyPlan({
       id: params.id,
       userId: params.userId,
       date: params.date,
-      habitIds: [...params.habitIds],
+      goalIds: [...params.goalIds],
       locksSpent: params.locksSpent,
       createdAt: params.now ?? new Date(),
     });
   }
 
   static rehydrate(props: DailyPlanProps): DailyPlan {
-    DailyPlan.assertValidHabitIds(props.habitIds);
+    DailyPlan.assertValidGoalIds(props.goalIds);
     DailyPlan.assertValidLocksSpent(props.locksSpent);
     return new DailyPlan(props);
   }
 
-  private static assertValidHabitIds(habitIds: readonly string[]): void {
-    if (habitIds.length === 0) {
-      throw new ValidationError("A daily plan must schedule at least one habit.");
+  private static assertValidGoalIds(goalIds: readonly string[]): void {
+    if (goalIds.length === 0) {
+      throw new ValidationError("A daily plan must schedule at least one goal.");
     }
-    if (new Set(habitIds).size !== habitIds.length) {
-      throw new ValidationError("A daily plan cannot schedule the same habit twice.");
+    if (new Set(goalIds).size !== goalIds.length) {
+      throw new ValidationError("A daily plan cannot schedule the same goal twice.");
     }
   }
 
@@ -80,8 +80,8 @@ export class DailyPlan {
   get date(): LocalDate {
     return this.props.date;
   }
-  get habitIds(): readonly string[] {
-    return this.props.habitIds;
+  get goalIds(): readonly string[] {
+    return this.props.goalIds;
   }
   get locksSpent(): number {
     return this.props.locksSpent;

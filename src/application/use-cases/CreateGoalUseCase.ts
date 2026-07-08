@@ -2,14 +2,10 @@ import { Goal } from "@/domain/entities/Goal";
 import { GoalRepository } from "@/domain/repositories/GoalRepository";
 import { CreateGoalDTO, GoalDTO } from "../dtos/GoalDTO";
 import { GoalMapper } from "../mappers/GoalMapper";
-import { Clock } from "../ports/Clock";
 import { IdGenerator } from "../ports/IdGenerator";
+import { Clock } from "../ports/Clock";
 
-/**
- * Use Case: create a new goal together with its session window.
- * Single responsibility, single public `execute` method.
- * Dependencies injected via constructor (DI).
- */
+/** Use Case: create a single new goal. */
 export class CreateGoalUseCase {
   constructor(
     private readonly goalRepository: GoalRepository,
@@ -20,17 +16,15 @@ export class CreateGoalUseCase {
   async execute(dto: CreateGoalDTO): Promise<GoalDTO> {
     const goal = Goal.create({
       id: this.idGenerator.generate(),
-      sessionId: this.idGenerator.generate(),
       userId: dto.userId,
       name: dto.name,
-      weeklyTarget: dto.weeklyTarget,
-      unit: dto.unit,
-      startDate: new Date(dto.startDate),
-      endDate: new Date(dto.endDate),
+      weeklyFrequencyTarget: dto.weeklyFrequencyTarget,
+      difficulty: dto.difficulty,
+      now: this.clock.now(),
     });
 
     await this.goalRepository.save(goal);
 
-    return GoalMapper.toDTO(goal, this.clock.now());
+    return GoalMapper.toDTO(goal);
   }
 }

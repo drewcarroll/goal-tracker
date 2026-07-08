@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import type { HabitDTO } from "@/application/dtos/HabitDTO";
+import type { GoalDTO } from "@/application/dtos/GoalDTO";
 import type { DailyPlanDTO } from "@/application/dtos/DailyPlanDTO";
 import { createDailyPlanAction } from "@/interfaces/web/app/(app)/plan/actions";
 
@@ -19,32 +19,32 @@ function formatDate(date: string): string {
 }
 
 export function PlanningScreen({
-  habits,
+  goals,
   date,
   dateChoice,
   existingPlan,
 }: {
-  habits: HabitDTO[];
+  goals: GoalDTO[];
   date: string;
   dateChoice: "today" | "tomorrow";
   existingPlan: DailyPlanDTO | null;
 }) {
   if (existingPlan) {
-    return <AlreadyPlanned habits={habits} date={date} plan={existingPlan} />;
+    return <AlreadyPlanned goals={goals} date={date} plan={existingPlan} />;
   }
-  return <HabitPicker habits={habits} date={date} dateChoice={dateChoice} />;
+  return <GoalPicker goals={goals} date={date} dateChoice={dateChoice} />;
 }
 
 function AlreadyPlanned({
-  habits,
+  goals,
   date,
   plan,
 }: {
-  habits: HabitDTO[];
+  goals: GoalDTO[];
   date: string;
   plan: DailyPlanDTO;
 }) {
-  const byId = new Map(habits.map((h) => [h.id, h]));
+  const byId = new Map(goals.map((g) => [g.id, g]));
   return (
     <div className="flex flex-col gap-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
       <div>
@@ -54,15 +54,15 @@ function AlreadyPlanned({
         </p>
       </div>
       <ul className="flex flex-col gap-2">
-        {plan.habitIds.map((habitId) => {
-          const habit = byId.get(habitId);
+        {plan.goalIds.map((goalId) => {
+          const goal = byId.get(goalId);
           return (
             <li
-              key={habitId}
+              key={goalId}
               className="flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-4 py-2.5 text-sm"
             >
-              <span className="font-medium text-gray-900">{habit?.label ?? "Habit"}</span>
-              {habit && <span className="text-gray-500">{habit.currentLockCost} locks</span>}
+              <span className="font-medium text-gray-900">{goal?.name ?? "Goal"}</span>
+              {goal && <span className="text-gray-500">{goal.currentLockCost} locks</span>}
             </li>
           );
         })}
@@ -71,12 +71,12 @@ function AlreadyPlanned({
   );
 }
 
-function HabitPicker({
-  habits,
+function GoalPicker({
+  goals,
   date,
   dateChoice,
 }: {
-  habits: HabitDTO[];
+  goals: GoalDTO[];
   date: string;
   dateChoice: "today" | "tomorrow";
 }) {
@@ -87,20 +87,20 @@ function HabitPicker({
 
   const locksSpent = useMemo(
     () =>
-      habits
-        .filter((h) => selected.has(h.id))
-        .reduce((sum, h) => sum + h.currentLockCost, 0),
-    [habits, selected],
+      goals
+        .filter((g) => selected.has(g.id))
+        .reduce((sum, g) => sum + g.currentLockCost, 0),
+    [goals, selected],
   );
   const overBudget = locksSpent > LOCK_BUDGET;
 
-  function toggle(habitId: string) {
+  function toggle(goalId: string) {
     setSelected((prev) => {
       const next = new Set(prev);
-      if (next.has(habitId)) {
-        next.delete(habitId);
+      if (next.has(goalId)) {
+        next.delete(goalId);
       } else {
-        next.add(habitId);
+        next.add(goalId);
       }
       return next;
     });
@@ -118,15 +118,15 @@ function HabitPicker({
     });
   }
 
-  if (habits.length === 0) {
+  if (goals.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-8 text-center">
-        <p className="text-gray-600">No habits to plan yet.</p>
+        <p className="text-gray-600">No goals to plan yet.</p>
         <a
-          href="/onboarding"
+          href="/goals"
           className="mt-4 inline-block rounded-xl bg-brand px-5 py-3 text-base font-semibold text-white shadow-sm transition-colors hover:bg-brand-dark"
         >
-          Set up habits
+          Set up goals
         </a>
       </div>
     );
@@ -163,26 +163,26 @@ function HabitPicker({
       )}
 
       <div className="flex flex-col gap-2">
-        {habits.map((habit) => {
-          const checked = selected.has(habit.id);
+        {goals.map((goal) => {
+          const checked = selected.has(goal.id);
           return (
             <label
-              key={habit.id}
+              key={goal.id}
               className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-3 transition-colors ${
                 checked ? "cursor-pointer border-brand bg-brand/5" : "cursor-pointer border-gray-300 bg-white hover:bg-gray-50"
               }`}
             >
               <span className="flex flex-col">
-                <span className="text-base font-medium text-gray-900">{habit.label}</span>
+                <span className="text-base font-medium text-gray-900">{goal.name}</span>
                 <span className="text-xs text-gray-500">
-                  {habit.currentLockCost} locks
-                  {habit.state === "formed" ? " · formed" : ""}
+                  {goal.currentLockCost} locks
+                  {goal.state === "formed" ? " · formed" : ""}
                 </span>
               </span>
               <input
                 type="checkbox"
                 checked={checked}
-                onChange={() => toggle(habit.id)}
+                onChange={() => toggle(goal.id)}
                 className="h-5 w-5 shrink-0 accent-brand"
               />
             </label>
