@@ -25,7 +25,7 @@ export default function LoginPage({ searchParams }: { searchParams: { error?: st
       <form
         method="POST"
         action="/api/login"
-        className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-white p-6 shadow-sm"
+        className="flex flex-col gap-4 rounded-xl border border-gray-900/[0.06] bg-white p-6 shadow-sm"
       >
         <label className="flex flex-col gap-1.5">
           <span className="text-sm font-medium text-gray-700">Username</span>

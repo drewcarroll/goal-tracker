@@ -96,7 +96,7 @@ function CheckInCard({
   const passed = checkIn.dayResult === "PASS";
 
   return (
-    <li className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+    <li className="rounded-2xl border border-gray-900/[0.06] bg-white p-4 shadow-sm">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <span className="font-semibold text-gray-900">{formatDate(checkIn.date)}</span>
@@ -220,7 +220,7 @@ function AddMissedDay({
       return;
     }
     if (checkedInDates.has(date)) {
-      setError("That day already has a check-in — edit it below instead.");
+      setError("That day already has a check-in. Edit it below instead.");
       return;
     }
     const marks: GoalMarkDTO[] = Object.entries(selected).map(([goalId, passed]) => ({
@@ -256,7 +256,7 @@ function AddMissedDay({
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+    <div className="flex flex-col gap-3 rounded-2xl border border-gray-900/[0.06] bg-white p-4 shadow-sm">
       <div>
         <label htmlFor="missed-day-date" className="mb-1.5 block text-sm font-medium text-gray-700">
           Date
@@ -294,7 +294,7 @@ function AddMissedDay({
                     className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
                       passed
                         ? "border-emerald-300 bg-emerald-50 text-emerald-700"
-                        : "border-gray-200 bg-white text-gray-400"
+                        : "border-gray-900/[0.06] bg-white text-gray-400"
                     }`}
                   >
                     Passed
@@ -305,7 +305,7 @@ function AddMissedDay({
                     className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
                       passed === false
                         ? "border-red-300 bg-red-50 text-red-700"
-                        : "border-gray-200 bg-white text-gray-400"
+                        : "border-gray-900/[0.06] bg-white text-gray-400"
                     }`}
                   >
                     Missed

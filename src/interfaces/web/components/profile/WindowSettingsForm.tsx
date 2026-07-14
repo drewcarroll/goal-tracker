@@ -26,12 +26,12 @@ export function WindowSettingsForm({ start, end }: { start: string; end: string 
   }
 
   return (
-    <div className="flex flex-col gap-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+    <div className="flex flex-col gap-4 rounded-2xl border border-gray-900/[0.06] bg-white p-5 shadow-sm">
       <div>
         <h2 className="font-semibold text-gray-900">Check-in window</h2>
         <p className="mt-1 text-sm text-gray-600">
           Your nightly log is available from the opening time until the deadline the next morning.
-          Miss the deadline and that night&apos;s rank point is gone — nothing else happens.
+          Miss the deadline and that night&apos;s rank point is gone. Nothing else happens.
         </p>
       </div>
       {error && (

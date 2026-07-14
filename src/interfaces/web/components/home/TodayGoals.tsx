@@ -19,7 +19,7 @@ export function TodayGoals({
   if (goals.length === 0) {
     return (
       <section className="rounded-2xl border border-dashed border-gray-300 bg-white p-5 text-center">
-        <p className="text-gray-600">No goals yet — let&apos;s set some up.</p>
+        <p className="text-gray-600">No goals yet. Let&apos;s set some up.</p>
         <Link
           href="/goals"
           className="mt-3 inline-block rounded-xl bg-brand px-5 py-3 text-base font-semibold text-white shadow-sm transition-colors hover:bg-brand-dark"
@@ -35,7 +35,7 @@ export function TodayGoals({
       <section className="rounded-2xl border border-amber-300 bg-amber-50 p-5">
         <h2 className="text-lg font-semibold text-gray-900">Today isn&apos;t planned</h2>
         <p className="mt-1 text-sm text-gray-700">
-          If you missed planning last night, that&apos;s okay — plan now instead.
+          If you missed planning last night, that&apos;s okay. Plan now instead.
         </p>
         <Link
           href="/plan?for=today"
@@ -63,7 +63,7 @@ export function TodayGoals({
           return (
             <li
               key={goalId}
-              className="flex items-center justify-between gap-3 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm"
+              className="flex items-center justify-between gap-3 rounded-2xl border border-gray-900/[0.06] bg-white p-4 shadow-sm"
             >
               <span className="truncate font-medium text-gray-900">{goal?.name ?? "Goal"}</span>
               {goal && <span className="shrink-0 text-xs text-gray-400">{goal.currentLockCost} locks</span>}

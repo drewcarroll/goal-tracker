@@ -258,7 +258,7 @@ export function OnboardingWizard({
         <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-3">
             {selectedNames.map((name) => (
-              <div key={name} className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+              <div key={name} className="rounded-xl border border-gray-900/[0.06] bg-white p-4 shadow-sm">
                 <p className="mb-2.5 text-base font-medium text-gray-900">{name}</p>
                 <div className="mb-3 flex gap-2">
                   {DIFFICULTIES.map((d) => {
@@ -269,7 +269,7 @@ export function OnboardingWizard({
                         type="button"
                         onClick={() => setDifficulty(name, d.value)}
                         className={`flex-1 rounded-lg border px-3 py-2 text-sm font-semibold transition-colors ${
-                          active ? d.classes : "border-gray-200 bg-white text-gray-400 hover:bg-gray-50"
+                          active ? d.classes : "border-gray-900/[0.06] bg-white text-gray-400 hover:bg-gray-50"
                         }`}
                       >
                         {d.label}
@@ -313,7 +313,7 @@ export function OnboardingWizard({
 
       {step === 3 && (
         <div className="flex flex-col gap-6">
-          <div className="flex flex-col gap-2 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="flex flex-col gap-2 rounded-xl border border-gray-900/[0.06] bg-white p-4 shadow-sm">
             {selectedNames.map((name) => {
               const difficulty = difficulties[name] ?? "medium";
               const d = DIFFICULTIES.find((x) => x.value === difficulty)!;

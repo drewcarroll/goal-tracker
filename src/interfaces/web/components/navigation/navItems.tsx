@@ -48,6 +48,15 @@ function HistoryIcon(props: IconProps) {
   );
 }
 
+function ProfileIcon(props: IconProps) {
+  return (
+    <svg {...baseIconProps} {...props}>
+      <circle cx="12" cy="8" r="4" />
+      <path d="M4 20.5c1.5-3.5 4.5-5 8-5s6.5 1.5 8 5" />
+    </svg>
+  );
+}
+
 export interface NavItem {
   href: string;
   label: string;
@@ -60,4 +69,5 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { href: "/goals", label: "Goals", Icon: GoalsIcon },
   { href: "/progress", label: "Progress", Icon: ProgressIcon },
   { href: "/history", label: "History", Icon: HistoryIcon },
+  { href: "/profile", label: "Profile", Icon: ProfileIcon },
 ];

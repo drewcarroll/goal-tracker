@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { cookies } from "next/headers";
 import { getContainer } from "@/infrastructure/container";
 import { currentUserId } from "@/interfaces/web/http/currentUser";
@@ -39,7 +40,7 @@ export default async function ProfilePage() {
     <section className="mx-auto flex w-full max-w-md flex-col gap-5">
       <h1 className="text-2xl font-bold tracking-tight">Profile</h1>
 
-      <div className="flex flex-col items-center gap-3 rounded-2xl border border-gray-200 bg-white p-6 text-center shadow-sm">
+      <div className="flex flex-col items-center gap-3 rounded-2xl border border-gray-900/[0.06] bg-white p-6 text-center shadow-sm">
         <RankBadge rank={rank.rank} size="lg" />
         <div>
           <p className={`text-xl font-bold ${style.text}`}>{username}</p>
@@ -65,14 +66,34 @@ export default async function ProfilePage() {
           </p>
         </div>
         <p className="text-xs text-gray-400">
-          Points come from submitting your nightly check-in on time — passing or missing goals
+          Points come from submitting your nightly check-in on time. Passing or missing goals
           never changes them. No streaks: a quiet night just earns nothing.
         </p>
       </div>
 
+      <Link
+        href="/journal"
+        className="flex items-center justify-between rounded-2xl border border-gray-900/[0.06] bg-white p-5 shadow-sm transition-transform active:scale-[0.99]"
+      >
+        <div>
+          <p className="font-semibold text-gray-900">🔒 Private journal</p>
+          <p className="mt-0.5 text-sm text-gray-500">Your nightly notes. Nobody can see this.</p>
+        </div>
+        <span aria-hidden className="text-gray-300">
+          ›
+        </span>
+      </Link>
+
       <WindowSettingsForm start={settings.checkInWindow.start} end={settings.checkInWindow.end} />
 
       <DevModePanel unlocked={devUnlocked} configDto={configDto} />
+
+      <a
+        href="/api/logout"
+        className="self-center text-sm font-medium text-gray-400 hover:text-gray-600 hover:underline"
+      >
+        Switch user
+      </a>
     </section>
   );
 }

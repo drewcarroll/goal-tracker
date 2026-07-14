@@ -21,6 +21,15 @@ const config: Config = {
           dark: "#4338ca",
         },
       },
+      fontFamily: {
+        sans: [
+          "var(--font-inter)",
+          "-apple-system",
+          "BlinkMacSystemFont",
+          "Segoe UI",
+          "sans-serif",
+        ],
+      },
       // iOS safe-area insets exposed as spacing tokens so utilities like
       // `pt-safe-top` / `pb-safe-bottom` respect the notch and home indicator.
       spacing: {

@@ -43,7 +43,7 @@ export default async function CheckInPage() {
             Tonight&apos;s log opens at {formatTime(window.opensAt)}.
           </p>
           <p className="mt-1 text-sm text-gray-500">
-            Last night&apos;s closed at {formatTime(window.closedAt)}. No worries — an unlogged day
+            Last night&apos;s closed at {formatTime(window.closedAt)}. No worries: an unlogged day
             is just a quiet day, it never sets you back. You can adjust these times in your{" "}
             <Link href="/profile" className="font-medium text-brand hover:underline">
               profile

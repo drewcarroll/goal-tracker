@@ -26,7 +26,7 @@ export function ChartTooltip({
 }) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs shadow-md">
+    <div className="rounded-xl border border-gray-900/[0.06] bg-white px-3 py-2 text-xs shadow-md">
       <p className="mb-1 font-semibold text-gray-900">{label}</p>
       <ul className="flex flex-col gap-0.5">
         {payload.map((entry) => (

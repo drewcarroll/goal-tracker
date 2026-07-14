@@ -116,7 +116,7 @@ export function DevModePanel({
         <div>
           <h2 className="font-semibold text-gray-900">Developer mode 🔧</h2>
           <p className="mt-1 text-sm text-gray-600">
-            The lock formula&apos;s constants — see docs/lock-formula.md for what each one does.
+            The lock formula&apos;s constants. See docs/lock-formula.md for what each one does.
           </p>
         </div>
         <button
@@ -130,7 +130,7 @@ export function DevModePanel({
 
       <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
         ⚠️ Changing constants rewrites all historical trajectories (costs are replayed from
-        scratch). Stored costs refresh on the next check-in per goal — or press “Recompute all” to
+        scratch). Stored costs refresh on the next check-in per goal, or press “Recompute all” to
         refresh them now.
       </p>
 

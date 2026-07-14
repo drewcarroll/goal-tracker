@@ -22,7 +22,7 @@ export default async function JournalPage() {
           </span>
           <h1 className="text-2xl font-bold tracking-tight">Journal</h1>
         </div>
-        <p className="text-gray-600">Private — nobody else can see this.</p>
+        <p className="text-gray-600">Private. Nobody else can see this.</p>
       </div>
       <JournalHistoryView entries={entries} />
     </section>

@@ -33,7 +33,7 @@ export default async function HistoryPage() {
 
       {goals.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-8 text-center">
-          <p className="text-gray-600">No goals yet — nothing to look back on.</p>
+          <p className="text-gray-600">No goals yet, so nothing to look back on.</p>
           <Link
             href="/goals"
             className="mt-4 inline-block rounded-xl bg-brand px-5 py-3 text-base font-semibold text-white shadow-sm transition-colors hover:bg-brand-dark"

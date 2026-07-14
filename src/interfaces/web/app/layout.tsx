@@ -1,10 +1,14 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
+import { Inter } from "next/font/google";
 import "./globals.css";
+
+// Self-hosted at build time by next/font; no runtime request to Google.
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
 
 export const metadata: Metadata = {
   title: "Goal Tracker",
-  description: "Track and achieve your goals — built with Next.js & Clean Architecture.",
+  description: "Track and achieve your goals, built with Next.js & Clean Architecture.",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -24,8 +28,8 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
-      <body className="min-h-dvh pb-safe-bottom pl-safe-left pr-safe-right pt-safe-top">
+    <html lang="en" className={inter.variable}>
+      <body className="min-h-dvh pb-safe-bottom pl-safe-left pr-safe-right pt-safe-top font-sans">
         {children}
       </body>
     </html>

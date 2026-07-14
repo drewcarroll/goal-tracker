@@ -241,6 +241,8 @@ the replay architecture.
 
 ## Changelog
 
+- 2026-07-14 (later) — Post-deploy feedback round: (1) **Fixed /profile 404** — this repo's App Router pages are thin re-export stubs in the root `app/` directory pointing into `src/interfaces/web/app`; the Phase 6 profile page was missing its stub so the route never built. Any new route needs BOTH files. (2) **Journal moved into Profile** (user request): header's Journal and Switch-user links removed; Profile is now the 5th nav tab and hosts the journal link + switch user. (3) **Perceived-speed fix**: added the app's first `loading.tsx` (route-group level) so force-dynamic tab switches paint a skeleton instantly instead of waiting on the server. (4) **UI modernization pass**: Inter via next/font, brand-tinted radial background wash, floating frosted-glass mobile tab bar with active pills, filled desktop-rail active state, rank chip as a pill, softer hairline card borders (`border-gray-900/[0.06]`). (5) **Copy rule: no em dashes anywhere in UI copy** (user preference) — swept and replaced; do not reintroduce.
+
 - 2026-07-06 — Initial plan created from idea-dump scoping session.
 - 2026-07-06 — Converted open questions to resolved decisions (coexist model, local-timezone day boundaries, unplanned days neutral, Supabase Storage for photos, simple ± lock rule).
 - 2026-07-06 — Restructured into Claude Code-optimized format: vision/current-state/TODO/changelog only; deferred and out-of-scope sections moved to separate scoping doc; maintenance protocol added; TODO expanded to granular task level.

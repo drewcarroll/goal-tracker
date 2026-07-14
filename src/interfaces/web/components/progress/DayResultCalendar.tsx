@@ -23,7 +23,7 @@ export function DayResultCalendar({ today, checkIns }: { today: string; checkIns
   const days = Array.from({ length: WINDOW_DAYS }, (_, i) => addDays(today, -(WINDOW_DAYS - 1 - i)));
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
+    <div className="rounded-2xl border border-gray-900/[0.06] bg-white p-4 shadow-sm sm:p-5">
       <div className="mb-3 flex items-center justify-between">
         <h3 className="font-semibold text-gray-900">Last 30 days</h3>
         <div className="flex items-center gap-3 text-xs text-gray-500">

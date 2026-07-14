@@ -34,7 +34,7 @@ export function JournalHistoryView({ entries }: { entries: JournalEntryDTO[] }) 
   return (
     <ul className="flex flex-col gap-2">
       {sorted.map((entry) => (
-        <li key={entry.id} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+        <li key={entry.id} className="rounded-2xl border border-gray-900/[0.06] bg-white p-4 shadow-sm">
           <div className="flex items-center justify-between gap-3">
             <span className="text-sm font-semibold text-gray-900">{formatDate(entry.date)}</span>
             {entry.mood !== undefined && (

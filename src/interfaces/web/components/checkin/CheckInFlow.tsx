@@ -28,11 +28,11 @@ function AlreadyCheckedIn({ goals, checkIn }: { goals: GoalDTO[]; checkIn: Check
   const byId = new Map(goals.map((g) => [g.id, g]));
   const passed = checkIn.dayResult === "PASS";
   return (
-    <div className="flex flex-col gap-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
+    <div className="flex flex-col gap-4 rounded-2xl border border-gray-900/[0.06] bg-white p-5 shadow-sm sm:p-6">
       <p
         className={`text-base font-medium ${passed ? "text-emerald-700" : "text-gray-700"}`}
       >
-        {passed ? "Nice — you passed today." : "Checked in — one or more goals were missed today."}
+        {passed ? "Nice, you passed today." : "Checked in. One or more goals were missed today."}
       </p>
       <ul className="flex flex-col gap-2">
         {checkIn.marks.map((mark) => {
@@ -51,7 +51,7 @@ function AlreadyCheckedIn({ goals, checkIn }: { goals: GoalDTO[]; checkIn: Check
         })}
       </ul>
       <p className="text-sm text-gray-500">
-        If it wasn&apos;t truthful, come back tomorrow — a missed day never erases your progress.
+        If it wasn&apos;t truthful, come back tomorrow. A missed day never erases your progress.
       </p>
     </div>
   );
@@ -117,7 +117,7 @@ function CheckInWizard({ goals }: { goals: GoalDTO[] }) {
           {goals.map((goal) => (
             <div
               key={goal.id}
-              className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
+              className="flex items-center justify-between gap-3 rounded-xl border border-gray-900/[0.06] bg-white p-4 shadow-sm"
             >
               <span className="truncate font-medium text-gray-900">{goal.name}</span>
               <div className="flex shrink-0 gap-2">
@@ -167,14 +167,14 @@ function CheckInWizard({ goals }: { goals: GoalDTO[] }) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="confirm-heading"
-        className="flex flex-col gap-4 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm"
+        className="flex flex-col gap-4 rounded-2xl border border-gray-900/[0.06] bg-white p-6 shadow-sm"
       >
         <h2 id="confirm-heading" className="text-lg font-semibold text-gray-900">
           Going to sleep? Is this truthful?
         </h2>
         <p className="text-sm text-gray-600">
           If it&apos;s not, you&apos;re only hurting yourself. And if you missed a goal, you
-          won&apos;t lose all your progress — a miss just makes that goal a little more expensive
+          won&apos;t lose all your progress. A miss just makes that goal a little more expensive
           tomorrow, nothing more. Logging tonight earns your rank point either way.
         </p>
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
@@ -201,13 +201,13 @@ function CheckInWizard({ goals }: { goals: GoalDTO[] }) {
 
   if (step === "celebrate" && reward) {
     return (
-      <div className="flex flex-col items-center gap-4 rounded-2xl border border-gray-200 bg-white p-8 text-center shadow-sm">
+      <div className="flex flex-col items-center gap-4 rounded-2xl border border-gray-900/[0.06] bg-white p-8 text-center shadow-sm">
         <RankBadge rank={reward.rank} size="lg" />
         {reward.rankedUp ? (
           <>
             <h2 className="text-xl font-bold text-gray-900">Rank up! You&apos;re Rank {reward.rank} 🎉</h2>
             <p className="text-sm text-gray-600">
-              {reward.points} nightly {reward.points === 1 ? "log" : "logs"} and counting — your
+              {reward.points} nightly {reward.points === 1 ? "log" : "logs"} and counting. Your
               name wears the new color now.
             </p>
           </>
@@ -235,7 +235,7 @@ function CheckInWizard({ goals }: { goals: GoalDTO[] }) {
 
   // step === "journal"
   return (
-    <div className="flex flex-col gap-4 rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
+    <div className="flex flex-col gap-4 rounded-2xl border border-gray-900/[0.06] bg-white p-5 shadow-sm sm:p-6">
       <div className="flex items-center gap-2">
         <span aria-hidden className="text-lg">
           🔒
@@ -243,7 +243,7 @@ function CheckInWizard({ goals }: { goals: GoalDTO[] }) {
         <h2 className="text-lg font-semibold text-gray-900">Private journal</h2>
       </div>
       <p className="text-sm text-gray-600">
-        Nobody can see this — not even shared with anyone. Totally optional.
+        Nobody can see this, not even by accident. Totally optional.
       </p>
 
       <div>
@@ -273,7 +273,7 @@ function CheckInWizard({ goals }: { goals: GoalDTO[] }) {
               className={`flex-1 rounded-lg border py-2.5 text-sm font-semibold transition-colors ${
                 mood === value
                   ? "border-brand bg-brand/10 text-brand"
-                  : "border-gray-200 bg-white text-gray-400 hover:bg-gray-50"
+                  : "border-gray-900/[0.06] bg-white text-gray-400 hover:bg-gray-50"
               }`}
             >
               {value}

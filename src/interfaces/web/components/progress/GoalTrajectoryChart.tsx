@@ -43,7 +43,7 @@ export function GoalTrajectoryChart({ stats }: { stats: GoalStatsDTO }) {
   }
 
   return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
+    <div className="rounded-2xl border border-gray-900/[0.06] bg-white p-4 shadow-sm sm:p-5">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
         <div className="flex items-center gap-2">
           <h3 className="font-semibold text-gray-900">{stats.label}</h3>
