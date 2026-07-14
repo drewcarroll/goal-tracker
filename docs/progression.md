@@ -21,44 +21,69 @@ Failure gives **nothing** and takes nothing visible away in the rank track — a
 only moves that one goal's lock cost (see `docs/lock-formula.md`). A missed nightly
 log simply earns no point.
 
-## 2. Rank system
+## 2. Rank system (XP + formula, revised 2026-07-14)
 
-### 2.1 Earning points
+### 2.1 Earning XP
 
-- **1 point = one check-in submitted within its window** (see §3). Max one per
-  logical day by construction (check-ins are unique per user+date).
-- Backfilled or edited past days via `/history` **never** earn points: on-time status
+- **1 on-time nightly log = 500 XP** (`XP_PER_LOG` in
+  `src/domain/services/RankService.ts`). Logs are the ONLY XP source; the fixed
+  exchange rate is presentation polish ("Submit +500 XP" reads better than
+  "+1 log") without inventing new earning mechanics. Max one per logical day by
+  construction (check-ins are unique per user+date).
+- Backfilled or edited past days via `/history` **never** earn XP: on-time status
   is stamped at original submission (`check_ins.submitted_on_time`) and preserved by
   edits. You can correct history honestly without farming rank.
-- Points are all-time cumulative and never decrease. Deleting a check-in does remove
-  its point (the count is computed from rows, not stored).
+- XP is all-time cumulative and never decreases. Deleting a check-in does remove
+  its XP (the count is computed from rows, not stored).
+- SHOW, don't tell: the UI never explains this system in prose. The submit button
+  says "Submit +500 XP", the celebration screen shows the XP land, and the
+  progress bar shows the gap to the next rank.
 
-### 2.2 Thresholds and rank number
+### 2.2 The rank-up formula
 
-`RANK_THRESHOLDS = [0, 3, 7, 12, 20, 30, 40, 50, 65, 80, 100, 120, 145, 170, 200]`
-(domain constant in `src/domain/services/RankService.ts`; extendable).
+Cost (in logs) to advance from rank k to rank k+1:
 
-**Rank = number of thresholds ≤ points.** So 0 points → Rank 1 (the "day 0 rank up" —
-you start ranked), 3 points → Rank 2, 7 → Rank 3, … 200 → Rank 15. Past the last
-threshold the rank stays at the max until more thresholds are added.
+```
+c(k) = max(1, round(C − (C − 1) · r^(k−1)))      C = 7, r = 0.8
+```
 
-### 2.3 Display
+(`RANK_FORMULA` in `RankService.ts`.) Properties, each deliberate:
 
-- **Header (every page, `(app)/layout.tsx`):** the username is colored by rank tier
-  and sits next to a filled circle badge containing the rank number. Both link to
-  `/profile`. Replaces the plain "Signed in as X" text.
-- **Rank colors** (Tailwind text/bg classes, one per rank, gray → gold):
-  `1 gray-500, 2 amber-600, 3 emerald-600, 4 teal-600, 5 sky-600, 6 blue-600,
-  7 indigo-600 (brand), 8 violet-600, 9 purple-600, 10 fuchsia-600, 11 rose-600,
-  12 orange-500, 13 amber-500, 14 yellow-500, 15 yellow-400 ("gold")`.
-  Defined once in `src/interfaces/web/components/profile/rankColors.ts` (presentation
-  concern — NOT in domain).
-- **`/profile`:** big badge, points total, progress bar to the next threshold
-  ("17 / 20 nightly logs to Rank 5"), and the check-in window settings (§3.4) +
-  dev mode (§4).
-- **`/checkin` post-submit:** the action result carries
-  `{ rankPoint: boolean, rankedUp: boolean, newRank: number }`; the flow shows a small
-  "+1 · Rank N" celebration (and a bigger one on rank-up) before the journal step.
+- **c(1) = 1: the very first log ranks a newcomer up.** Reward-timing research
+  says the first session is the highest-leverage reward moment.
+- Early costs ramp gently: 1, 2, 3, 4, 5, 5, 5, 6, 6, 6, ... Three rank-ups land
+  in week one (days 1, 3, 6), the fourth on day 10, then 15, 20, 25, 31, 37, 43.
+- Marginal cost flattens to C = 7, so the cumulative curve **becomes linear**:
+  one rank per week, forever. No infinite exponential, no "plateau of despair";
+  no rank cap either (colors/tiers keep scaling, see §2.3).
+- A brand-new user is Rank 1 with 0 XP; ranks are 1-based and unbounded.
+- Tuning: raise `r` for a snappier early hook (steady state arrives later);
+  raise `C` for a slower permanent cadence. `XP_PER_LOG` is cosmetic scale.
+
+### 2.3 Display and rank visuals
+
+- **Header (every page, `(app)/layout.tsx`):** the username in its rank color plus
+  the rank badge, both linking to `/profile`.
+- **Rank visuals are programmatic**, not a lookup table
+  (`rankVisual(rank)` in `src/interfaces/web/components/profile/rankColors.ts`,
+  presentation-only): hue travels steadily from warm muted stone (rank 1) through
+  bronze, green, teal, blue, indigo, violet to fuchsia by rank 30, with saturation
+  and depth rising. Adjacent ranks differ by ~9 degrees of hue: rank 20 and 21 read
+  as siblings. Every 5 ranks a **tier** adds one ornament: tier 1 gradient fill,
+  tier 2 double ring, tier 3+ glow of increasing strength. Badges are
+  gradient-filled circles with the rank number; no emoji anywhere (custom SVG
+  icons live in `src/interfaces/web/components/icons.tsx`).
+- **`/profile` rank card:** hero badge + colored username + total XP, then the
+  climb row: current rank badge on the LEFT of the progress bar, next rank badge
+  (in the next rank's colors) on the RIGHT, bar filled with a gradient from the
+  current color to the next. Copy is gap-to-goal framed ("1,500 XP to Rank 5"),
+  which outperforms distance-traveled framing.
+- **`/checkin`:** the confirm button is "Submit +500 XP". On success a celebration
+  screen pops the badge in (CSS pop-in/rise-in keyframes in globals.css): "+500 XP"
+  normally, or a full RANK UP treatment in the new rank's color when the log
+  crossed a threshold, plus the same badge-to-badge progress bar.
+- Everything else on /profile (check-in window settings, dev mode) is tucked into
+  a collapsed **Advanced** section (native `<details>`).
 
 ## 3. Check-in window & logical day
 

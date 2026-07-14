@@ -28,9 +28,45 @@
     /* A soft brand-tinted wash at the top so pages don't read as flat gray. */
     background-image: radial-gradient(
       60rem 24rem at 50% -6rem,
-      rgba(79, 70, 229, 0.08),
+      rgba(124, 58, 237, 0.09),
       transparent 70%
     );
     background-repeat: no-repeat;
+  }
+}
+
+@layer utilities {
+  /* Check-in celebration: badge pops in, then the XP line rises under it. */
+  @keyframes pop-in {
+    0% {
+      transform: scale(0.4);
+      opacity: 0;
+    }
+    65% {
+      transform: scale(1.12);
+      opacity: 1;
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+  @keyframes rise-in {
+    0% {
+      transform: translateY(10px);
+      opacity: 0;
+    }
+    100% {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+  .animate-pop-in {
+    animation: pop-in 0.55s cubic-bezier(0.22, 1.4, 0.36, 1) both;
+  }
+  .animate-rise-in {
+    animation: rise-in 0.45s ease-out 0.25s both;
+  }
+  .animate-rise-in-late {
+    animation: rise-in 0.45s ease-out 0.5s both;
   }
 }

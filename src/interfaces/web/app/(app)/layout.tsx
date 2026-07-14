@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { getContainer } from "@/infrastructure/container";
 import { TabNavigation } from "@/interfaces/web/components/navigation/TabNavigation";
 import { RankBadge } from "@/interfaces/web/components/profile/RankBadge";
-import { rankStyle } from "@/interfaces/web/components/profile/rankColors";
+import { rankVisual } from "@/interfaces/web/components/profile/rankColors";
 import { USER_COOKIE } from "@/interfaces/web/http/session";
 import { currentUserId } from "@/interfaces/web/http/currentUser";
 
@@ -36,10 +36,15 @@ export default async function AppShellLayout({ children }: { children: ReactNode
           <Link
             href="/profile"
             title="Profile"
-            className="inline-flex items-center gap-1.5 rounded-full border border-gray-900/10 bg-white/70 py-1 pl-1.5 pr-3 shadow-sm backdrop-blur transition-transform active:scale-95"
+            className="inline-flex max-w-[60vw] items-center gap-1.5 rounded-full border border-gray-900/10 bg-white/70 py-1 pl-1.5 pr-3 shadow-sm backdrop-blur transition-transform active:scale-95"
           >
             <RankBadge rank={rank.rank} />
-            <span className={`font-semibold ${rankStyle(rank.rank).text}`}>{username}</span>
+            <span
+              className="truncate font-semibold"
+              style={{ color: rankVisual(rank.rank).color }}
+            >
+              {username}
+            </span>
           </Link>
         </div>
         {children}

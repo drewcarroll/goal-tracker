@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getContainer } from "@/infrastructure/container";
 import { currentUserId, currentTimezone } from "@/interfaces/web/http/currentUser";
 import { CheckInFlow } from "@/interfaces/web/components/checkin/CheckInFlow";
+import { MoonIcon } from "@/interfaces/web/components/icons";
 
 export const metadata: Metadata = { title: "Check in · Goal Tracker" };
 
@@ -36,10 +37,10 @@ export default async function CheckInPage() {
       <section className="mx-auto flex w-full max-w-md flex-col gap-4">
         <h1 className="text-2xl font-bold tracking-tight">Check in</h1>
         <div className="rounded-2xl border border-dashed border-gray-300 bg-white p-8 text-center">
-          <p aria-hidden className="text-3xl">
-            🌙
-          </p>
-          <p className="mt-2 font-medium text-gray-900">
+          <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-brand/10 text-brand">
+            <MoonIcon className="h-6 w-6" />
+          </span>
+          <p className="mt-3 font-medium text-gray-900">
             Tonight&apos;s log opens at {formatTime(window.opensAt)}.
           </p>
           <p className="mt-1 text-sm text-gray-500">

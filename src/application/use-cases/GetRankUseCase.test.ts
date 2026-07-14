@@ -3,6 +3,7 @@ import { GetRankUseCase } from "./GetRankUseCase";
 import { CheckIn } from "../../domain/entities/CheckIn";
 import { LocalDate } from "../../domain/value-objects/LocalDate";
 import { CheckInRepository } from "../../domain/repositories/CheckInRepository";
+import { XP_PER_LOG } from "../../domain/services/RankService";
 
 class InMemoryCheckInRepository implements CheckInRepository {
   constructor(private readonly checkIns: CheckIn[]) {}
@@ -27,39 +28,38 @@ function checkIn(date: string, submittedOnTime: boolean, passed = false) {
 }
 
 describe("GetRankUseCase", () => {
-  it("counts only on-time logs — backfills and goal passes are irrelevant", async () => {
+  it("counts only on-time logs; backfills and goal passes are irrelevant", async () => {
     const useCase = new GetRankUseCase(
       new InMemoryCheckInRepository([
-        checkIn("2026-01-01", true, false), // failed day, on time → still a point
+        checkIn("2026-01-01", true, false), // failed day, on time: still earns XP
         checkIn("2026-01-02", true, true),
-        checkIn("2026-01-03", false, true), // backfilled, all passed → NO point
+        checkIn("2026-01-03", false, true), // backfilled, all passed: NO XP
       ]),
     );
 
     const result = await useCase.execute({ userId: "user-1" });
 
-    expect(result.points).toBe(2);
-    expect(result.rank).toBe(1); // next threshold is 3
-    expect(result.nextThreshold).toBe(3);
+    expect(result.xp).toBe(2 * XP_PER_LOG);
+    expect(result.rank).toBe(2); // first log ranked up; 1 XP-log into the 2-log climb
+    expect(result.xpIntoRank).toBe(1 * XP_PER_LOG);
+    expect(result.xpForRankUp).toBe(2 * XP_PER_LOG);
+    expect(result.nextRank).toBe(3);
   });
 
-  it("ranks up at the thresholds", async () => {
-    const checkIns = ["01", "02", "03"].map((d) => checkIn(`2026-01-${d}`, true));
-    const useCase = new GetRankUseCase(new InMemoryCheckInRepository(checkIns));
+  it("ranks up on the very first on-time log", async () => {
+    const useCase = new GetRankUseCase(new InMemoryCheckInRepository([checkIn("2026-01-01", true)]));
 
     const result = await useCase.execute({ userId: "user-1" });
 
-    expect(result.points).toBe(3);
     expect(result.rank).toBe(2);
-    expect(result.nextThreshold).toBe(7);
+    expect(result.xp).toBe(XP_PER_LOG);
   });
 
-  it("starts a brand-new user at Rank 1 with 0 points", async () => {
+  it("starts a brand-new user at Rank 1 with 0 XP", async () => {
     const useCase = new GetRankUseCase(new InMemoryCheckInRepository([]));
 
     const result = await useCase.execute({ userId: "user-1" });
 
-    expect(result).toMatchObject({ points: 0, rank: 1, nextThreshold: 3 });
-    expect(result.maxRank).toBeGreaterThan(10);
+    expect(result).toMatchObject({ rank: 1, nextRank: 2, xp: 0, xpPerLog: XP_PER_LOG });
   });
 });

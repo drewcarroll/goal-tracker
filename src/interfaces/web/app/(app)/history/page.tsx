@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getContainer } from "@/infrastructure/container";
 import { currentUserId, currentTimezone } from "@/interfaces/web/http/currentUser";
 import { CheckInHistoryView } from "@/interfaces/web/components/history/CheckInHistoryView";
+import { LockIcon } from "@/interfaces/web/components/icons";
 
 export const metadata: Metadata = { title: "History · Goal Tracker" };
 
@@ -26,8 +27,12 @@ export default async function HistoryPage() {
           <h1 className="text-2xl font-bold tracking-tight">History</h1>
           <p className="mt-1 text-gray-600">Review and correct past check-ins.</p>
         </div>
-        <Link href="/journal" className="text-sm font-medium text-brand hover:underline">
-          🔒 Journal →
+        <Link
+          href="/journal"
+          className="inline-flex shrink-0 items-center gap-1.5 text-sm font-medium text-brand hover:underline"
+        >
+          <LockIcon className="h-4 w-4" />
+          Journal
         </Link>
       </div>
 

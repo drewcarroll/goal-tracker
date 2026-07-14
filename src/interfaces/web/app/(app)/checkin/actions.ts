@@ -22,8 +22,16 @@ export type SubmitCheckInActionResult =
   | {
       ok: true;
       checkIn: CheckInDTO;
-      /** The nightly-log reward: one point per on-time submission. */
-      rank: { points: number; rank: number; nextThreshold: number | null; rankedUp: boolean };
+      /** The nightly-log reward: XP for the on-time submission. */
+      rank: {
+        xpEarned: number;
+        xp: number;
+        rank: number;
+        nextRank: number;
+        xpIntoRank: number;
+        xpForRankUp: number;
+        rankedUp: boolean;
+      };
     }
   | { ok: false; error: string };
 
@@ -60,9 +68,12 @@ export async function submitCheckInAction(
       ok: true,
       checkIn,
       rank: {
-        points: after.points,
+        xpEarned: after.xp - before.xp,
+        xp: after.xp,
         rank: after.rank,
-        nextThreshold: after.nextThreshold,
+        nextRank: after.nextRank,
+        xpIntoRank: after.xpIntoRank,
+        xpForRankUp: after.xpForRankUp,
         rankedUp: after.rank > before.rank,
       },
     };

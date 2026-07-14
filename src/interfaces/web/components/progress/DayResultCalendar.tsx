@@ -24,7 +24,7 @@ export function DayResultCalendar({ today, checkIns }: { today: string; checkIns
 
   return (
     <div className="rounded-2xl border border-gray-900/[0.06] bg-white p-4 shadow-sm sm:p-5">
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
         <h3 className="font-semibold text-gray-900">Last 30 days</h3>
         <div className="flex items-center gap-3 text-xs text-gray-500">
           <Legend color="bg-emerald-500" label="Pass" />

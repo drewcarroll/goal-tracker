@@ -172,8 +172,8 @@ function GoalPicker({
                 checked ? "cursor-pointer border-brand bg-brand/5" : "cursor-pointer border-gray-300 bg-white hover:bg-gray-50"
               }`}
             >
-              <span className="flex flex-col">
-                <span className="text-base font-medium text-gray-900">{goal.name}</span>
+              <span className="flex min-w-0 flex-col">
+                <span className="truncate text-base font-medium text-gray-900">{goal.name}</span>
                 <span className="text-xs text-gray-500">
                   {goal.currentLockCost} locks
                   {goal.state === "formed" ? " · formed" : ""}

@@ -16,9 +16,11 @@ const config: Config = {
     },
     extend: {
       colors: {
+        // "Midnight violet": the app is a nightly ritual, so the identity
+        // leans night-sky violet rather than default-Tailwind indigo.
         brand: {
-          DEFAULT: "#4f46e5",
-          dark: "#4338ca",
+          DEFAULT: "#7c3aed",
+          dark: "#6d28d9",
         },
       },
       fontFamily: {

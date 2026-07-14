@@ -5,11 +5,21 @@ import { useRouter } from "next/navigation";
 import type { GoalDTO } from "@/application/dtos/GoalDTO";
 import type { CheckInDTO } from "@/application/dtos/CheckInDTO";
 import { RankBadge } from "@/interfaces/web/components/profile/RankBadge";
+import { rankVisual } from "@/interfaces/web/components/profile/rankColors";
+import { LockIcon } from "@/interfaces/web/components/icons";
 import { submitCheckInAction, saveJournalAction } from "@/interfaces/web/app/(app)/checkin/actions";
 
 type Step = "marks" | "confirm" | "celebrate" | "journal";
 
-type RankReward = { points: number; rank: number; nextThreshold: number | null; rankedUp: boolean };
+type RankReward = {
+  xpEarned: number;
+  xp: number;
+  rank: number;
+  nextRank: number;
+  xpIntoRank: number;
+  xpForRankUp: number;
+  rankedUp: boolean;
+};
 
 export function CheckInFlow({
   goals,
@@ -175,7 +185,7 @@ function CheckInWizard({ goals }: { goals: GoalDTO[] }) {
         <p className="text-sm text-gray-600">
           If it&apos;s not, you&apos;re only hurting yourself. And if you missed a goal, you
           won&apos;t lose all your progress. A miss just makes that goal a little more expensive
-          tomorrow, nothing more. Logging tonight earns your rank point either way.
+          tomorrow, nothing more.
         </p>
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
           <button
@@ -190,9 +200,18 @@ function CheckInWizard({ goals }: { goals: GoalDTO[] }) {
             type="button"
             onClick={handleConfirm}
             disabled={pending}
-            className="rounded-xl bg-brand px-4 py-3 text-base font-semibold text-white shadow-sm transition-colors hover:bg-brand-dark disabled:opacity-60 sm:px-5 sm:text-sm"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand px-4 py-3 text-base font-semibold text-white shadow-sm transition-colors hover:bg-brand-dark disabled:opacity-60 sm:px-5 sm:text-sm"
           >
-            {pending ? "Submitting…" : "Yes, submit"}
+            {pending ? (
+              "Submitting…"
+            ) : (
+              <>
+                Submit
+                <span className="rounded-full bg-white/20 px-2 py-0.5 text-xs font-bold">
+                  +500 XP
+                </span>
+              </>
+            )}
           </button>
         </div>
       </div>
@@ -200,32 +219,55 @@ function CheckInWizard({ goals }: { goals: GoalDTO[] }) {
   }
 
   if (step === "celebrate" && reward) {
+    const visual = rankVisual(reward.rank);
+    const progressPct = Math.round(Math.min(1, reward.xpIntoRank / reward.xpForRankUp) * 100);
     return (
-      <div className="flex flex-col items-center gap-4 rounded-2xl border border-gray-900/[0.06] bg-white p-8 text-center shadow-sm">
-        <RankBadge rank={reward.rank} size="lg" />
+      <div className="flex flex-col items-center gap-4 overflow-hidden rounded-2xl border border-gray-900/[0.06] bg-white p-8 text-center shadow-sm">
+        <div className="animate-pop-in">
+          <RankBadge rank={reward.rank} size="lg" />
+        </div>
         {reward.rankedUp ? (
-          <>
-            <h2 className="text-xl font-bold text-gray-900">Rank up! You&apos;re Rank {reward.rank} 🎉</h2>
-            <p className="text-sm text-gray-600">
-              {reward.points} nightly {reward.points === 1 ? "log" : "logs"} and counting. Your
-              name wears the new color now.
+          <div className="animate-rise-in">
+            <p
+              className="text-xs font-bold uppercase tracking-[0.2em]"
+              style={{ color: visual.color }}
+            >
+              Rank up
             </p>
-          </>
+            <h2 className="mt-1 text-2xl font-bold" style={{ color: visual.color }}>
+              Rank {reward.rank}
+            </h2>
+          </div>
         ) : (
-          <>
-            <h2 className="text-xl font-bold text-gray-900">+1 · logged tonight</h2>
-            <p className="text-sm text-gray-600">
-              {reward.points} nightly {reward.points === 1 ? "log" : "logs"} total
-              {reward.nextThreshold !== null && (
-                <> · {reward.nextThreshold - reward.points} more to Rank {reward.rank + 1}</>
-              )}
-            </p>
-          </>
+          <h2 className="animate-rise-in text-2xl font-bold text-gray-900">
+            +{reward.xpEarned.toLocaleString()} XP
+          </h2>
         )}
+
+        <div className="animate-rise-in-late w-full">
+          <div className="flex items-center gap-2.5">
+            <RankBadge rank={reward.rank} />
+            <div className="h-2 min-w-0 flex-1 overflow-hidden rounded-full bg-gray-100">
+              <div
+                className="h-full rounded-full"
+                style={{
+                  width: `${progressPct}%`,
+                  background: `linear-gradient(90deg, ${visual.from}, ${rankVisual(reward.nextRank).to})`,
+                }}
+              />
+            </div>
+            <RankBadge rank={reward.nextRank} />
+          </div>
+          <p className="mt-1.5 text-xs text-gray-500">
+            {(reward.xpForRankUp - reward.xpIntoRank).toLocaleString()} XP to Rank{" "}
+            {reward.nextRank}
+          </p>
+        </div>
+
         <button
           type="button"
           onClick={() => setStep("journal")}
-          className="mt-1 w-full rounded-xl bg-brand px-5 py-3.5 text-base font-semibold text-white shadow-sm transition-colors hover:bg-brand-dark sm:w-auto sm:px-8"
+          className="mt-1 w-full rounded-xl bg-brand px-5 py-3.5 text-base font-semibold text-white shadow-sm transition-colors hover:bg-brand-dark active:scale-[0.98] sm:w-auto sm:px-8"
         >
           Continue
         </button>
@@ -237,9 +279,7 @@ function CheckInWizard({ goals }: { goals: GoalDTO[] }) {
   return (
     <div className="flex flex-col gap-4 rounded-2xl border border-gray-900/[0.06] bg-white p-5 shadow-sm sm:p-6">
       <div className="flex items-center gap-2">
-        <span aria-hidden className="text-lg">
-          🔒
-        </span>
+        <LockIcon className="h-5 w-5 text-brand" />
         <h2 className="text-lg font-semibold text-gray-900">Private journal</h2>
       </div>
       <p className="text-sm text-gray-600">

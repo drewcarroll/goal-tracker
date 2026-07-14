@@ -277,14 +277,14 @@ function AddMissedDay({
           const passed = selected[goal.id];
           return (
             <div key={goal.id} className="flex items-center justify-between gap-2">
-              <label className="flex items-center gap-2 text-sm text-gray-700">
+              <label className="flex min-w-0 items-center gap-2 text-sm text-gray-700">
                 <input
                   type="checkbox"
                   checked={chosen}
                   onChange={() => toggle(goal.id)}
-                  className="h-4 w-4 accent-brand"
+                  className="h-4 w-4 shrink-0 accent-brand"
                 />
-                {goal.name}
+                <span className="truncate">{goal.name}</span>
               </label>
               {chosen && (
                 <div className="flex gap-1.5">

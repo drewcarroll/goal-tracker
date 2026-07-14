@@ -1,27 +1,43 @@
 /**
- * Presentation-only color scale for ranks (domain knows numbers, not colors).
- * One entry per rank, 1-based, gray → gold; ranks past the end reuse the last
- * entry. Tailwind classes must appear as full literals so the JIT sees them.
+ * Programmatic rank visuals (presentation-only; the domain knows numbers).
+ *
+ * Design rules (docs/progression.md §2.3):
+ * - Every rank gets its own scheme, hues travelling steadily from warm and
+ *   muted (rank 1, stone) through bronze, green, teal, blue, indigo, violet
+ *   to fuchsia by rank 30. Adjacent ranks differ by ~9 degrees of hue, so
+ *   rank 20 and 21 read as siblings, not strangers.
+ * - Saturation and depth rise with rank; every 5 ranks a "tier" adds one
+ *   ornament (gradient fill, double ring, glow) so climbing keeps paying
+ *   visually without becoming a carnival.
  */
-const RANK_STYLES: { name: string; text: string; badge: string }[] = [
-  { name: "Gray", text: "text-gray-600", badge: "bg-gray-500" },
-  { name: "Bronze", text: "text-amber-700", badge: "bg-amber-600" },
-  { name: "Green", text: "text-emerald-600", badge: "bg-emerald-600" },
-  { name: "Teal", text: "text-teal-600", badge: "bg-teal-600" },
-  { name: "Sky", text: "text-sky-600", badge: "bg-sky-600" },
-  { name: "Blue", text: "text-blue-600", badge: "bg-blue-600" },
-  { name: "Indigo", text: "text-indigo-600", badge: "bg-indigo-600" },
-  { name: "Violet", text: "text-violet-600", badge: "bg-violet-600" },
-  { name: "Purple", text: "text-purple-600", badge: "bg-purple-600" },
-  { name: "Fuchsia", text: "text-fuchsia-600", badge: "bg-fuchsia-600" },
-  { name: "Rose", text: "text-rose-600", badge: "bg-rose-600" },
-  { name: "Orange", text: "text-orange-500", badge: "bg-orange-500" },
-  { name: "Amber", text: "text-amber-500", badge: "bg-amber-500" },
-  { name: "Yellow", text: "text-yellow-500", badge: "bg-yellow-500" },
-  { name: "Gold", text: "text-yellow-400", badge: "bg-yellow-400" },
-];
+export interface RankVisual {
+  tier: number;
+  /** Solid accent (username text, bar hints). */
+  color: string;
+  /** Gradient stops for badge and progress-bar fills. */
+  from: string;
+  to: string;
+  /** Ring color around the badge. */
+  ring: string;
+  /** Extra box-shadow for high tiers ("" for none). */
+  glow: string;
+}
 
-export function rankStyle(rank: number): { name: string; text: string; badge: string } {
-  const index = Math.min(Math.max(rank, 1), RANK_STYLES.length) - 1;
-  return RANK_STYLES[index]!;
+export function rankVisual(rank: number): RankVisual {
+  const t = Math.min(Math.max(rank, 1) - 1, 29) / 29; // 0..1 across ranks 1..30
+  const hue = 30 + 270 * t; // stone/bronze → green → blue → violet → fuchsia
+  const sat = 15 + 65 * t;
+  const light = 47 - 5 * t;
+  const tier = Math.min(6, Math.floor((Math.max(rank, 1) - 1) / 5));
+
+  const color = `hsl(${hue.toFixed(0)}, ${sat.toFixed(0)}%, ${light.toFixed(0)}%)`;
+  const from = `hsl(${hue.toFixed(0)}, ${Math.min(90, sat + 12).toFixed(0)}%, ${(light + 6).toFixed(0)}%)`;
+  const to = `hsl(${(hue + 24).toFixed(0)}, ${Math.min(92, sat + 18).toFixed(0)}%, ${(light - 8).toFixed(0)}%)`;
+  const ring = `hsla(${hue.toFixed(0)}, ${sat.toFixed(0)}%, ${(light - 5).toFixed(0)}%, ${tier >= 1 ? 0.85 : 0.45})`;
+  const glow =
+    tier >= 3
+      ? `0 0 ${6 + tier * 4}px hsla(${hue.toFixed(0)}, ${sat.toFixed(0)}%, ${light.toFixed(0)}%, 0.5)`
+      : "";
+
+  return { tier, color, from, to, ring, glow };
 }

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import type { LockFormulaConfigDTO } from "@/application/use-cases/GetLockFormulaConfigUseCase";
+import { AlertTriangleIcon, WrenchIcon } from "@/interfaces/web/components/icons";
 import {
   lockDevModeAction,
   recomputeAllGoalsAction,
@@ -114,7 +115,10 @@ export function DevModePanel({
     <div className="flex flex-col gap-4 rounded-2xl border border-gray-900/20 bg-white p-5 shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <h2 className="font-semibold text-gray-900">Developer mode 🔧</h2>
+          <h2 className="inline-flex items-center gap-2 font-semibold text-gray-900">
+            <WrenchIcon className="h-4 w-4 text-gray-400" />
+            Developer mode
+          </h2>
           <p className="mt-1 text-sm text-gray-600">
             The lock formula&apos;s constants. See docs/lock-formula.md for what each one does.
           </p>
@@ -128,10 +132,13 @@ export function DevModePanel({
         </button>
       </div>
 
-      <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
-        ⚠️ Changing constants rewrites all historical trajectories (costs are replayed from
-        scratch). Stored costs refresh on the next check-in per goal, or press “Recompute all” to
-        refresh them now.
+      <p className="flex items-start gap-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+        <AlertTriangleIcon className="mt-0.5 h-4 w-4 shrink-0" />
+        <span>
+          Changing constants rewrites all historical trajectories (costs are replayed from
+          scratch). Stored costs refresh on the next check-in per goal, or press “Recompute all”
+          to refresh them now.
+        </span>
       </p>
 
       {message && (
@@ -147,7 +154,7 @@ export function DevModePanel({
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {Object.entries(configDto.bounds).map(([path, bound]) => (
-          <label key={path} className="text-xs font-medium text-gray-700">
+          <label key={path} className="min-w-0 text-xs font-medium text-gray-700">
             <span className="block truncate" title={path}>
               {path}
             </span>
@@ -159,7 +166,7 @@ export function DevModePanel({
               max={bound.max}
               value={values[path] ?? ""}
               onChange={(e) => setValues((prev) => ({ ...prev, [path]: e.target.value }))}
-              className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-2.5 py-2 text-sm text-gray-900 shadow-sm outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/30"
+              className="mt-1 w-full min-w-0 rounded-lg border border-gray-300 bg-white px-2.5 py-2 text-sm text-gray-900 shadow-sm outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/30"
             />
             <span className="mt-0.5 block text-[10px] font-normal text-gray-400">
               {bound.min}–{bound.max} · default {readPath(configDto.defaults, path)}

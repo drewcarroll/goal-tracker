@@ -1,11 +1,16 @@
 export interface RankDTO {
-  /** Cumulative on-time nightly logs. */
-  points: number;
-  /** 1-based rank (0 points → Rank 1). */
+  /** Current rank, 1-based (a brand-new user is Rank 1). */
   rank: number;
-  /** Points needed for the next rank, or null at the top rank. */
-  nextThreshold: number | null;
-  maxRank: number;
+  /** The rank the current climb leads to. */
+  nextRank: number;
+  /** Total XP earned (nightly logs × XP per log). */
+  xp: number;
+  /** XP earned toward the current rank-up. */
+  xpIntoRank: number;
+  /** Total XP the current rank-up requires. */
+  xpForRankUp: number;
+  /** XP granted per on-time nightly log (for "Submit +500 XP" UI). */
+  xpPerLog: number;
 }
 
 export interface GetRankDTO {

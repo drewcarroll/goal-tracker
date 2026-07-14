@@ -239,8 +239,22 @@ the replay architecture.
 
 ---
 
+### Phase 7: XP rank formula + visual identity (user-directed, 2026-07-14)
+
+Spec updated in `docs/progression.md` §2 (read it first). Summary of what shipped:
+
+- [x] (2026-07-14) `RankService` rewritten around the formula `c(k) = max(1, round(C − (C−1)·r^(k−1)))`, C=7, r=0.8: first log ranks you up, costs ramp 1/2/3/4/5/5/5/6..., flattening to one rank per 7 logs forever (eventually-linear, no cap). XP layer: 1 log = 500 XP (`XP_PER_LOG`). `progressFor(logs)` returns rank/xp/xpIntoRank/xpForRankUp. Threshold array deleted. Tests assert the full documented cost sequence and day-reached table.
+- [x] (2026-07-14) `RankDTO`/`GetRankUseCase` reshaped to XP fields (+`xpPerLog`, `nextRank`); check-in action returns `{xpEarned, xp, rank, nextRank, xpIntoRank, xpForRankUp, rankedUp}`.
+- [x] (2026-07-14) Programmatic rank visuals (`rankVisual(rank)`): continuous hue journey stone→bronze→green→teal→blue→violet→fuchsia across ranks 1-30 with rising saturation; tier ornaments every 5 ranks (gradient fill, double ring, glow). Adjacent ranks look related. `RankBadge` renders via inline styles (sm/md/lg).
+- [x] (2026-07-14) /profile rank card: current-rank badge LEFT of the progress bar, next-rank badge RIGHT, gradient bar between, gap-to-goal copy ("N XP to Rank R+1"). Explainer prose removed (show don't tell). Check-in window + dev mode moved into a collapsed Advanced `<details>` section. Journal row with icon.
+- [x] (2026-07-14) /checkin: confirm button is "Submit +500 XP"; celebration screen redesigned (pop-in badge, rise-in text, RANK UP treatment in the new rank's color, badge-to-badge progress bar). CSS keyframes in globals.css.
+- [x] (2026-07-14) No emojis anywhere: custom SVG icon set added (`components/icons.tsx`: lock, moon, alert-triangle, chevron, wrench, bolt); all emoji swapped out (journal, history, checkin closed state, dev panel, celebrate).
+- [x] (2026-07-14) Brand refresh: indigo → midnight violet (#7c3aed / #6d28d9) across tailwind config, viewport themeColor, chart theme, background wash.
+- [x] (2026-07-14) Mobile overflow pass: min-w-0/truncate guards on goal-name rows (plan picker, history backfill, trajectory card header), dev-panel grid inputs, header pill max-width, profile card overflow-hidden.
+
 ## Changelog
 
+- 2026-07-14 (round 3) — **Phase 7 shipped** (see section above): formula-based XP ranks replacing the threshold array (first-log rank-up, eventually-linear cadence), programmatic per-rank color schemes with tier ornaments, badge-to-badge progress bar, "Submit +500 XP" show-don't-tell flow, redesigned rank-up celebration, emoji purge in favor of a custom SVG icon set, midnight-violet brand refresh, Advanced section on /profile hiding window settings + dev mode, and a mobile overflow pass. `docs/progression.md` §2 rewritten to match.
 - 2026-07-14 (later) — Post-deploy feedback round: (1) **Fixed /profile 404** — this repo's App Router pages are thin re-export stubs in the root `app/` directory pointing into `src/interfaces/web/app`; the Phase 6 profile page was missing its stub so the route never built. Any new route needs BOTH files. (2) **Journal moved into Profile** (user request): header's Journal and Switch-user links removed; Profile is now the 5th nav tab and hosts the journal link + switch user. (3) **Perceived-speed fix**: added the app's first `loading.tsx` (route-group level) so force-dynamic tab switches paint a skeleton instantly instead of waiting on the server. (4) **UI modernization pass**: Inter via next/font, brand-tinted radial background wash, floating frosted-glass mobile tab bar with active pills, filled desktop-rail active state, rank chip as a pill, softer hairline card borders (`border-gray-900/[0.06]`). (5) **Copy rule: no em dashes anywhere in UI copy** (user preference) — swept and replaced; do not reintroduce.
 
 - 2026-07-06 — Initial plan created from idea-dump scoping session.

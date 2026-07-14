@@ -1,6 +1,18 @@
 import type { JournalEntryDTO } from "@/application/dtos/JournalEntryDTO";
 
-const MOOD_EMOJI: Record<number, string> = { 1: "😞", 2: "🙁", 3: "😐", 4: "🙂", 5: "😄" };
+/** Mood 1-5 as five dots filling warm-to-bright, no emoji (design rule). */
+function MoodDots({ mood }: { mood: number }) {
+  return (
+    <span aria-label={`Mood: ${mood} of 5`} className="flex items-center gap-1">
+      {[1, 2, 3, 4, 5].map((value) => (
+        <span
+          key={value}
+          className={`h-2 w-2 rounded-full ${value <= mood ? "bg-brand" : "bg-gray-200"}`}
+        />
+      ))}
+    </span>
+  );
+}
 
 /** "2026-01-15" -> "Jan 15" (UTC-parsed to avoid a local-timezone shift). */
 function formatDate(date: string): string {
@@ -37,11 +49,7 @@ export function JournalHistoryView({ entries }: { entries: JournalEntryDTO[] }) 
         <li key={entry.id} className="rounded-2xl border border-gray-900/[0.06] bg-white p-4 shadow-sm">
           <div className="flex items-center justify-between gap-3">
             <span className="text-sm font-semibold text-gray-900">{formatDate(entry.date)}</span>
-            {entry.mood !== undefined && (
-              <span aria-label={`Mood: ${entry.mood} of 5`} className="text-lg">
-                {MOOD_EMOJI[entry.mood]}
-              </span>
-            )}
+            {entry.mood !== undefined && <MoodDots mood={entry.mood} />}
           </div>
           {entry.text && <p className="mt-2 text-sm text-gray-700">{entry.text}</p>}
         </li>
