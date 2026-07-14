@@ -1,25 +1,28 @@
 import { LocalDate } from "@/domain/value-objects/LocalDate";
 import { GoalTrajectoryService } from "@/domain/services/GoalTrajectoryService";
+import { LockCostService } from "@/domain/services/LockCostService";
 import { GoalRepository } from "@/domain/repositories/GoalRepository";
 import { CheckInRepository } from "@/domain/repositories/CheckInRepository";
+import { ConfigRepository } from "@/domain/repositories/ConfigRepository";
 import { GoalNotFoundError } from "../errors/ApplicationError";
 import { GetGoalStatsDTO, GoalStatsDTO } from "../dtos/GoalStatsDTO";
 
 const WINDOW_DAYS = 30;
 
 /**
- * Use Case: a goal's full lock-cost trajectory, its pass rate over the last
- * 30 days, and this week's completed-vs-target count. There's no
- * cost-history table, so the trajectory is reconstructed by replaying every
- * check-in that included the goal through GoalTrajectoryService — see that
- * service's docstring for why.
+ * Use Case: a goal's full lock-cost trajectory, pass/fail ghost-point
+ * projections, times completed, pass rate over the last 30 days, and this
+ * week's completed-vs-target count. There's no cost-history table, so
+ * everything is reconstructed by replaying the goal's check-ins through
+ * GoalTrajectoryService using the goal's OWN marks (per-goal contingency) and
+ * the current lock-formula config — dev-mode constant changes redraw history
+ * here automatically.
  */
 export class GetGoalStatsUseCase {
-  private static readonly trajectoryService = new GoalTrajectoryService();
-
   constructor(
     private readonly goalRepository: GoalRepository,
     private readonly checkInRepository: CheckInRepository,
+    private readonly configRepository: ConfigRepository,
   ) {}
 
   async execute(dto: GetGoalStatsDTO): Promise<GoalStatsDTO> {
@@ -28,12 +31,11 @@ export class GetGoalStatsUseCase {
       throw new GoalNotFoundError(dto.goalId);
     }
 
+    const config = await this.configRepository.getLockFormulaConfig();
+    const trajectoryService = new GoalTrajectoryService(new LockCostService(config));
+
     const allCheckIns = await this.checkInRepository.findByUserId(dto.userId);
-    const trajectory = GetGoalStatsUseCase.trajectoryService.trajectoryFor(
-      goal.id,
-      goal.difficulty,
-      allCheckIns,
-    );
+    const trajectory = trajectoryService.trajectoryFor(goal.id, goal.difficulty, allCheckIns);
 
     const goalCheckIns = allCheckIns.filter((checkIn) => checkIn.markFor(goal.id) !== undefined);
 
@@ -43,7 +45,7 @@ export class GetGoalStatsUseCase {
       (checkIn) => !checkIn.date.isBefore(windowStart) && !checkIn.date.isAfter(today),
     );
     const checkedInDays = windowedCheckIns.length;
-    const passedDays = windowedCheckIns.filter((c) => c.dayResult === "PASS").length;
+    const passedDays = windowedCheckIns.filter((c) => c.markFor(goal.id) === true).length;
     const passRate = checkedInDays === 0 ? null : Math.round((passedDays / checkedInDays) * 100);
 
     const weekStart = today.startOfWeek();
@@ -51,14 +53,17 @@ export class GetGoalStatsUseCase {
       (checkIn) =>
         !checkIn.date.isBefore(weekStart) &&
         !checkIn.date.isAfter(today) &&
-        checkIn.dayResult === "PASS",
+        checkIn.markFor(goal.id) === true,
     ).length;
 
     return {
       goalId: goal.id,
       label: goal.name,
       weeklyFrequencyTarget: goal.weeklyFrequencyTarget,
-      trajectory,
+      trajectory: trajectory.points,
+      timesCompleted: trajectory.timesCompleted,
+      nextIfPass: trajectory.nextIfPass,
+      nextIfFail: trajectory.nextIfFail,
       last30: { checkedInDays, passedDays, passRate },
       thisWeek: { completed: thisWeekCompleted, target: goal.weeklyFrequencyTarget },
     };

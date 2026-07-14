@@ -4,9 +4,12 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { GoalDTO } from "@/application/dtos/GoalDTO";
 import type { CheckInDTO } from "@/application/dtos/CheckInDTO";
+import { RankBadge } from "@/interfaces/web/components/profile/RankBadge";
 import { submitCheckInAction, saveJournalAction } from "@/interfaces/web/app/(app)/checkin/actions";
 
-type Step = "marks" | "confirm" | "journal";
+type Step = "marks" | "confirm" | "celebrate" | "journal";
+
+type RankReward = { points: number; rank: number; nextThreshold: number | null; rankedUp: boolean };
 
 export function CheckInFlow({
   goals,
@@ -62,6 +65,7 @@ function CheckInWizard({ goals }: { goals: GoalDTO[] }) {
   );
   const [text, setText] = useState("");
   const [mood, setMood] = useState<number | null>(null);
+  const [reward, setReward] = useState<RankReward | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -82,7 +86,8 @@ function CheckInWizard({ goals }: { goals: GoalDTO[] }) {
         goals.map((g) => ({ goalId: g.id, passed: marks[g.id]! })),
       );
       if (result.ok) {
-        setStep("journal");
+        setReward(result.rank);
+        setStep("celebrate");
       } else {
         setError(result.error);
         setStep("marks");
@@ -165,12 +170,12 @@ function CheckInWizard({ goals }: { goals: GoalDTO[] }) {
         className="flex flex-col gap-4 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm"
       >
         <h2 id="confirm-heading" className="text-lg font-semibold text-gray-900">
-          Is this truthful?
+          Going to sleep? Is this truthful?
         </h2>
         <p className="text-sm text-gray-600">
-          If it&apos;s not, you&apos;re only hurting yourself. And if you missed a day, you won&apos;t
-          lose all your progress — a miss just makes that goal a little more expensive tomorrow,
-          nothing more.
+          If it&apos;s not, you&apos;re only hurting yourself. And if you missed a goal, you
+          won&apos;t lose all your progress — a miss just makes that goal a little more expensive
+          tomorrow, nothing more. Logging tonight earns your rank point either way.
         </p>
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
           <button
@@ -190,6 +195,40 @@ function CheckInWizard({ goals }: { goals: GoalDTO[] }) {
             {pending ? "Submitting…" : "Yes, submit"}
           </button>
         </div>
+      </div>
+    );
+  }
+
+  if (step === "celebrate" && reward) {
+    return (
+      <div className="flex flex-col items-center gap-4 rounded-2xl border border-gray-200 bg-white p-8 text-center shadow-sm">
+        <RankBadge rank={reward.rank} size="lg" />
+        {reward.rankedUp ? (
+          <>
+            <h2 className="text-xl font-bold text-gray-900">Rank up! You&apos;re Rank {reward.rank} 🎉</h2>
+            <p className="text-sm text-gray-600">
+              {reward.points} nightly {reward.points === 1 ? "log" : "logs"} and counting — your
+              name wears the new color now.
+            </p>
+          </>
+        ) : (
+          <>
+            <h2 className="text-xl font-bold text-gray-900">+1 · logged tonight</h2>
+            <p className="text-sm text-gray-600">
+              {reward.points} nightly {reward.points === 1 ? "log" : "logs"} total
+              {reward.nextThreshold !== null && (
+                <> · {reward.nextThreshold - reward.points} more to Rank {reward.rank + 1}</>
+              )}
+            </p>
+          </>
+        )}
+        <button
+          type="button"
+          onClick={() => setStep("journal")}
+          className="mt-1 w-full rounded-xl bg-brand px-5 py-3.5 text-base font-semibold text-white shadow-sm transition-colors hover:bg-brand-dark sm:w-auto sm:px-8"
+        >
+          Continue
+        </button>
       </div>
     );
   }

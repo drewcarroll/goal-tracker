@@ -15,7 +15,8 @@ export interface EditCheckInDTO {
 
 /**
  * Use Case: correct an existing day's marks (e.g. you fat-fingered a miss as
- * a pass). Keeps the check-in's id and date, replaces its marks, then
+ * a pass). Keeps the check-in's id, date, createdAt, and on-time flag (an
+ * edit can never mint or revoke a rank point), replaces its marks, then
  * recomputes every affected goal's cost from scratch — both the goals in
  * the corrected marks and any that were in the OLD marks but got removed,
  * since their trajectory changed too.
@@ -24,6 +25,7 @@ export class EditCheckInUseCase {
   constructor(
     private readonly goalRepository: GoalRepository,
     private readonly checkInRepository: CheckInRepository,
+    private readonly recomputeService: GoalCostRecomputeService,
   ) {}
 
   async execute(dto: EditCheckInDTO): Promise<CheckInDTO> {
@@ -45,6 +47,7 @@ export class EditCheckInUseCase {
       userId: dto.userId,
       date,
       marks: dto.marks,
+      submittedOnTime: existing.submittedOnTime,
       now: existing.createdAt,
     });
     await this.checkInRepository.save(updated);
@@ -53,11 +56,7 @@ export class EditCheckInUseCase {
       ...existing.marks.map((m) => m.goalId),
       ...dto.marks.map((m) => m.goalId),
     ]);
-    const recomputeService = new GoalCostRecomputeService(
-      this.goalRepository,
-      this.checkInRepository,
-    );
-    await recomputeService.recomputeMany(dto.userId, [...affectedGoalIds]);
+    await this.recomputeService.recomputeMany(dto.userId, [...affectedGoalIds]);
 
     return CheckInMapper.toDTO(updated);
   }

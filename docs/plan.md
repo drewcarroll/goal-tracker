@@ -19,7 +19,7 @@ Transform the existing measurable-goal tracker into a habit-formation app built 
 Non-negotiable design rules:
 - **No streaks, ever.** Streaks incentivize lying. Progression = lock-cost trajectory per goal + % of days passed in last 30.
 - **Non-punitive misses.** No streak resets, no shame UI. Copy reinforces: "If you missed a day, you won't lose all your progress."
-- **Unplanned days are neutral.** No plan submitted = no cost adjustment, excluded from pass-rate denominator. FAIL only applies to planned days checked in with ≥1 miss.
+- **Unplanned days are neutral.** No plan submitted = no cost adjustment, excluded from pass-rate denominator. ~~FAIL only applies to planned days checked in with ≥1 miss.~~ **Amended 2026-07-13** — day-level FAIL (≥1 miss) still exists for the /progress calendar display, but cost adjustments are now per-goal (each goal's own ✓/✗), see Phase 6.
 - **Honor system with friction.** Pre-submit confirmation: "Is this truthful? If it's not, you're only hurting yourself."
 - **No auto-recurring schedules.** Every day is planned manually the night before.
 - **Day boundaries = user's local timezone** (timezone cookie/setting captured at login). Never server UTC.
@@ -176,6 +176,67 @@ only thing you can schedule" mechanic, no new explicit rule).
 
 **Phase 5 complete.**
 
+### Phase 6: Psychology-grounded lock formula + nightly-log ranks + profile/dev mode
+
+**Full specification lives in `docs/lock-formula.md` (the formula: research, math,
+constants, worked examples) and `docs/progression.md` (ranks, check-in window,
+dev mode, schema). Read BOTH before implementing anything here — this checklist is
+the progress tracker, those files are the design. If a session ends mid-task, add a
+"state right now / next step" note under the open item so a cold session can resume.**
+
+Scope decisions (user-confirmed 2026-07-13): per-goal cost contingency replaces the
+uniform day-result rule; rank points come from submitting the nightly log on time
+(NOT from passing goals); check-in gated to a per-user window (default 14:00–07:00);
+new /profile page hosts rank + window settings + password-gated dev-mode constants
+editor (password `drew`); formula constants runtime-tweakable and retroactive via
+the replay architecture.
+
+**Docs (do first — session-continuity protocol)**
+- [x] (2026-07-13) `docs/lock-formula.md` — research citations, formula, constants table, worked examples, tuning guide, retroactivity notes
+- [x] (2026-07-13) `docs/progression.md` — three progression tracks, rank thresholds/colors, check-in window & logical-day rules, dev-mode manual, schema spec
+- [x] (2026-07-13) This Phase 6 section added to plan.md
+
+**Domain (`src/domain/`) — each with co-located Vitest tests**
+- [x] (2026-07-13) `value-objects/LockFormulaConfig.ts` — config type, `DEFAULT_LOCK_FORMULA_CONFIG`, `LOCK_FORMULA_BOUNDS` (validation ranges), `lockFormulaConfigFrom(override)` deep-merge helper
+- [x] (2026-07-13) Rewrite `services/LockCostService.ts` — config-injected; `initialCostFor` / `initialState` / `step(state, passed, difficulty)` / `costFor` / `isFormed`; tests cover all docs §6 worked examples + the formation simulation (medium ~60 days, easy<medium<hard)
+- [x] (2026-07-13) Rewrite `services/GoalTrajectoryService.ts` — returns `GoalTrajectory {points, finalState, finalCost, timesCompleted, nextIfPass, nextIfFail}`; replays the goal's OWN marks; constructor-injected LockCostService (no longer a static instance)
+- [x] (2026-07-13) `entities/Goal.ts` — `create` takes `initialLockCost` (validated 1–50), static LockCostService and `applyDayResult` removed; `recomputeCost` unchanged semantics (formed = cost ≤ 1, both directions)
+- [x] (2026-07-13) `services/RankService.ts` — `RANK_THRESHOLDS`, `rankFor` (0 points → Rank 1), `nextThreshold`, `maxRank`
+- [x] (2026-07-13) `services/CheckInWindowService.ts` — `resolve(localDate, minutesSinceMidnight, times)` → open+targetDate | closed+opensAt/closedAt; `assertValidWindow` (end < 12:00 ≤ start); `DEFAULT_CHECKIN_WINDOW` 14:00/07:00 lives here
+- [x] (2026-07-13) `entities/CheckIn.ts` — `submittedOnTime` prop + getter, required in `create`/`rehydrate`
+- [x] (2026-07-13) Ports: `repositories/ConfigRepository.ts` (get/save/reset lock formula config), `repositories/UserSettingsRepository.ts` (`UserSettings {userId, checkInWindow}`; find returns defaults when no row)
+
+**Infrastructure**
+- [x] (2026-07-13) `supabase/schema.sql` — `app_config`, `user_settings` (HH:MM text + regex checks), `check_ins.submitted_on_time` (existing rows backfilled `true`, default `false`); idempotent; **user still needs to run it in the SQL Editor before e2e verification**
+- [x] (2026-07-13) `SupabaseConfigRepository` (merges override via `lockFormulaConfigFrom`), `SupabaseUserSettingsRepository` (defaults when no row); `SupabaseCheckInRepository` maps `submitted_on_time`
+- [x] (2026-07-13) `container.ts` — new repos wired; `GoalCostRecomputeService` and `CheckInWindowResolver` are now shared container-level services injected into the check-in use cases (no longer `new`ed inline)
+
+**Application (`src/application/`) — each with tests**
+- [x] (2026-07-13) `GoalCostRecomputeService` — ConfigRepository injected, config fetched per recompute; `recomputeMany` fetches config+check-ins once
+- [x] (2026-07-13) `GetGoalStatsUseCase` — per-goal marks for last30/thisWeek; DTO gains `timesCompleted`, `nextIfPass`, `nextIfFail`
+- [x] (2026-07-13) `SubmitCheckInUseCase` — DTO is now `{userId, timezone, marks}` (no client date); target date resolved via new `CheckInWindowResolver` app service; rejects with `CheckInWindowClosedError` when closed; stamps `submittedOnTime: true`
+- [x] (2026-07-13) **Split**: `BackfillCheckInUseCase` (new) — /history's add-past-day path, stamps `submittedOnTime: false`, no window gate; `EditCheckInUseCase` preserves the existing flag (edits can't mint rank points); `DeleteCheckInUseCase` slimmed (recompute service injected)
+- [x] (2026-07-13) `GetRankUseCase` (+`RankDTO`), `GetCheckInWindowUseCase`, `CheckInWindowResolver` app service (timezone→wall-clock minutes via Intl)
+- [x] (2026-07-13) `GetUserSettingsUseCase` / `UpdateUserSettingsUseCase` (window validation via domain)
+- [x] (2026-07-13) `GetLockFormulaConfigUseCase` (config+defaults+bounds for dev panel) / `UpdateLockFormulaConfigUseCase` / `ResetLockFormulaConfigUseCase` / `RecomputeAllGoalsUseCase`
+- [x] (2026-07-13) `CreateGoalUseCase` / `CreateGoalsFromOnboardingUseCase` — initial cost from current config (ConfigRepository injected); `Goal.create` takes `initialLockCost`
+- [x] (2026-07-13) All tests updated/added — 188 passing (`npm test`), old-formula expectations replaced with hand-computed new-formula values matching docs/lock-formula.md §6
+
+**Interfaces (`src/interfaces/web/`)**
+- [x] (2026-07-13) Header profile section in `(app)/layout.tsx`: rank-colored username + `RankBadge` linking to /profile; `components/profile/rankColors.ts` + `RankBadge.tsx`
+- [x] (2026-07-13) `/profile` page + actions: rank hero (big badge, colored name, progress bar), `WindowSettingsForm`, `DevModePanel` (password `drew` → httpOnly `gt_dev` session cookie, checked server-side in every config-mutating action; constants grid from the DTO's bounds; Save / Reset / Recompute-all / Lock; retroactivity warning)
+- [x] (2026-07-13) `/checkin` — page gated by `GetCheckInWindowUseCase` (closed state shows opensAt/closedAt, neutral copy, link to profile); plan/check-in queries use the window's logical `targetDate` (a 1 AM visit shows yesterday's plan); confirm copy "Going to sleep? Is this truthful?"; new celebrate step (+1 point / rank-up with badge) between confirm and journal; journal entry anchored to the same logical day; `/history`'s add-past-day switched to `backfillCheckInUseCase`
+- [x] (2026-07-13) `/progress` cards — "Times completed: X" line, green/red dashed ghost projections on the chart (connected to the last real point, plus a text line; text-only preview when no check-ins yet)
+
+**Discovered work (added mid-build)**
+- [x] (2026-07-14) `/home` uses the window's logical day too — at 1 AM Home now shows the night-you're-still-living's plan, consistent with /checkin (was: raw calendar day, which flips at midnight)
+
+**Verification**
+- [x] (2026-07-14) `npm test` (188) / `type-check` / `lint` / `build` all clean
+- [x] (2026-07-14) Migration run by the user in the Supabase SQL Editor ("Success. No rows returned")
+- [x] (2026-07-14) End-to-end vs live Supabase via a throwaway vitest file (deleted after) exercising the real container: goal creation at config costs (35/25); plan (60 locks); nightly submit with mixed marks — **per-goal contingency confirmed live** (passed goal 35→30 while the day read FAIL; failed goal 25→33); rank = exactly 1 point from the on-time log (thresholds intact); backfill of a past day earned no point but replayed costs correctly (→26); stats (timesCompleted 2, pass projection < fail projection); editing the past day to a fail recomputed forward (→37) with the not-on-time flag frozen; dev-mode constant tweak (`calibrationBoost:1, gainRate:0.12`) + recompute-all rewrote costs retroactively (37→36, 33→31), reset + recompute-all restored them exactly; deleting the past day recomputed from the remainder (→30); goal deletion; all rows cleaned up (verified zero leftovers). Every number matched the hand-computed values in docs/lock-formula.md §6.
+- [x] (2026-07-14) Window edges live: a past-midnight timezone resolved open-for-YESTERDAY; a mid-morning timezone was closed and the submit was rejected with `CHECKIN_WINDOW_CLOSED` (checked by iterating real IANA timezones rather than mocking the clock)
+
 ---
 
 ## Changelog
@@ -192,3 +253,5 @@ only thing you can schedule" mechanic, no new explicit rule).
 - 2026-07-08 — Phase 4 complete: mostly an audit rather than new work — see that section for what was checked and why each item was already satisfied. One real fix (History → Journal link). **All four phases done.** Known deferred items, still open: re-sorting a habit's difficulty (Phase 1, needs a product call on whether it resets cost), journal photo upload (Phase 1/3, needs a Storage bucket created in the Supabase dashboard), and the Progress page's ambiguous "summary strip" (Phase 3, needs the metric clarified). Everything else across all four phases was verified end-to-end against the live Supabase project, not just unit-tested.
 - 2026-07-08 — **Scope change, user-directed**: user flagged that shipping two parallel systems (numeric-target goals + catalog-bound habits) on one screen was confusing rather than useful, and asked for them to be merged into one `Goal` concept with a rebuilt, more gamified UI — see Phase 5. This retires the "measurable goals and habits coexist" and "hardcoded habit catalog only" rules from the original Vision (struck through above, not deleted, per this file's own protocol) and supersedes several completed Phase 1–4 items' *underlying entities* (the `Habit`/`HabitCatalog`/old-`Goal` types), even though those phases' checklist items themselves stay checked — the work they describe genuinely happened and was verified at the time; Phase 5 is what replaced its outputs, not what undid the effort. The re-sort-difficulty-post-creation deferral (Phase 1) is now resolved as "intentionally never editable" rather than left open — see Phase 5's first entry for why. Photo upload and the ambiguous summary-strip deferrals are unaffected and still open.
 - 2026-07-08 — Phase 5 complete: unification shipped, migration run by the user against the live Supabase project, and verified end-to-end (see Phase 5 section for specifics). This is the plan's current state going forward — treat the "Working features" list under Current State as authoritative over any Phase 1–4 description of `Habit`/old-`Goal` mechanics, which are historical record of how the app got here, not what it currently does.
+- 2026-07-14 — **Phase 6 complete and fully verified.** User ran the migration; live end-to-end verification passed on the first run with every number matching docs/lock-formula.md §6 (see the Verification checklist for the full list). Test data cleaned up; the temporary e2e file was deleted after passing. Still open from earlier phases (unchanged): journal photo upload (deferred indefinitely — text is enough for now). Not yet done: visual pass in a real browser (badge colors, ghost points, /profile layout) — code-verified only — and the work is uncommitted on the feature branch.
+- 2026-07-13 — **Scope change, user-directed: Phase 6 added** (psychology-grounded lock formula + nightly-log rank progression + /profile + dev mode). Design researched and specified in `docs/lock-formula.md` and `docs/progression.md` — those two files are the authoritative spec; the Phase 6 checklist tracks progress. Supersedes: (a) the placeholder cost formula (PASS −1 / FAIL ×1.1) and (b) the uniform day-result cost rule — costs are now per-goal-contingent (day-level FAIL remains for the /progress calendar display only). The Vision bullet was amended with strikethrough per protocol. Also resolved this session: journal photo upload deferred indefinitely (user: text is enough for now), the ambiguous /progress "summary strip" is dropped in favor of Phase 6's per-goal ghost-point previews. New session-continuity requirement (user is switching windows when credits run out): docs must always reflect current state — check off Phase 6 items immediately on completion and leave "state right now / next step" notes on any half-done task.

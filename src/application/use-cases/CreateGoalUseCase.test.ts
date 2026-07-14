@@ -2,8 +2,22 @@ import { describe, it, expect } from "vitest";
 import { CreateGoalUseCase } from "./CreateGoalUseCase";
 import { Goal } from "../../domain/entities/Goal";
 import { GoalRepository } from "../../domain/repositories/GoalRepository";
+import { ConfigRepository } from "../../domain/repositories/ConfigRepository";
+import {
+  DEFAULT_LOCK_FORMULA_CONFIG,
+  type LockFormulaConfig,
+} from "../../domain/value-objects/LockFormulaConfig";
 import { Clock } from "../ports/Clock";
 import { IdGenerator } from "../ports/IdGenerator";
+
+class InMemoryConfigRepository implements ConfigRepository {
+  constructor(private readonly config: LockFormulaConfig = DEFAULT_LOCK_FORMULA_CONFIG) {}
+  async getLockFormulaConfig(): Promise<LockFormulaConfig> {
+    return this.config;
+  }
+  async saveLockFormulaConfig(): Promise<void> {}
+  async resetLockFormulaConfig(): Promise<void> {}
+}
 
 class InMemoryGoalRepository implements GoalRepository {
   public readonly saved: Goal[] = [];
@@ -26,7 +40,7 @@ const fixedIds: IdGenerator = { generate: () => "goal-1" };
 describe("CreateGoalUseCase", () => {
   it("creates a goal at its difficulty's starting cost", async () => {
     const repo = new InMemoryGoalRepository();
-    const useCase = new CreateGoalUseCase(repo, fixedIds, fixedClock);
+    const useCase = new CreateGoalUseCase(repo, new InMemoryConfigRepository(), fixedIds, fixedClock);
 
     const result = await useCase.execute({
       userId: "user-1",
@@ -43,5 +57,27 @@ describe("CreateGoalUseCase", () => {
       state: "active",
     });
     expect(repo.saved).toHaveLength(1);
+  });
+
+  it("uses the CURRENT config's initial cost, not the shipped default", async () => {
+    const repo = new InMemoryGoalRepository();
+    const useCase = new CreateGoalUseCase(
+      repo,
+      new InMemoryConfigRepository({
+        ...DEFAULT_LOCK_FORMULA_CONFIG,
+        initialCost: { ...DEFAULT_LOCK_FORMULA_CONFIG.initialCost, medium: 30 },
+      }),
+      fixedIds,
+      fixedClock,
+    );
+
+    const result = await useCase.execute({
+      userId: "user-1",
+      name: "Exercise",
+      weeklyFrequencyTarget: 3,
+      difficulty: "medium",
+    });
+
+    expect(result.currentLockCost).toBe(30);
   });
 });

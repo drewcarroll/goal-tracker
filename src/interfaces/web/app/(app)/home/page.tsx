@@ -9,9 +9,16 @@ export const metadata: Metadata = { title: "Home · Goal Tracker" };
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const { getActiveGoalsUseCase, getTodayPlanUseCase, localDateService } = getContainer();
+  const { getActiveGoalsUseCase, getTodayPlanUseCase, getCheckInWindowUseCase, localDateService } =
+    getContainer();
   const userId = currentUserId();
-  const today = localDateService.today(currentTimezone());
+  const timezone = currentTimezone();
+
+  // "Today" is the check-in window's logical day when it's open (at 1 AM
+  // you're still living yesterday's plan, same as /checkin); otherwise the
+  // plain calendar day.
+  const window = await getCheckInWindowUseCase.execute({ userId, timezone });
+  const today = window.open ? window.targetDate : localDateService.today(timezone);
 
   const [goals, todayPlan] = await Promise.all([
     getActiveGoalsUseCase.execute({ userId }),

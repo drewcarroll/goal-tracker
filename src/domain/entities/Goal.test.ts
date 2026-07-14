@@ -8,17 +8,25 @@ const base = {
   name: "Exercise",
   weeklyFrequencyTarget: 3,
   difficulty: "medium" as const,
+  // Computed by the caller via LockCostService.initialCostFor at creation.
+  initialLockCost: 35,
   now: new Date("2026-01-01T00:00:00.000Z"),
 };
 
 describe("Goal", () => {
-  it("creates a goal at its difficulty's starting lock cost, active", () => {
+  it("creates a goal at the caller-supplied initial lock cost, active", () => {
     const goal = Goal.create(base);
     expect(goal.name).toBe("Exercise");
     expect(goal.weeklyFrequencyTarget).toBe(3);
     expect(goal.currentLockCost).toBe(35);
     expect(goal.state).toBe("active");
     expect(goal.difficulty).toBe("medium");
+  });
+
+  it("rejects an out-of-range initial lock cost", () => {
+    expect(() => Goal.create({ ...base, initialLockCost: 0 })).toThrow(ValidationError);
+    expect(() => Goal.create({ ...base, initialLockCost: 51 })).toThrow(ValidationError);
+    expect(() => Goal.create({ ...base, initialLockCost: 25.5 })).toThrow(ValidationError);
   });
 
   it("trims the name", () => {
@@ -86,31 +94,6 @@ describe("Goal", () => {
       expect(() => goal.edit({ name: "Exercise", weeklyFrequencyTarget: 10 })).toThrow(
         ValidationError,
       );
-    });
-  });
-
-  describe("applyDayResult", () => {
-    it("lowers cost on PASS and transitions to formed once it hits 1", () => {
-      const goal = Goal.rehydrate({
-        id: "goal-1",
-        userId: "user-1",
-        name: "Exercise",
-        weeklyFrequencyTarget: 3,
-        difficulty: "easy",
-        currentLockCost: 2,
-        state: "active",
-        createdAt: base.now,
-      });
-      goal.applyDayResult("PASS");
-      expect(goal.currentLockCost).toBe(1);
-      expect(goal.state).toBe("formed");
-    });
-
-    it("raises cost on FAIL without changing state", () => {
-      const goal = Goal.create(base);
-      goal.applyDayResult("FAIL");
-      expect(goal.currentLockCost).toBe(39); // 35 * 1.1 = 38.5 -> 39
-      expect(goal.state).toBe("active");
     });
   });
 

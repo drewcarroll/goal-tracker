@@ -45,6 +45,7 @@ function goal(id: string, difficulty: "easy" | "medium" | "hard", userId = "user
     name: "Exercise",
     weeklyFrequencyTarget: 3,
     difficulty,
+    initialLockCost: { easy: 25, medium: 35, hard: 45 }[difficulty],
     now: NOW,
   });
 }

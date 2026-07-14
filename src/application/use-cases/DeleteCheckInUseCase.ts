@@ -1,5 +1,4 @@
 import { LocalDate } from "@/domain/value-objects/LocalDate";
-import { GoalRepository } from "@/domain/repositories/GoalRepository";
 import { CheckInRepository } from "@/domain/repositories/CheckInRepository";
 import { CheckInNotFoundError } from "../errors/ApplicationError";
 import { GoalCostRecomputeService } from "../services/GoalCostRecomputeService";
@@ -16,8 +15,8 @@ export interface DeleteCheckInDTO {
  */
 export class DeleteCheckInUseCase {
   constructor(
-    private readonly goalRepository: GoalRepository,
     private readonly checkInRepository: CheckInRepository,
+    private readonly recomputeService: GoalCostRecomputeService,
   ) {}
 
   async execute(dto: DeleteCheckInDTO): Promise<void> {
@@ -28,12 +27,7 @@ export class DeleteCheckInUseCase {
     }
 
     await this.checkInRepository.delete(existing.id);
-
-    const recomputeService = new GoalCostRecomputeService(
-      this.goalRepository,
-      this.checkInRepository,
-    );
-    await recomputeService.recomputeMany(
+    await this.recomputeService.recomputeMany(
       dto.userId,
       existing.marks.map((m) => m.goalId),
     );

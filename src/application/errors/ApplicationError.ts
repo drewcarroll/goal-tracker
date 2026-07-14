@@ -43,3 +43,11 @@ export class CheckInNotFoundError extends ApplicationError {
     super(`No check-in for "${date}" was found.`);
   }
 }
+
+export class CheckInWindowClosedError extends ApplicationError {
+  public readonly code = "CHECKIN_WINDOW_CLOSED";
+
+  constructor(opensAt: string) {
+    super(`The nightly check-in isn't open right now — it opens at ${opensAt}.`);
+  }
+}

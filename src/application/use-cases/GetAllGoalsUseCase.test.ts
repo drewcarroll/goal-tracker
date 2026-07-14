@@ -24,6 +24,7 @@ function goal(id: string, userId: string) {
     name: "Exercise",
     weeklyFrequencyTarget: 3,
     difficulty: "medium",
+    initialLockCost: 35,
     now: NOW,
   });
 }

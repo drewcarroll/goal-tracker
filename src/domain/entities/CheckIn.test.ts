@@ -7,6 +7,7 @@ const base = {
   id: "checkin-1",
   userId: "user-1",
   date: LocalDate.create("2026-07-06"),
+  submittedOnTime: true,
   now: new Date("2026-07-07T02:00:00.000Z"),
 };
 
@@ -62,12 +63,24 @@ describe("CheckIn", () => {
     expect(checkIn.markFor("goal-3")).toBeUndefined();
   });
 
+  it("carries the on-time flag (rank points) without deriving anything from marks", () => {
+    const onTime = CheckIn.create({ ...base, marks: [{ goalId: "goal-1", passed: false }] });
+    const backfilled = CheckIn.create({
+      ...base,
+      submittedOnTime: false,
+      marks: [{ goalId: "goal-1", passed: true }],
+    });
+    expect(onTime.submittedOnTime).toBe(true); // a failed day still earns its log point
+    expect(backfilled.submittedOnTime).toBe(false); // a passed backfill never does
+  });
+
   describe("rehydrate", () => {
     const validProps: CheckInProps = {
       id: "checkin-1",
       userId: "user-1",
       date: LocalDate.create("2026-07-06"),
       marks: [{ goalId: "goal-1", passed: true }],
+      submittedOnTime: true,
       createdAt: new Date("2026-07-07T02:00:00.000Z"),
     };
 

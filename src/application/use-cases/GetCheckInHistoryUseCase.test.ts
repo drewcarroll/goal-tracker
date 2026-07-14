@@ -23,12 +23,14 @@ describe("GetCheckInHistoryUseCase", () => {
       userId: "user-1",
       date: LocalDate.create("2026-01-01"),
       marks: [{ goalId: "g1", passed: true }],
+      submittedOnTime: true,
     });
     const someoneElses = CheckIn.create({
       id: "c2",
       userId: "user-2",
       date: LocalDate.create("2026-01-01"),
       marks: [{ goalId: "g2", passed: true }],
+      submittedOnTime: true,
     });
     const useCase = new GetCheckInHistoryUseCase(
       new InMemoryCheckInRepository([mine, someoneElses]),

@@ -94,8 +94,47 @@ create table if not exists public.journal_entries (
 );
 create index if not exists journal_entries_user_id_date_idx on public.journal_entries (user_id, date);
 
+-- 2026-07 (Phase 6) — Psychology-grounded lock formula + nightly-log ranks.
+-- See docs/lock-formula.md and docs/progression.md for the full design.
+
+-- Whether a check-in was originally submitted within the user's nightly
+-- check-in window (rank points come ONLY from on-time submissions; backfilled
+-- past days are false). Stamped once at submission, preserved by edits.
+-- Existing rows predate the window feature and are grandfathered to true so
+-- nobody's rank history starts at zero; new rows default false and the app
+-- sets the real value explicitly.
+alter table public.check_ins add column if not exists submitted_on_time boolean;
+update public.check_ins set submitted_on_time = true where submitted_on_time is null;
+alter table public.check_ins alter column submitted_on_time set default false;
+alter table public.check_ins alter column submitted_on_time set not null;
+
+-- Global app configuration (not per-user). Currently one row:
+-- key 'lock_formula' holding a partial override of the lock-formula constants
+-- (missing fields fall back to DEFAULT_LOCK_FORMULA_CONFIG in the app).
+-- Edited via /profile's password-gated dev mode.
+create table if not exists public.app_config (
+  key        text primary key,
+  value      jsonb not null,
+  updated_at timestamptz not null default now()
+);
+
+-- Per-user settings. The nightly check-in window: opens at `checkin_window_start`
+-- (afternoon, user-local) and closes at `checkin_window_end` the next morning.
+-- Stored as "HH:MM" text (validated app-side: end < 12:00 <= start). Missing
+-- row means the defaults (14:00 / 07:00).
+create table if not exists public.user_settings (
+  user_id              uuid primary key,
+  checkin_window_start text not null default '14:00'
+    check (checkin_window_start ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$'),
+  checkin_window_end   text not null default '07:00'
+    check (checkin_window_end ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$'),
+  updated_at           timestamptz not null default now()
+);
+
 -- Lock out the public anon key; the server uses the service role, which bypasses RLS.
 alter table public.habits enable row level security;
 alter table public.daily_plans enable row level security;
 alter table public.check_ins enable row level security;
 alter table public.journal_entries enable row level security;
+alter table public.app_config enable row level security;
+alter table public.user_settings enable row level security;

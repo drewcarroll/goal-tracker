@@ -8,19 +8,30 @@ import type { JournalEntryDTO } from "@/application/dtos/JournalEntryDTO";
 
 function toErrorMessage(error: unknown): string {
   const coded = error as { code?: string; message?: string };
-  if (coded?.code === "VALIDATION_ERROR" || coded?.code === "GOAL_NOT_FOUND") {
+  if (
+    coded?.code === "VALIDATION_ERROR" ||
+    coded?.code === "GOAL_NOT_FOUND" ||
+    coded?.code === "CHECKIN_WINDOW_CLOSED"
+  ) {
     return coded.message ?? "That couldn't be saved.";
   }
   return "Something went wrong. Please try again.";
 }
 
 export type SubmitCheckInActionResult =
-  | { ok: true; checkIn: CheckInDTO }
+  | {
+      ok: true;
+      checkIn: CheckInDTO;
+      /** The nightly-log reward: one point per on-time submission. */
+      rank: { points: number; rank: number; nextThreshold: number | null; rankedUp: boolean };
+    }
   | { ok: false; error: string };
 
 /**
- * Submits today's check-in. The target date is computed server-side from
- * the signed-in user's timezone, never trusted from the client.
+ * Submits the nightly check-in. The target date and on-time status are
+ * resolved entirely server-side from the user's timezone and check-in window
+ * (never the client's clock); outside the window the use case rejects.
+ * On success the fresh rank is returned so the flow can celebrate the point.
  */
 export async function submitCheckInAction(
   marks: GoalMarkDTO[],
@@ -29,17 +40,32 @@ export async function submitCheckInAction(
     return { ok: false, error: "Mark at least one goal to check in." };
   }
 
-  const { submitCheckInUseCase, localDateService } = getContainer();
+  const { submitCheckInUseCase, getRankUseCase } = getContainer();
   const userId = currentUserId();
-  const date = localDateService.today(currentTimezone());
 
   try {
-    const checkIn = await submitCheckInUseCase.execute({ userId, date, marks });
+    const before = await getRankUseCase.execute({ userId });
+    const checkIn = await submitCheckInUseCase.execute({
+      userId,
+      timezone: currentTimezone(),
+      marks,
+    });
+    const after = await getRankUseCase.execute({ userId });
     revalidatePath("/checkin");
     revalidatePath("/home");
     revalidatePath("/progress");
     revalidatePath("/history");
-    return { ok: true, checkIn };
+    revalidatePath("/profile");
+    return {
+      ok: true,
+      checkIn,
+      rank: {
+        points: after.points,
+        rank: after.rank,
+        nextThreshold: after.nextThreshold,
+        rankedUp: after.rank > before.rank,
+      },
+    };
   } catch (error) {
     return { ok: false, error: toErrorMessage(error) };
   }
@@ -50,17 +76,21 @@ export type SaveJournalActionResult =
   | { ok: false; error: string };
 
 /**
- * Saves the optional private journal entry for today. Screen 2 of check-in —
- * entirely optional, never affects lock cost or any stats. No photo support
- * yet (blocked on creating a Supabase Storage bucket).
+ * Saves the optional private journal entry. Screen 2 of check-in — entirely
+ * optional, never affects lock cost or any stats. Anchored to the same
+ * logical day as the check-in (a 1 AM entry belongs to yesterday), falling
+ * back to the calendar day if the window happens to be closed. No photo
+ * support yet (blocked on creating a Supabase Storage bucket).
  */
 export async function saveJournalAction(
   text: string | undefined,
   mood: number | undefined,
 ): Promise<SaveJournalActionResult> {
-  const { createJournalEntryUseCase, localDateService } = getContainer();
+  const { createJournalEntryUseCase, getCheckInWindowUseCase, localDateService } = getContainer();
   const userId = currentUserId();
-  const date = localDateService.today(currentTimezone());
+  const timezone = currentTimezone();
+  const window = await getCheckInWindowUseCase.execute({ userId, timezone });
+  const date = window.open ? window.targetDate : localDateService.today(timezone);
 
   try {
     const entry = await createJournalEntryUseCase.execute({ userId, date, text, mood });

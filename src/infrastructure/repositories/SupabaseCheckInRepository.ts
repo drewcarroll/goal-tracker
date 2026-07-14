@@ -17,6 +17,7 @@ interface CheckInRow {
   user_id: string;
   date: string;
   marks: MarkRow[];
+  submitted_on_time: boolean;
   created_at: string;
 }
 
@@ -66,6 +67,7 @@ export class SupabaseCheckInRepository implements CheckInRepository {
         user_id: checkIn.userId,
         date: checkIn.date.toString(),
         marks: checkIn.marks.map((mark): MarkRow => ({ habitId: mark.goalId, passed: mark.passed })),
+        submitted_on_time: checkIn.submittedOnTime,
         created_at: checkIn.createdAt.toISOString(),
       },
       { onConflict: "id" },
@@ -92,6 +94,7 @@ export class SupabaseCheckInRepository implements CheckInRepository {
       userId: row.user_id,
       date: LocalDate.create(row.date),
       marks,
+      submittedOnTime: row.submitted_on_time,
       createdAt: new Date(row.created_at),
     });
   }

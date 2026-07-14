@@ -2,47 +2,53 @@ import { CheckIn } from "@/domain/entities/CheckIn";
 import { LocalDate } from "@/domain/value-objects/LocalDate";
 import { GoalRepository } from "@/domain/repositories/GoalRepository";
 import { CheckInRepository } from "@/domain/repositories/CheckInRepository";
-import { GoalNotFoundError } from "../errors/ApplicationError";
+import { CheckInWindowClosedError, GoalNotFoundError } from "../errors/ApplicationError";
 import { SubmitCheckInDTO, CheckInDTO } from "../dtos/CheckInDTO";
 import { CheckInMapper } from "../mappers/CheckInMapper";
+import { CheckInWindowResolver } from "../services/CheckInWindowResolver";
 import { GoalCostRecomputeService } from "../services/GoalCostRecomputeService";
 import { IdGenerator } from "../ports/IdGenerator";
 import { Clock } from "../ports/Clock";
 
 /**
- * Use Case: submit a check-in for any day (today, or a backfilled past day
- * via /history). The day's overall result (PASS only if every marked goal
- * passed) is applied uniformly to every goal in that day's plan — per the
- * lock-cost design, a single missed goal fails the whole day, and every
- * scheduled goal (not just the missed one) gets the FAIL cost bump. See
- * LockCostService / docs/plan.md's non-negotiable design rules.
+ * Use Case: the nightly "going to sleep?" check-in. The target day is
+ * resolved server-side by CheckInWindowResolver from the user's timezone and
+ * check-in window — a 1 AM submission reports on yesterday, and outside the
+ * window (e.g. 7:01 AM) the submission is rejected with
+ * CheckInWindowClosedError. Submitting here is what earns the rank point
+ * (submittedOnTime = true); marks affect only each goal's own lock cost.
+ * Backfilling a past day is a different action — see BackfillCheckInUseCase.
  *
  * Costs are derived via GoalCostRecomputeService's full-history replay
- * rather than incrementing the stored value — that's what makes backfilling
- * a missed past day (or /history's edit/delete) safe: it doesn't matter
- * whether this check-in lands chronologically before or after ones already
- * saved, the replay sorts by date itself.
+ * rather than incrementing stored values, so ordering never matters.
  *
  * Not a real DB transaction (Supabase's client has no cross-table
  * transaction API here) — the check-in is saved before goal costs are
  * recomputed, so a mid-batch failure leaves the check-in recorded but a
- * goal's cost stale, which self-heals the next time that goal is
- * recomputed (submit, edit, or delete all recompute from scratch).
+ * goal's cost stale, which self-heals the next time that goal is recomputed.
  */
 export class SubmitCheckInUseCase {
   constructor(
     private readonly goalRepository: GoalRepository,
     private readonly checkInRepository: CheckInRepository,
+    private readonly windowResolver: CheckInWindowResolver,
+    private readonly recomputeService: GoalCostRecomputeService,
     private readonly idGenerator: IdGenerator,
     private readonly clock: Clock,
   ) {}
 
   async execute(dto: SubmitCheckInDTO): Promise<CheckInDTO> {
+    const window = await this.windowResolver.resolve(dto.userId, dto.timezone);
+    if (!window.open) {
+      throw new CheckInWindowClosedError(window.opensAt);
+    }
+
     const checkIn = CheckIn.create({
       id: this.idGenerator.generate(),
       userId: dto.userId,
-      date: LocalDate.create(dto.date),
+      date: LocalDate.create(window.targetDate),
       marks: dto.marks,
+      submittedOnTime: true,
       now: this.clock.now(),
     });
 
@@ -54,12 +60,7 @@ export class SubmitCheckInUseCase {
     }
 
     await this.checkInRepository.save(checkIn);
-
-    const recomputeService = new GoalCostRecomputeService(
-      this.goalRepository,
-      this.checkInRepository,
-    );
-    await recomputeService.recomputeMany(
+    await this.recomputeService.recomputeMany(
       dto.userId,
       checkIn.marks.map((m) => m.goalId),
     );

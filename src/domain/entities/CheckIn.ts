@@ -15,6 +15,13 @@ export interface CheckInProps {
   date: LocalDate;
   /** One mark per goal that was scheduled in that day's plan. */
   marks: readonly GoalMark[];
+  /**
+   * Whether this check-in was originally submitted within the nightly
+   * check-in window (docs/progression.md §3). Stamped once at submission and
+   * preserved by edits — backfilled past days are always false, so they never
+   * earn rank points. Frozen even if the user later changes their window.
+   */
+  submittedOnTime: boolean;
   createdAt: Date;
 }
 
@@ -38,6 +45,7 @@ export class CheckIn {
     userId: string;
     date: LocalDate;
     marks: readonly GoalMark[];
+    submittedOnTime: boolean;
     now?: Date;
   }): CheckIn {
     CheckIn.assertValidMarks(params.marks);
@@ -46,6 +54,7 @@ export class CheckIn {
       userId: params.userId,
       date: params.date,
       marks: [...params.marks],
+      submittedOnTime: params.submittedOnTime,
       createdAt: params.now ?? new Date(),
     });
   }
@@ -65,7 +74,12 @@ export class CheckIn {
     }
   }
 
-  /** PASS only if every marked goal passed; any miss makes the day FAIL. */
+  /**
+   * PASS only if every marked goal passed; any miss makes the day FAIL.
+   * As of Phase 6 this is display bookkeeping (the /progress calendar) only —
+   * lock costs move per-goal via each goal's own mark, and rank points come
+   * from submittedOnTime, not from passing.
+   */
   get dayResult(): DayResult {
     return this.props.marks.every((mark) => mark.passed) ? "PASS" : "FAIL";
   }
@@ -88,6 +102,9 @@ export class CheckIn {
   }
   get marks(): readonly GoalMark[] {
     return this.props.marks;
+  }
+  get submittedOnTime(): boolean {
+    return this.props.submittedOnTime;
   }
   get createdAt(): Date {
     return this.props.createdAt;

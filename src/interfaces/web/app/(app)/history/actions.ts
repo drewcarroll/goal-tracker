@@ -45,7 +45,7 @@ export async function addPastCheckInAction(
     return { ok: false, error: "Mark at least one goal." };
   }
 
-  const { submitCheckInUseCase, localDateService } = getContainer();
+  const { backfillCheckInUseCase, localDateService } = getContainer();
   const userId = currentUserId();
   const today = localDateService.today(currentTimezone());
   if (date >= today) {
@@ -53,7 +53,9 @@ export async function addPastCheckInAction(
   }
 
   try {
-    const checkIn = await submitCheckInUseCase.execute({ userId, date, marks });
+    // Backfills count fully for lock costs but are stamped not-on-time, so
+    // they never earn a rank point (honesty without farming).
+    const checkIn = await backfillCheckInUseCase.execute({ userId, date, marks });
     revalidateCheckInDerivedPages();
     return { ok: true, checkIn };
   } catch (error) {

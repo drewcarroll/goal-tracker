@@ -5,7 +5,13 @@ import { CheckIn } from "../../domain/entities/CheckIn";
 import { LocalDate } from "../../domain/value-objects/LocalDate";
 import { GoalRepository } from "../../domain/repositories/GoalRepository";
 import { CheckInRepository } from "../../domain/repositories/CheckInRepository";
+import { ConfigRepository } from "../../domain/repositories/ConfigRepository";
+import {
+  DEFAULT_LOCK_FORMULA_CONFIG,
+  type LockFormulaConfig,
+} from "../../domain/value-objects/LockFormulaConfig";
 import { CheckInNotFoundError, GoalNotFoundError } from "../errors/ApplicationError";
+import { GoalCostRecomputeService } from "../services/GoalCostRecomputeService";
 
 class InMemoryGoalRepository implements GoalRepository {
   constructor(private readonly goals: Goal[]) {}
@@ -38,31 +44,65 @@ class InMemoryCheckInRepository implements CheckInRepository {
   }
 }
 
+class InMemoryConfigRepository implements ConfigRepository {
+  async getLockFormulaConfig(): Promise<LockFormulaConfig> {
+    return DEFAULT_LOCK_FORMULA_CONFIG;
+  }
+  async saveLockFormulaConfig(): Promise<void> {}
+  async resetLockFormulaConfig(): Promise<void> {}
+}
+
 function goal(id: string, difficulty: "easy" | "medium" | "hard" = "easy") {
+  const initialCost = { easy: 25, medium: 35, hard: 45 }[difficulty];
   return Goal.create({
     id,
     userId: "user-1",
     name: "Exercise",
     weeklyFrequencyTarget: 3,
     difficulty,
+    initialLockCost: initialCost,
     now: new Date("2026-01-01T00:00:00.000Z"),
   });
+}
+
+function checkIn(
+  id: string,
+  date: string,
+  marks: { goalId: string; passed: boolean }[],
+  submittedOnTime = true,
+) {
+  return CheckIn.create({
+    id,
+    userId: "user-1",
+    date: LocalDate.create(date),
+    marks,
+    submittedOnTime,
+  });
+}
+
+function buildUseCase(goals: Goal[], checkIns: CheckIn[]) {
+  const goalRepository = new InMemoryGoalRepository(goals);
+  const checkInRepository = new InMemoryCheckInRepository(checkIns);
+  return {
+    useCase: new EditCheckInUseCase(
+      goalRepository,
+      checkInRepository,
+      new GoalCostRecomputeService(
+        goalRepository,
+        checkInRepository,
+        new InMemoryConfigRepository(),
+      ),
+    ),
+    checkInRepository,
+  };
 }
 
 describe("EditCheckInUseCase", () => {
   it("corrects a day's marks and recomputes cost from the full history", async () => {
     const g1 = goal("g1");
-    const checkIns = [
-      CheckIn.create({
-        id: "c1",
-        userId: "user-1",
-        date: LocalDate.create("2026-01-01"),
-        marks: [{ goalId: "g1", passed: false }], // originally recorded as a miss
-      }),
-    ];
-    const useCase = new EditCheckInUseCase(
-      new InMemoryGoalRepository([g1]),
-      new InMemoryCheckInRepository(checkIns),
+    const { useCase } = buildUseCase(
+      [g1],
+      [checkIn("c1", "2026-01-01", [{ goalId: "g1", passed: false }])], // recorded as a miss
     );
 
     const result = await useCase.execute({
@@ -72,62 +112,72 @@ describe("EditCheckInUseCase", () => {
     });
 
     expect(result.dayResult).toBe("PASS");
-    expect(g1.currentLockCost).toBe(24); // 25 - 1, not 25 * 1.1
+    expect(g1.currentLockCost).toBe(21); // easy first-day pass: 25 → 21, not a fail bump
   });
 
   it("recomputes a goal that was removed from the marks too", async () => {
     const g1 = goal("g1");
     const g2 = goal("g2");
-    const checkIns = [
-      CheckIn.create({
-        id: "c1",
-        userId: "user-1",
-        date: LocalDate.create("2026-01-01"),
-        marks: [
+    const { useCase } = buildUseCase(
+      [g1, g2],
+      [
+        checkIn("c1", "2026-01-01", [
           { goalId: "g1", passed: true },
           { goalId: "g2", passed: true },
-        ],
-      }),
-    ];
-    const useCase = new EditCheckInUseCase(
-      new InMemoryGoalRepository([g1, g2]),
-      new InMemoryCheckInRepository(checkIns),
+        ]),
+      ],
     );
 
     // g2 dropped from the corrected marks entirely.
-    await useCase.execute({ userId: "user-1", date: "2026-01-01", marks: [{ goalId: "g1", passed: true }] });
+    await useCase.execute({
+      userId: "user-1",
+      date: "2026-01-01",
+      marks: [{ goalId: "g1", passed: true }],
+    });
 
     // g2 has no check-ins left at all -> falls back to its starting cost.
     expect(g2.currentLockCost).toBe(25);
   });
 
+  it("preserves the on-time flag — an edit can never mint a rank point", async () => {
+    const g1 = goal("g1");
+    const backfilled = checkIn("c1", "2026-01-01", [{ goalId: "g1", passed: false }], false);
+    const { useCase, checkInRepository } = buildUseCase([g1], [backfilled]);
+
+    const result = await useCase.execute({
+      userId: "user-1",
+      date: "2026-01-01",
+      marks: [{ goalId: "g1", passed: true }],
+    });
+
+    expect(result.submittedOnTime).toBe(false);
+    expect(checkInRepository.checkIns[0]?.submittedOnTime).toBe(false);
+  });
+
   it("rejects editing a day with no existing check-in", async () => {
-    const useCase = new EditCheckInUseCase(
-      new InMemoryGoalRepository([]),
-      new InMemoryCheckInRepository([]),
-    );
+    const { useCase } = buildUseCase([], []);
 
     await expect(
-      useCase.execute({ userId: "user-1", date: "2026-01-01", marks: [{ goalId: "g1", passed: true }] }),
+      useCase.execute({
+        userId: "user-1",
+        date: "2026-01-01",
+        marks: [{ goalId: "g1", passed: true }],
+      }),
     ).rejects.toBeInstanceOf(CheckInNotFoundError);
   });
 
   it("rejects a mark against a goal the caller does not own", async () => {
-    const checkIns = [
-      CheckIn.create({
-        id: "c1",
-        userId: "user-1",
-        date: LocalDate.create("2026-01-01"),
-        marks: [{ goalId: "g1", passed: true }],
-      }),
-    ];
-    const useCase = new EditCheckInUseCase(
-      new InMemoryGoalRepository([]),
-      new InMemoryCheckInRepository(checkIns),
+    const { useCase } = buildUseCase(
+      [],
+      [checkIn("c1", "2026-01-01", [{ goalId: "g1", passed: true }])],
     );
 
     await expect(
-      useCase.execute({ userId: "user-1", date: "2026-01-01", marks: [{ goalId: "missing", passed: true }] }),
+      useCase.execute({
+        userId: "user-1",
+        date: "2026-01-01",
+        marks: [{ goalId: "missing", passed: true }],
+      }),
     ).rejects.toBeInstanceOf(GoalNotFoundError);
   });
 });

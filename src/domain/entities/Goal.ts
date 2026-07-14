@@ -1,5 +1,5 @@
 import { ValidationError } from "../errors/DomainError";
-import { LockCostService, type GoalDifficulty } from "../services/LockCostService";
+import type { GoalDifficulty } from "../services/LockCostService";
 
 export type { GoalDifficulty } from "../services/LockCostService";
 export type GoalState = "active" | "paused" | "formed";
@@ -33,29 +33,33 @@ export interface GoalProps {
  * invariants and knows nothing about persistence or transport.
  */
 export class Goal {
-  private static readonly lockCostService = new LockCostService();
-
   private constructor(private props: GoalProps) {}
 
-  /** Create a brand new goal at its difficulty's starting lock cost. */
+  /**
+   * Create a brand new goal. `initialLockCost` is the difficulty's starting
+   * cost from the CURRENT lock-formula config (a tweakable constant), so the
+   * caller computes it via LockCostService.initialCostFor — the entity can't
+   * know which config is active (that's an application concern).
+   */
   static create(params: {
     id: string;
     userId: string;
     name: string;
     weeklyFrequencyTarget: number;
     difficulty: GoalDifficulty;
+    initialLockCost: number;
     now?: Date;
   }): Goal {
     Goal.assertValidName(params.name);
     Goal.assertValidWeeklyFrequencyTarget(params.weeklyFrequencyTarget);
-    const currentLockCost = Goal.lockCostService.initialCostFor(params.difficulty);
+    Goal.assertValidLockCost(params.initialLockCost);
     return new Goal({
       id: params.id,
       userId: params.userId,
       name: params.name.trim(),
       weeklyFrequencyTarget: params.weeklyFrequencyTarget,
       difficulty: params.difficulty,
-      currentLockCost,
+      currentLockCost: params.initialLockCost,
       state: "active",
       createdAt: params.now ?? new Date(),
     });
@@ -84,33 +88,17 @@ export class Goal {
   }
 
   /**
-   * Apply a day's check-in result to this goal's lock cost, transitioning it
-   * to `formed` once the cost bottoms out at 1. No-op on progression for a
-   * paused goal's cost math — callers should not include paused goals in a
-   * day's plan, but this method does not itself gate on state.
-   */
-  applyDayResult(dayResult: "PASS" | "FAIL"): void {
-    this.props.currentLockCost = Goal.lockCostService.nextCost(
-      this.props.currentLockCost,
-      dayResult,
-    );
-    if (Goal.lockCostService.isFormed(this.props.currentLockCost) && this.props.state === "active") {
-      this.props.state = "formed";
-    }
-  }
-
-  /**
-   * Overwrite the lock cost with an already-computed value — used after
-   * replaying a goal's check-in history from scratch (e.g. GoalTrajectoryService,
-   * following an edit to a past check-in), as opposed to `applyDayResult`'s
-   * single incremental step. Re-derives the formed transition both ways: a
+   * Overwrite the lock cost with an already-computed value — the ONLY way a
+   * goal's cost moves: GoalCostRecomputeService replays the goal's full
+   * check-in history through the lock formula and stores the result here
+   * (docs/lock-formula.md). Re-derives the formed transition both ways: a
    * goal can un-form if a correction pushes its cost back above 1. Leaves a
    * paused goal's pause alone — pausing is a separate, explicit user action.
    */
   recomputeCost(newCost: number): void {
     Goal.assertValidLockCost(newCost);
     this.props.currentLockCost = newCost;
-    if (Goal.lockCostService.isFormed(newCost)) {
+    if (newCost <= 1) {
       if (this.props.state === "active") {
         this.props.state = "formed";
       }

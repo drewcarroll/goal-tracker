@@ -5,6 +5,11 @@ import { CheckIn } from "../../domain/entities/CheckIn";
 import { LocalDate } from "../../domain/value-objects/LocalDate";
 import { GoalRepository } from "../../domain/repositories/GoalRepository";
 import { CheckInRepository } from "../../domain/repositories/CheckInRepository";
+import { ConfigRepository } from "../../domain/repositories/ConfigRepository";
+import {
+  DEFAULT_LOCK_FORMULA_CONFIG,
+  type LockFormulaConfig,
+} from "../../domain/value-objects/LockFormulaConfig";
 
 class InMemoryGoalRepository implements GoalRepository {
   constructor(private readonly goals: Goal[]) {}
@@ -30,8 +35,35 @@ class InMemoryCheckInRepository implements CheckInRepository {
   async delete(): Promise<void> {}
 }
 
+class InMemoryConfigRepository implements ConfigRepository {
+  constructor(private config: LockFormulaConfig = DEFAULT_LOCK_FORMULA_CONFIG) {}
+  async getLockFormulaConfig(): Promise<LockFormulaConfig> {
+    return this.config;
+  }
+  async saveLockFormulaConfig(config: LockFormulaConfig): Promise<void> {
+    this.config = config;
+  }
+  async resetLockFormulaConfig(): Promise<void> {
+    this.config = DEFAULT_LOCK_FORMULA_CONFIG;
+  }
+}
+
 function checkIn(date: string, marks: { goalId: string; passed: boolean }[]) {
-  return CheckIn.create({ id: `c-${date}`, userId: "user-1", date: LocalDate.create(date), marks });
+  return CheckIn.create({
+    id: `c-${date}`,
+    userId: "user-1",
+    date: LocalDate.create(date),
+    marks,
+    submittedOnTime: true,
+  });
+}
+
+function buildService(goals: Goal[], checkIns: CheckIn[]) {
+  return new GoalCostRecomputeService(
+    new InMemoryGoalRepository(goals),
+    new InMemoryCheckInRepository(checkIns),
+    new InMemoryConfigRepository(),
+  );
 }
 
 describe("GoalCostRecomputeService", () => {
@@ -49,17 +81,14 @@ describe("GoalCostRecomputeService", () => {
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
     });
     const checkIns = [
-      checkIn("2026-01-01", [{ goalId: "g1", passed: true }]), // 25 -> 24
-      checkIn("2026-01-02", [{ goalId: "g1", passed: true }]), // 24 -> 23
+      checkIn("2026-01-01", [{ goalId: "g1", passed: true }]), // κ=2.50 → H=0.18   → 21
+      checkIn("2026-01-02", [{ goalId: "g1", passed: true }]), // κ=2.35 → H≈0.319 → 17
     ];
-    const service = new GoalCostRecomputeService(
-      new InMemoryGoalRepository([goal]),
-      new InMemoryCheckInRepository(checkIns),
-    );
+    const service = buildService([goal], checkIns);
 
     await service.recompute("user-1", "g1");
 
-    expect(goal.currentLockCost).toBe(23);
+    expect(goal.currentLockCost).toBe(17);
   });
 
   it("falls back to the difficulty's starting cost when there's no check-in history", async () => {
@@ -73,10 +102,7 @@ describe("GoalCostRecomputeService", () => {
       state: "active",
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
     });
-    const service = new GoalCostRecomputeService(
-      new InMemoryGoalRepository([goal]),
-      new InMemoryCheckInRepository([]),
-    );
+    const service = buildService([goal], []);
 
     await service.recompute("user-1", "g1");
 
@@ -84,21 +110,19 @@ describe("GoalCostRecomputeService", () => {
   });
 
   it("is a no-op when the goal no longer exists", async () => {
-    const service = new GoalCostRecomputeService(
-      new InMemoryGoalRepository([]),
-      new InMemoryCheckInRepository([]),
-    );
+    const service = buildService([], []);
 
     await expect(service.recompute("user-1", "missing")).resolves.toBeUndefined();
   });
 
-  it("recomputeMany deduplicates and recomputes each goal", async () => {
+  it("recomputeMany deduplicates and applies each goal's OWN mark (per-goal contingency)", async () => {
     const g1 = Goal.create({
       id: "g1",
       userId: "user-1",
       name: "Exercise",
       weeklyFrequencyTarget: 3,
       difficulty: "easy",
+      initialLockCost: 25,
       now: new Date("2026-01-01T00:00:00.000Z"),
     });
     const g2 = Goal.create({
@@ -107,6 +131,7 @@ describe("GoalCostRecomputeService", () => {
       name: "Meditate",
       weeklyFrequencyTarget: 7,
       difficulty: "medium",
+      initialLockCost: 35,
       now: new Date("2026-01-01T00:00:00.000Z"),
     });
     const checkIns = [
@@ -115,16 +140,40 @@ describe("GoalCostRecomputeService", () => {
         { goalId: "g2", passed: false },
       ]),
     ];
-    const service = new GoalCostRecomputeService(
-      new InMemoryGoalRepository([g1, g2]),
-      new InMemoryCheckInRepository(checkIns),
-    );
+    const service = buildService([g1, g2], checkIns);
 
     await service.recomputeMany("user-1", ["g1", "g2", "g1"]);
 
-    // Both get the FAIL bump — g1 was individually passed, but the day's
-    // overall result is FAIL because g2 missed, and that applies uniformly.
-    expect(g1.currentLockCost).toBe(28); // 25 * 1.1 = 27.5 -> 28
-    expect(g2.currentLockCost).toBe(39); // 35 * 1.1 = 38.5 -> 39
+    // g1 passed → its cost DROPS even though g2's miss failed the day;
+    // g2's own fail pushes only g2 up. (Phase 6 per-goal contingency.)
+    expect(g1.currentLockCost).toBe(21); // easy pass, κ=2.5 → H=0.18 → 21
+    expect(g2.currentLockCost).toBe(40); // medium first-day fail → 40 (docs §6.2)
+  });
+
+  it("recomputes with the CURRENT config (dev-mode tweaks are retroactive)", async () => {
+    const goal = Goal.create({
+      id: "g1",
+      userId: "user-1",
+      name: "Exercise",
+      weeklyFrequencyTarget: 3,
+      difficulty: "medium",
+      initialLockCost: 35,
+      now: new Date("2026-01-01T00:00:00.000Z"),
+    });
+    const checkIns = [checkIn("2026-01-01", [{ goalId: "g1", passed: true }])];
+    const service = new GoalCostRecomputeService(
+      new InMemoryGoalRepository([goal]),
+      new InMemoryCheckInRepository(checkIns),
+      new InMemoryConfigRepository({
+        ...DEFAULT_LOCK_FORMULA_CONFIG,
+        calibrationBoost: 1, // no calibration phase
+        gainRate: 0.1,
+      }),
+    );
+
+    await service.recompute("user-1", "g1");
+
+    // gain = 0.1·(1−0) = 0.1 → cost = 1 + 34·0.9 = 31.6 → 32 (not the default 30)
+    expect(goal.currentLockCost).toBe(32);
   });
 });

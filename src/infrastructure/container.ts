@@ -16,12 +16,25 @@ import { EditCheckInUseCase } from "@/application/use-cases/EditCheckInUseCase";
 import { DeleteCheckInUseCase } from "@/application/use-cases/DeleteCheckInUseCase";
 import { GetJournalHistoryUseCase } from "@/application/use-cases/GetJournalHistoryUseCase";
 import { CreateJournalEntryUseCase } from "@/application/use-cases/CreateJournalEntryUseCase";
+import { BackfillCheckInUseCase } from "@/application/use-cases/BackfillCheckInUseCase";
+import { GetRankUseCase } from "@/application/use-cases/GetRankUseCase";
+import { GetCheckInWindowUseCase } from "@/application/use-cases/GetCheckInWindowUseCase";
+import { GetUserSettingsUseCase } from "@/application/use-cases/GetUserSettingsUseCase";
+import { UpdateUserSettingsUseCase } from "@/application/use-cases/UpdateUserSettingsUseCase";
+import { GetLockFormulaConfigUseCase } from "@/application/use-cases/GetLockFormulaConfigUseCase";
+import { UpdateLockFormulaConfigUseCase } from "@/application/use-cases/UpdateLockFormulaConfigUseCase";
+import { ResetLockFormulaConfigUseCase } from "@/application/use-cases/ResetLockFormulaConfigUseCase";
+import { RecomputeAllGoalsUseCase } from "@/application/use-cases/RecomputeAllGoalsUseCase";
 import { LocalDateService } from "@/application/services/LocalDateService";
+import { CheckInWindowResolver } from "@/application/services/CheckInWindowResolver";
+import { GoalCostRecomputeService } from "@/application/services/GoalCostRecomputeService";
 import { getServerSupabaseClient } from "./database/supabaseClient";
 import { SupabaseGoalRepository } from "./repositories/SupabaseGoalRepository";
 import { SupabaseDailyPlanRepository } from "./repositories/SupabaseDailyPlanRepository";
 import { SupabaseCheckInRepository } from "./repositories/SupabaseCheckInRepository";
 import { SupabaseJournalRepository } from "./repositories/SupabaseJournalRepository";
+import { SupabaseConfigRepository } from "./repositories/SupabaseConfigRepository";
+import { SupabaseUserSettingsRepository } from "./repositories/SupabaseUserSettingsRepository";
 import { UuidGenerator } from "./id/UuidGenerator";
 import { SystemClock } from "./time/SystemClock";
 
@@ -45,15 +58,26 @@ function buildContainer() {
   const dailyPlanRepository = new SupabaseDailyPlanRepository(supabase);
   const checkInRepository = new SupabaseCheckInRepository(supabase);
   const journalRepository = new SupabaseJournalRepository(supabase);
+  const configRepository = new SupabaseConfigRepository(supabase);
+  const userSettingsRepository = new SupabaseUserSettingsRepository(supabase);
   const idGenerator = new UuidGenerator();
   const clock = new SystemClock();
+
+  // Shared application services.
+  const recomputeService = new GoalCostRecomputeService(
+    goalRepository,
+    checkInRepository,
+    configRepository,
+  );
+  const checkInWindowResolver = new CheckInWindowResolver(userSettingsRepository, clock);
 
   // Application use cases.
   return {
     getGoalSuggestionsUseCase: new GetGoalSuggestionsUseCase(),
-    createGoalUseCase: new CreateGoalUseCase(goalRepository, idGenerator, clock),
+    createGoalUseCase: new CreateGoalUseCase(goalRepository, configRepository, idGenerator, clock),
     createGoalsFromOnboardingUseCase: new CreateGoalsFromOnboardingUseCase(
       goalRepository,
+      configRepository,
       idGenerator,
       clock,
     ),
@@ -72,16 +96,37 @@ function buildContainer() {
     submitCheckInUseCase: new SubmitCheckInUseCase(
       goalRepository,
       checkInRepository,
+      checkInWindowResolver,
+      recomputeService,
+      idGenerator,
+      clock,
+    ),
+    backfillCheckInUseCase: new BackfillCheckInUseCase(
+      goalRepository,
+      checkInRepository,
+      recomputeService,
       idGenerator,
       clock,
     ),
     getTodayCheckInUseCase: new GetTodayCheckInUseCase(checkInRepository),
-    getGoalStatsUseCase: new GetGoalStatsUseCase(goalRepository, checkInRepository),
+    getGoalStatsUseCase: new GetGoalStatsUseCase(
+      goalRepository,
+      checkInRepository,
+      configRepository,
+    ),
     getCheckInHistoryUseCase: new GetCheckInHistoryUseCase(checkInRepository),
-    editCheckInUseCase: new EditCheckInUseCase(goalRepository, checkInRepository),
-    deleteCheckInUseCase: new DeleteCheckInUseCase(goalRepository, checkInRepository),
+    editCheckInUseCase: new EditCheckInUseCase(goalRepository, checkInRepository, recomputeService),
+    deleteCheckInUseCase: new DeleteCheckInUseCase(checkInRepository, recomputeService),
     getJournalHistoryUseCase: new GetJournalHistoryUseCase(journalRepository),
     createJournalEntryUseCase: new CreateJournalEntryUseCase(journalRepository, idGenerator, clock),
+    getRankUseCase: new GetRankUseCase(checkInRepository),
+    getCheckInWindowUseCase: new GetCheckInWindowUseCase(checkInWindowResolver),
+    getUserSettingsUseCase: new GetUserSettingsUseCase(userSettingsRepository),
+    updateUserSettingsUseCase: new UpdateUserSettingsUseCase(userSettingsRepository),
+    getLockFormulaConfigUseCase: new GetLockFormulaConfigUseCase(configRepository),
+    updateLockFormulaConfigUseCase: new UpdateLockFormulaConfigUseCase(configRepository),
+    resetLockFormulaConfigUseCase: new ResetLockFormulaConfigUseCase(configRepository),
+    recomputeAllGoalsUseCase: new RecomputeAllGoalsUseCase(goalRepository, recomputeService),
     localDateService: new LocalDateService(clock),
   };
 }

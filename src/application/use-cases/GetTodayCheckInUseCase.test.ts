@@ -23,6 +23,7 @@ describe("GetTodayCheckInUseCase", () => {
       userId: "user-1",
       date: LocalDate.create("2026-01-21"),
       marks: [{ goalId: "g1", passed: true }],
+      submittedOnTime: true,
     });
     const useCase = new GetTodayCheckInUseCase(new InMemoryCheckInRepository([checkIn]));
 

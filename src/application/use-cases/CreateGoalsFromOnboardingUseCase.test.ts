@@ -2,8 +2,21 @@ import { describe, it, expect } from "vitest";
 import { CreateGoalsFromOnboardingUseCase } from "./CreateGoalsFromOnboardingUseCase";
 import { Goal } from "../../domain/entities/Goal";
 import { GoalRepository } from "../../domain/repositories/GoalRepository";
+import { ConfigRepository } from "../../domain/repositories/ConfigRepository";
+import {
+  DEFAULT_LOCK_FORMULA_CONFIG,
+  type LockFormulaConfig,
+} from "../../domain/value-objects/LockFormulaConfig";
 import { Clock } from "../ports/Clock";
 import { IdGenerator } from "../ports/IdGenerator";
+
+class InMemoryConfigRepository implements ConfigRepository {
+  async getLockFormulaConfig(): Promise<LockFormulaConfig> {
+    return DEFAULT_LOCK_FORMULA_CONFIG;
+  }
+  async saveLockFormulaConfig(): Promise<void> {}
+  async resetLockFormulaConfig(): Promise<void> {}
+}
 
 class InMemoryGoalRepository implements GoalRepository {
   public readonly saved: Goal[] = [];
@@ -27,7 +40,12 @@ const fixedIds: IdGenerator = { generate: () => `goal-${++counter}` };
 describe("CreateGoalsFromOnboardingUseCase", () => {
   it("creates one goal per selection, each at its difficulty's starting cost", async () => {
     const repo = new InMemoryGoalRepository();
-    const useCase = new CreateGoalsFromOnboardingUseCase(repo, fixedIds, fixedClock);
+    const useCase = new CreateGoalsFromOnboardingUseCase(
+      repo,
+      new InMemoryConfigRepository(),
+      fixedIds,
+      fixedClock,
+    );
 
     const result = await useCase.execute({
       userId: "user-1",
@@ -46,7 +64,12 @@ describe("CreateGoalsFromOnboardingUseCase", () => {
 
   it("creates nothing for an empty selection list", async () => {
     const repo = new InMemoryGoalRepository();
-    const useCase = new CreateGoalsFromOnboardingUseCase(repo, fixedIds, fixedClock);
+    const useCase = new CreateGoalsFromOnboardingUseCase(
+      repo,
+      new InMemoryConfigRepository(),
+      fixedIds,
+      fixedClock,
+    );
 
     const result = await useCase.execute({ userId: "user-1", selections: [] });
 

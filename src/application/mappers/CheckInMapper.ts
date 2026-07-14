@@ -9,6 +9,7 @@ export class CheckInMapper {
       date: checkIn.date.toString(),
       marks: checkIn.marks.map((mark) => ({ ...mark })),
       dayResult: checkIn.dayResult,
+      submittedOnTime: checkIn.submittedOnTime,
       createdAt: checkIn.createdAt.toISOString(),
     };
   }
