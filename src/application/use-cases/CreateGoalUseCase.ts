@@ -27,7 +27,10 @@ export class CreateGoalUseCase {
       name: dto.name,
       weeklyFrequencyTarget: dto.weeklyFrequencyTarget,
       difficulty: dto.difficulty,
-      initialLockCost: new LockCostService(config).initialCostFor(dto.difficulty),
+      initialLockCost: new LockCostService(config).initialCostFor(
+        dto.difficulty,
+        dto.weeklyFrequencyTarget,
+      ),
       now: this.clock.now(),
     });
 

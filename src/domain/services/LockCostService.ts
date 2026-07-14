@@ -43,9 +43,13 @@ export interface HabitState {
 export class LockCostService {
   constructor(private readonly config: LockFormulaConfig = DEFAULT_LOCK_FORMULA_CONFIG) {}
 
-  /** Starting cost for a newly-created goal, based on its assigned difficulty. */
-  initialCostFor(difficulty: GoalDifficulty): number {
-    return this.config.initialCost[difficulty];
+  /**
+   * Starting cost for a newly-created goal: the difficulty's base cost scaled
+   * by the weekly-commitment multiplier φ(T) — a 7×/week promise costs full
+   * price, lighter commitments cost less (docs/lock-formula.md §3.4).
+   */
+  initialCostFor(difficulty: GoalDifficulty, weeklyFrequencyTarget: number): number {
+    return this.costFor(this.initialState(), difficulty, weeklyFrequencyTarget);
   }
 
   /** The state of a goal that has never been through a check-in. */
@@ -88,17 +92,32 @@ export class LockCostService {
   }
 
   /**
-   * Lock cost for a state: piecewise linear in H, rounded half-up, clamped.
-   * H ≥ 0 interpolates 1 (formed) … C0 (fresh); H < 0 interpolates
-   * C0 … 50 (the forced-focus cap at the strength floor).
+   * A planned-day miss that does NOT sink the weekly target (enough days
+   * remain in the week to still hit it). Neutral by design: strength and the
+   * consecutive-fail counter are untouched — shuffling your schedule inside
+   * the week is not a failure. The day still counts for calibration decay.
    */
-  costFor(state: HabitState, difficulty: GoalDifficulty): number {
+  stepRecoverableMiss(state: HabitState): HabitState {
+    return { ...state, plannedDays: state.plannedDays + 1 };
+  }
+
+  /**
+   * Lock cost for a state: piecewise linear in H, then scaled by the
+   * commitment multiplier φ(T) = 1 − w·(7−T)/6, rounded half-up, clamped.
+   * H ≥ 0 interpolates 1 (formed) … C0 (fresh); H < 0 interpolates
+   * C0 … 50 (the forced-focus cap at the strength floor). φ makes a 7×/week
+   * promise cost full price while lighter commitments cost less — and makes
+   * "lower your target and your locks drop" true, since costs are always
+   * replayed against the goal's CURRENT target.
+   */
+  costFor(state: HabitState, difficulty: GoalDifficulty, weeklyFrequencyTarget: number): number {
     const c0 = this.config.initialCost[difficulty];
-    const raw =
+    const base =
       state.strength >= 0
         ? MIN_COST + (c0 - MIN_COST) * (1 - state.strength)
         : c0 + (MAX_COST - c0) * (-state.strength / Math.abs(this.config.minStrength));
-    return Math.min(MAX_COST, Math.max(MIN_COST, Math.round(raw)));
+    const phi = 1 - this.config.frequencyWeight * ((7 - weeklyFrequencyTarget) / 6);
+    return Math.min(MAX_COST, Math.max(MIN_COST, Math.round(base * phi)));
   }
 
   /** A goal is "formed" once its cost has been driven all the way down to 1. */

@@ -59,7 +59,7 @@ function makeGoal(id = "g1", userId = "user-1") {
     id,
     userId,
     name: "Exercise",
-    weeklyFrequencyTarget: 3,
+    weeklyFrequencyTarget: 7,
     difficulty: "easy",
     initialLockCost: 25,
     now: new Date("2026-01-01T00:00:00.000Z"),
@@ -90,7 +90,7 @@ describe("GetGoalStatsUseCase", () => {
     expect(result.trajectory).toHaveLength(3);
     expect(result.timesCompleted).toBe(2);
     expect(result.last30).toEqual({ checkedInDays: 3, passedDays: 2, passRate: 67 });
-    expect(result.thisWeek).toEqual({ completed: 2, target: 3 });
+    expect(result.thisWeek).toEqual({ completed: 2, target: 7 });
     // Ghost points: passing is always at least as cheap as failing.
     expect(result.nextIfPass).toBeLessThan(result.nextIfFail);
     expect(result.nextIfPass).toBeLessThan(result.trajectory[2]!.cost);
@@ -113,7 +113,7 @@ describe("GetGoalStatsUseCase", () => {
     const result = await useCase.execute({ userId: "user-1", goalId: "g1", today: "2026-07-08" });
 
     expect(result.last30).toEqual({ checkedInDays: 2, passedDays: 2, passRate: 100 });
-    expect(result.thisWeek).toEqual({ completed: 2, target: 3 });
+    expect(result.thisWeek).toEqual({ completed: 2, target: 7 });
     expect(result.timesCompleted).toBe(2);
   });
 
@@ -127,7 +127,7 @@ describe("GetGoalStatsUseCase", () => {
 
     const result = await useCase.execute({ userId: "user-1", goalId: "g1", today: "2026-07-08" });
 
-    expect(result.thisWeek).toEqual({ completed: 1, target: 3 });
+    expect(result.thisWeek).toEqual({ completed: 1, target: 7 });
     expect(result.timesCompleted).toBe(2); // all-time, unlike thisWeek
   });
 

@@ -1,9 +1,8 @@
 import type { GoalDifficulty } from "@/domain/services/LockCostService";
 import type { GoalState } from "@/domain/entities/Goal";
-import type { GoalCategory } from "@/domain/value-objects/GoalSuggestions";
 
 // Re-exported so interfaces/ never needs to import domain/ directly for these types.
-export type { GoalDifficulty, GoalState, GoalCategory };
+export type { GoalDifficulty, GoalState };
 
 export interface GoalDTO {
   id: string;
@@ -60,5 +59,4 @@ export interface DeleteGoalDTO {
 /** A read-only view of one GOAL_SUGGESTIONS entry, for the "quick add" picker. */
 export interface GoalSuggestionDTO {
   label: string;
-  category: GoalCategory;
 }

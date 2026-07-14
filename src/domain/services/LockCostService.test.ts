@@ -16,9 +16,9 @@ describe("LockCostService", () => {
 
   describe("initialCostFor / initialState", () => {
     it("uses the config's per-difficulty initial costs", () => {
-      expect(service.initialCostFor("easy")).toBe(25);
-      expect(service.initialCostFor("medium")).toBe(35);
-      expect(service.initialCostFor("hard")).toBe(45);
+      expect(service.initialCostFor("easy", 7)).toBe(25);
+      expect(service.initialCostFor("medium", 7)).toBe(35);
+      expect(service.initialCostFor("hard", 7)).toBe(45);
     });
 
     it("starts at strength 0 with no history", () => {
@@ -33,7 +33,7 @@ describe("LockCostService", () => {
       expect(next.strength).toBeCloseTo(0.15, 10);
       expect(next.plannedDays).toBe(1);
       expect(next.consecutiveFails).toBe(0);
-      expect(service.costFor(next, "medium")).toBe(30); // 1 + 34·0.85 = 29.9
+      expect(service.costFor(next, "medium", 7)).toBe(30); // 1 + 34·0.85 = 29.9
     });
 
     it("resets the consecutive-fail counter", () => {
@@ -71,7 +71,7 @@ describe("LockCostService", () => {
       const next = service.step(fresh, false, "medium");
       expect(next.strength).toBeCloseTo(-0.3, 10);
       expect(next.consecutiveFails).toBe(1);
-      expect(service.costFor(next, "medium")).toBe(40);
+      expect(service.costFor(next, "medium", 7)).toBe(40);
     });
 
     it("two consecutive fails out of the gate ≈ cost 49 (docs §6.3)", () => {
@@ -80,21 +80,21 @@ describe("LockCostService", () => {
       // loss = 0.06·2.0·2.35·1.7¹·(1.30) ≈ 0.6232 → H ≈ −0.9232
       expect(afterTwo.strength).toBeCloseTo(-0.92322, 4);
       expect(afterTwo.consecutiveFails).toBe(2);
-      expect(service.costFor(afterTwo, "medium")).toBe(49);
+      expect(service.costFor(afterTwo, "medium", 7)).toBe(49);
     });
 
     it("a pass after the early double-fail recovers to ≈45 (docs §6.3)", () => {
       const afterTwo = service.step(service.step(fresh, false, "medium"), false, "medium");
       const recovered = service.step(afterTwo, true, "medium");
-      expect(service.costFor(recovered, "medium")).toBe(45);
+      expect(service.costFor(recovered, "medium", 7)).toBe(45);
     });
 
     it("single lapse in a nearly-formed habit costs ~1 lock (docs §6.4, Lally)", () => {
       const formedish: HabitState = { strength: 0.9, plannedDays: 30, consecutiveFails: 0 };
-      expect(service.costFor(formedish, "medium")).toBe(4);
+      expect(service.costFor(formedish, "medium", 7)).toBe(4);
       const lapsed = service.step(formedish, false, "medium");
       expect(lapsed.strength).toBeCloseTo(0.888, 10);
-      expect(service.costFor(lapsed, "medium")).toBe(5);
+      expect(service.costFor(lapsed, "medium", 7)).toBe(5);
     });
 
     it("escalation stops growing at maxEscalationCount", () => {
@@ -110,28 +110,53 @@ describe("LockCostService", () => {
       let state = fresh;
       for (let i = 0; i < 20; i++) state = service.step(state, false, "medium");
       expect(state.strength).toBe(-1);
-      expect(service.costFor(state, "medium")).toBe(50);
+      expect(service.costFor(state, "medium", 7)).toBe(50);
     });
   });
 
   describe("costFor mapping", () => {
     it("interpolates 1 … C0 for positive strength", () => {
-      expect(service.costFor({ strength: 1, plannedDays: 0, consecutiveFails: 0 }, "medium")).toBe(
-        1,
-      );
-      expect(service.costFor(fresh, "medium")).toBe(35);
       expect(
-        service.costFor({ strength: 0.5, plannedDays: 0, consecutiveFails: 0 }, "medium"),
+        service.costFor({ strength: 1, plannedDays: 0, consecutiveFails: 0 }, "medium", 7),
+      ).toBe(1);
+      expect(service.costFor(fresh, "medium", 7)).toBe(35);
+      expect(
+        service.costFor({ strength: 0.5, plannedDays: 0, consecutiveFails: 0 }, "medium", 7),
       ).toBe(18); // 1 + 34·0.5
     });
 
     it("interpolates C0 … 50 for negative strength", () => {
       expect(
-        service.costFor({ strength: -0.5, plannedDays: 0, consecutiveFails: 0 }, "medium"),
+        service.costFor({ strength: -0.5, plannedDays: 0, consecutiveFails: 0 }, "medium", 7),
       ).toBe(43); // 35 + 15·0.5 = 42.5 → 43
-      expect(service.costFor({ strength: -1, plannedDays: 0, consecutiveFails: 0 }, "easy")).toBe(
-        50,
-      );
+      expect(
+        service.costFor({ strength: -1, plannedDays: 0, consecutiveFails: 0 }, "easy", 7),
+      ).toBe(50);
+    });
+
+    it("scales with the weekly commitment: 7× full price, lighter targets cheaper (φ)", () => {
+      // φ(T) = 1 − 0.5·(7−T)/6 at defaults.
+      expect(service.initialCostFor("medium", 7)).toBe(35); // φ = 1
+      expect(service.initialCostFor("medium", 4)).toBe(26); // φ = 0.75 → 26.25 → 26
+      expect(service.initialCostFor("medium", 1)).toBe(18); // φ = 0.5 → 17.5 → 18
+      expect(service.initialCostFor("easy", 1)).toBe(13); // 25·0.5 = 12.5 → 13
+    });
+
+    it("frequencyWeight 0 disables commitment pricing", () => {
+      const config: LockFormulaConfig = { ...DEFAULT_LOCK_FORMULA_CONFIG, frequencyWeight: 0 };
+      const flat = new LockCostService(config);
+      expect(flat.initialCostFor("medium", 1)).toBe(35);
+    });
+  });
+
+  describe("stepRecoverableMiss", () => {
+    it("is neutral: strength and the fail streak stay put, the day still counts", () => {
+      const state: HabitState = { strength: 0.4, plannedDays: 12, consecutiveFails: 2 };
+      expect(service.stepRecoverableMiss(state)).toEqual({
+        strength: 0.4,
+        plannedDays: 13,
+        consecutiveFails: 2,
+      });
     });
   });
 
@@ -147,7 +172,7 @@ describe("LockCostService", () => {
       let state = service.initialState();
       for (let day = 1; day <= 365; day++) {
         state = service.step(state, true, difficulty);
-        if (service.isFormed(service.costFor(state, difficulty))) return day;
+        if (service.isFormed(service.costFor(state, difficulty, 7))) return day;
       }
       return Infinity;
     }

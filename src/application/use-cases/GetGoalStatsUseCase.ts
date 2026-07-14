@@ -35,7 +35,12 @@ export class GetGoalStatsUseCase {
     const trajectoryService = new GoalTrajectoryService(new LockCostService(config));
 
     const allCheckIns = await this.checkInRepository.findByUserId(dto.userId);
-    const trajectory = trajectoryService.trajectoryFor(goal.id, goal.difficulty, allCheckIns);
+    const trajectory = trajectoryService.trajectoryFor(
+      goal.id,
+      goal.difficulty,
+      goal.weeklyFrequencyTarget,
+      allCheckIns,
+    );
 
     const goalCheckIns = allCheckIns.filter((checkIn) => checkIn.markFor(goal.id) !== undefined);
 

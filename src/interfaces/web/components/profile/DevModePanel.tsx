@@ -80,19 +80,19 @@ export function DevModePanel({
             {message.text}
           </p>
         )}
-        <div className="flex gap-2">
+        <div className="flex min-w-0 items-stretch gap-2">
           <input
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Password"
-            className="flex-1 rounded-xl border border-gray-300 bg-white px-3.5 py-2.5 text-base text-gray-900 shadow-sm outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/30"
+            className="w-full min-w-0 flex-1 rounded-xl border border-gray-300 bg-white px-3.5 py-2.5 text-base text-gray-900 shadow-sm outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/30"
           />
           <button
             type="button"
             onClick={() => run(() => unlockDevModeAction(password), "Unlocked.")}
             disabled={pending || password.length === 0}
-            className="rounded-xl bg-gray-900 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-gray-700 disabled:opacity-60"
+            className="shrink-0 whitespace-nowrap rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-gray-700 disabled:opacity-60"
           >
             {pending ? "…" : "Unlock"}
           </button>

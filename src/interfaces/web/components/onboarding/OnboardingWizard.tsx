@@ -2,18 +2,9 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import type { GoalSuggestionDTO, GoalDifficulty, GoalCategory } from "@/application/dtos/GoalDTO";
+import type { GoalSuggestionDTO, GoalDifficulty } from "@/application/dtos/GoalDTO";
+import { FrequencySlider } from "@/interfaces/web/components/goals/FrequencySlider";
 import { createGoalsFromOnboardingAction } from "@/interfaces/web/app/onboarding/actions";
-
-const CATEGORY_LABELS: Record<GoalCategory, string> = {
-  physical: "Physical",
-  addiction: "Addiction",
-  mind: "Mind",
-  skills: "Skills",
-  misc: "Misc",
-};
-
-const CATEGORY_ORDER: GoalCategory[] = ["physical", "addiction", "mind", "skills", "misc"];
 
 const DIFFICULTIES: { value: GoalDifficulty; label: string; classes: string }[] = [
   { value: "easy", label: "Easy", classes: "border-green-300 bg-green-50 text-green-800" },
@@ -40,15 +31,6 @@ export function OnboardingWizard({
   const [pending, startTransition] = useTransition();
 
   const alreadyTracked = useMemo(() => new Set(alreadyTrackedNames), [alreadyTrackedNames]);
-  const byCategory = useMemo(() => {
-    const groups = new Map<GoalCategory, GoalSuggestionDTO[]>();
-    for (const entry of suggestions) {
-      const list = groups.get(entry.category) ?? [];
-      list.push(entry);
-      groups.set(entry.category, list);
-    }
-    return groups;
-  }, [suggestions]);
   const suggestionLabels = useMemo(() => new Set(suggestions.map((s) => s.label)), [suggestions]);
   const selectedNames = [...selected];
 
@@ -204,45 +186,40 @@ export function OnboardingWizard({
             )}
           </div>
 
-          {CATEGORY_ORDER.filter((category) => byCategory.has(category)).map((category) => (
-            <div key={category}>
-              <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-gray-500">
-                {CATEGORY_LABELS[category]}
-              </h2>
-              <div className="flex flex-col gap-2">
-                {byCategory.get(category)!.map((entry) => {
-                  const tracked = alreadyTracked.has(entry.label.trim().toLowerCase());
-                  const checked = selected.has(entry.label);
-                  return (
-                    <label
-                      key={entry.label}
-                      className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-3 transition-colors ${
-                        tracked
-                          ? "cursor-not-allowed border-gray-200 bg-gray-50 text-gray-400"
-                          : checked
-                            ? "cursor-pointer border-brand bg-brand/5"
-                            : "cursor-pointer border-gray-300 bg-white hover:bg-gray-50"
-                      }`}
-                    >
-                      <span className="text-base font-medium text-gray-900">{entry.label}</span>
-                      {tracked ? (
-                        <span className="shrink-0 text-xs font-medium text-gray-400">
-                          Already tracking
-                        </span>
-                      ) : (
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={() => toggle(entry.label)}
-                          className="h-5 w-5 shrink-0 accent-brand"
-                        />
-                      )}
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
+          <div className="flex flex-col gap-2">
+            {suggestions.map((entry) => {
+              const tracked = alreadyTracked.has(entry.label.trim().toLowerCase());
+              const checked = selected.has(entry.label);
+              return (
+                <label
+                  key={entry.label}
+                  className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-3 transition-colors ${
+                    tracked
+                      ? "cursor-not-allowed border-gray-200 bg-gray-50 text-gray-400"
+                      : checked
+                        ? "cursor-pointer border-brand bg-brand/5"
+                        : "cursor-pointer border-gray-300 bg-white hover:bg-gray-50"
+                  }`}
+                >
+                  <span className="min-w-0 truncate text-base font-medium text-gray-900">
+                    {entry.label}
+                  </span>
+                  {tracked ? (
+                    <span className="shrink-0 text-xs font-medium text-gray-400">
+                      Already tracking
+                    </span>
+                  ) : (
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggle(entry.label)}
+                      className="h-5 w-5 shrink-0 accent-brand"
+                    />
+                  )}
+                </label>
+              );
+            })}
+          </div>
 
           <button
             type="button"
@@ -259,7 +236,10 @@ export function OnboardingWizard({
           <div className="flex flex-col gap-3">
             {selectedNames.map((name) => (
               <div key={name} className="rounded-xl border border-gray-900/[0.06] bg-white p-4 shadow-sm">
-                <p className="mb-2.5 text-base font-medium text-gray-900">{name}</p>
+                <p className="mb-2.5 truncate text-base font-medium text-gray-900">{name}</p>
+                <p className="mb-1.5 text-sm font-medium text-gray-700">
+                  How hard do you think this will be to accomplish?
+                </p>
                 <div className="mb-3 flex gap-2">
                   {DIFFICULTIES.map((d) => {
                     const active = (difficulties[name] ?? "medium") === d.value;
@@ -277,17 +257,10 @@ export function OnboardingWizard({
                     );
                   })}
                 </div>
-                <label className="flex items-center gap-2 text-sm text-gray-700">
-                  Times per week
-                  <input
-                    type="number"
-                    min={1}
-                    max={7}
-                    value={frequencies[name] ?? 3}
-                    onChange={(e) => setFrequency(name, Number(e.target.value))}
-                    className="w-16 rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-center text-sm text-gray-900 shadow-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/30"
-                  />
-                </label>
+                <FrequencySlider
+                  value={frequencies[name] ?? 3}
+                  onChange={(value) => setFrequency(name, value)}
+                />
               </div>
             ))}
           </div>

@@ -8,6 +8,6 @@ import { GoalSuggestionDTO } from "../dtos/GoalDTO";
  */
 export class GetGoalSuggestionsUseCase {
   execute(): GoalSuggestionDTO[] {
-    return GOAL_SUGGESTIONS.map((entry) => ({ label: entry.label, category: entry.category }));
+    return GOAL_SUGGESTIONS.map((label) => ({ label }));
   }
 }

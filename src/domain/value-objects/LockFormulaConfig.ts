@@ -29,6 +29,12 @@ export interface LockFormulaConfig {
   calibrationDays: number;
   /** Habit-strength floor; maps to the 50-lock cap (S_min, always negative). */
   minStrength: number;
+  /**
+   * How much a lower weekly commitment discounts the lock cost (w). The cost
+   * multiplier is φ(T) = 1 − w·(7−T)/6: a 7×/week goal pays full price, a
+   * 1×/week goal pays (1−w). 0 disables commitment pricing.
+   */
+  frequencyWeight: number;
 }
 
 export const DEFAULT_LOCK_FORMULA_CONFIG: LockFormulaConfig = {
@@ -41,6 +47,7 @@ export const DEFAULT_LOCK_FORMULA_CONFIG: LockFormulaConfig = {
   calibrationBoost: 2.5,
   calibrationDays: 10,
   minStrength: -1,
+  frequencyWeight: 0.5,
 };
 
 interface NumericBound {
@@ -64,6 +71,7 @@ export const LOCK_FORMULA_BOUNDS: Record<string, NumericBound> = {
   calibrationBoost: { min: 1, max: 5 },
   calibrationDays: { min: 0, max: 30, integer: true },
   minStrength: { min: -3, max: -0.1 },
+  frequencyWeight: { min: 0, max: 0.8 },
 };
 
 function readPath(config: LockFormulaConfig, path: string): unknown {

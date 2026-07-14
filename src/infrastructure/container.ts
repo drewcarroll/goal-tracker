@@ -84,7 +84,7 @@ function buildContainer() {
     getActiveGoalsUseCase: new GetActiveGoalsUseCase(goalRepository),
     getAllGoalsUseCase: new GetAllGoalsUseCase(goalRepository),
     updateGoalUseCase: new UpdateGoalUseCase(goalRepository),
-    editGoalUseCase: new EditGoalUseCase(goalRepository),
+    editGoalUseCase: new EditGoalUseCase(goalRepository, recomputeService),
     deleteGoalUseCase: new DeleteGoalUseCase(goalRepository),
     createDailyPlanUseCase: new CreateDailyPlanUseCase(
       goalRepository,

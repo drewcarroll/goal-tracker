@@ -74,7 +74,7 @@ describe("GoalCostRecomputeService", () => {
       id: "g1",
       userId: "user-1",
       name: "Exercise",
-      weeklyFrequencyTarget: 3,
+      weeklyFrequencyTarget: 7,
       difficulty: "easy", // starts at 25
       currentLockCost: 7, // deliberately wrong — must be overwritten by recompute
       state: "active",
@@ -96,7 +96,7 @@ describe("GoalCostRecomputeService", () => {
       id: "g1",
       userId: "user-1",
       name: "Exercise",
-      weeklyFrequencyTarget: 3,
+      weeklyFrequencyTarget: 7,
       difficulty: "hard", // starts at 45
       currentLockCost: 10,
       state: "active",
@@ -120,7 +120,7 @@ describe("GoalCostRecomputeService", () => {
       id: "g1",
       userId: "user-1",
       name: "Exercise",
-      weeklyFrequencyTarget: 3,
+      weeklyFrequencyTarget: 7,
       difficulty: "easy",
       initialLockCost: 25,
       now: new Date("2026-01-01T00:00:00.000Z"),
@@ -155,7 +155,7 @@ describe("GoalCostRecomputeService", () => {
       id: "g1",
       userId: "user-1",
       name: "Exercise",
-      weeklyFrequencyTarget: 3,
+      weeklyFrequencyTarget: 7,
       difficulty: "medium",
       initialLockCost: 35,
       now: new Date("2026-01-01T00:00:00.000Z"),

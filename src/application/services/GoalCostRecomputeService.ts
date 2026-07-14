@@ -45,7 +45,12 @@ export class GoalCostRecomputeService {
       const goal = await this.goalRepository.findById(goalId);
       if (!goal) continue; // Nothing to recompute if the goal no longer exists.
 
-      const trajectory = trajectoryService.trajectoryFor(goalId, goal.difficulty, checkIns);
+      const trajectory = trajectoryService.trajectoryFor(
+        goalId,
+        goal.difficulty,
+        goal.weeklyFrequencyTarget,
+        checkIns,
+      );
       goal.recomputeCost(trajectory.finalCost);
       await this.goalRepository.save(goal);
     }

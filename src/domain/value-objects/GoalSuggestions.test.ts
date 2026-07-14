@@ -3,8 +3,7 @@ import { GOAL_SUGGESTIONS } from "./GoalSuggestions";
 
 describe("GOAL_SUGGESTIONS", () => {
   it("has no duplicate labels", () => {
-    const labels = GOAL_SUGGESTIONS.map((s) => s.label);
-    expect(new Set(labels).size).toBe(labels.length);
+    expect(new Set(GOAL_SUGGESTIONS).size).toBe(GOAL_SUGGESTIONS.length);
   });
 
   it("is non-empty", () => {

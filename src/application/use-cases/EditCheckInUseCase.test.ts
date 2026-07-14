@@ -58,7 +58,7 @@ function goal(id: string, difficulty: "easy" | "medium" | "hard" = "easy") {
     id,
     userId: "user-1",
     name: "Exercise",
-    weeklyFrequencyTarget: 3,
+    weeklyFrequencyTarget: 7,
     difficulty,
     initialLockCost: initialCost,
     now: new Date("2026-01-01T00:00:00.000Z"),

@@ -59,11 +59,15 @@ export class LocalDate {
     return LocalDate.create(formatted);
   }
 
+  /** Position within the Mon-Sun week: Monday = 0 … Sunday = 6. */
+  dayOfWeekIndex(): number {
+    const dayOfWeek = new Date(`${this.value}T00:00:00Z`).getUTCDay(); // 0 = Sun … 6 = Sat
+    return (dayOfWeek + 6) % 7;
+  }
+
   /** Monday of the Mon-Sun week this date falls in (this date if it's already Monday). */
   startOfWeek(): LocalDate {
-    const dayOfWeek = new Date(`${this.value}T00:00:00Z`).getUTCDay(); // 0 = Sun … 6 = Sat
-    const daysSinceMonday = (dayOfWeek + 6) % 7; // Mon = 0 … Sun = 6
-    return this.addDays(-daysSinceMonday);
+    return this.addDays(-this.dayOfWeekIndex());
   }
 
   toString(): string {

@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import type { GoalDTO, GoalDifficulty, GoalState } from "@/application/dtos/GoalDTO";
 import type { GoalSuggestionDTO } from "@/application/dtos/GoalDTO";
+import { FrequencySlider } from "./FrequencySlider";
 import {
   createGoalAction,
   editGoalAction,
@@ -137,17 +138,11 @@ function GoalCard({
             maxLength={200}
             className="w-full rounded-xl border border-gray-300 bg-white px-3.5 py-2.5 text-base text-gray-900 shadow-sm outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/30"
           />
-          <label className="flex items-center gap-2 text-sm text-gray-700">
-            Times per week
-            <input
-              type="number"
-              min={1}
-              max={7}
-              value={weeklyFrequencyTarget}
-              onChange={(e) => setWeeklyFrequencyTarget(Number(e.target.value))}
-              className="w-16 rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-center text-sm text-gray-900 shadow-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/30"
-            />
-          </label>
+          <FrequencySlider value={weeklyFrequencyTarget} onChange={setWeeklyFrequencyTarget} />
+          <p className="text-xs text-gray-400">
+            Lowering the target makes this goal cheaper to schedule and forgives past misses that
+            would have fit the easier week. Raising it does the opposite.
+          </p>
           {error && <p className="text-sm text-red-600">{error}</p>}
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <button
@@ -305,12 +300,11 @@ function AddGoalForm({
           autoFocus
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="e.g. Read, No soda, Exercise"
           maxLength={200}
           className="w-full rounded-xl border border-gray-300 bg-white px-3.5 py-2.5 text-base text-gray-900 shadow-sm outline-none transition-colors placeholder:text-gray-400 focus:border-brand focus:ring-2 focus:ring-brand/30"
         />
         <div className="mt-2 flex flex-wrap gap-1.5">
-          {suggestions.slice(0, 8).map((s) => (
+          {suggestions.map((s) => (
             <button
               key={s.label}
               type="button"
@@ -323,21 +317,11 @@ function AddGoalForm({
         </div>
       </div>
 
-      <label className="flex items-center gap-2 text-sm text-gray-700">
-        Times per week
-        <input
-          type="number"
-          min={1}
-          max={7}
-          value={weeklyFrequencyTarget}
-          onChange={(e) => setWeeklyFrequencyTarget(Number(e.target.value))}
-          className="w-16 rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-center text-sm text-gray-900 shadow-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/30"
-        />
-      </label>
+      <FrequencySlider value={weeklyFrequencyTarget} onChange={setWeeklyFrequencyTarget} showHint />
 
       <div>
         <p className="mb-1.5 text-sm font-medium text-gray-700">
-          How hard is this, right now?
+          How hard do you think this will be to accomplish?
         </p>
         <div className="flex gap-2">
           {DIFFICULTIES.map((d) => (

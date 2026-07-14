@@ -31,7 +31,10 @@ export class CreateGoalsFromOnboardingUseCase {
         name: selection.name,
         weeklyFrequencyTarget: selection.weeklyFrequencyTarget,
         difficulty: selection.difficulty,
-        initialLockCost: lockCostService.initialCostFor(selection.difficulty),
+        initialLockCost: lockCostService.initialCostFor(
+          selection.difficulty,
+          selection.weeklyFrequencyTarget,
+        ),
         now,
       }),
     );

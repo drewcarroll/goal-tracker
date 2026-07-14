@@ -50,7 +50,7 @@ describe("CreateGoalsFromOnboardingUseCase", () => {
     const result = await useCase.execute({
       userId: "user-1",
       selections: [
-        { name: "Exercise", weeklyFrequencyTarget: 3, difficulty: "easy" },
+        { name: "Exercise", weeklyFrequencyTarget: 7, difficulty: "easy" },
         { name: "Meditate", weeklyFrequencyTarget: 7, difficulty: "hard" },
       ],
     });

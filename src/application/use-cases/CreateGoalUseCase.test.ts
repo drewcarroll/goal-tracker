@@ -45,14 +45,14 @@ describe("CreateGoalUseCase", () => {
     const result = await useCase.execute({
       userId: "user-1",
       name: "Exercise",
-      weeklyFrequencyTarget: 3,
+      weeklyFrequencyTarget: 7,
       difficulty: "medium",
     });
 
     expect(result).toMatchObject({
       id: "goal-1",
       name: "Exercise",
-      weeklyFrequencyTarget: 3,
+      weeklyFrequencyTarget: 7,
       currentLockCost: 35,
       state: "active",
     });
@@ -74,7 +74,7 @@ describe("CreateGoalUseCase", () => {
     const result = await useCase.execute({
       userId: "user-1",
       name: "Exercise",
-      weeklyFrequencyTarget: 3,
+      weeklyFrequencyTarget: 7,
       difficulty: "medium",
     });
 
