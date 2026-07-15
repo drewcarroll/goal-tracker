@@ -59,76 +59,33 @@ describe("GoalTrajectoryService", () => {
     expect(h2.points[0]!.cost).toBeGreaterThan(25); // fail pushes h2 up
   });
 
-  describe("weekly slack rule (docs/lock-formula.md §3.4)", () => {
+  describe("weekly target = pricing only (docs/lock-formula.md §3.4)", () => {
     // 2026-01-05 is a Monday.
-    it("a miss is NEUTRAL while the weekly target is still reachable", () => {
-      // 5×/week goal, missed Monday: 0 passes + 6 days left ≥ 5 → recoverable.
+    it("a planned miss ALWAYS takes the fail step, whatever the target", () => {
       const checkIns = [checkIn("2026-01-05", [{ goalId: "h1", passed: false }])];
 
-      const trajectory = service.trajectoryFor("h1", "medium", 5, checkIns);
+      const at7 = service.trajectoryFor("h1", "medium", 7, checkIns);
+      const at5 = service.trajectoryFor("h1", "medium", 5, checkIns);
 
-      // Initial cost at target 5: 35·φ(5)=35·0.8333 ≈ 29. Unchanged by the miss.
-      expect(trajectory.points).toEqual([{ date: "2026-01-05", cost: 29 }]);
-      expect(trajectory.finalState.strength).toBe(0);
-      expect(trajectory.finalState.consecutiveFails).toBe(0);
-      expect(trajectory.finalState.plannedDays).toBe(1); // the day still happened
+      // Same strength damage in both; only the φ pricing differs.
+      expect(at7.finalState.strength).toBeCloseTo(-0.3, 10);
+      expect(at5.finalState.strength).toBeCloseTo(-0.3, 10);
+      expect(at7.finalState.consecutiveFails).toBe(1);
+      expect(at5.finalState.consecutiveFails).toBe(1);
+      expect(at7.finalCost).toBe(40); // base 39.5 · φ(7)=1
+      expect(at5.finalCost).toBe(33); // base 39.5 · φ(5)=0.8333 → 32.9
     });
 
-    it("the same Monday miss on a 7×/week goal breaks the week and costs fully", () => {
+    it("editing the target re-prices history but never erases a miss", () => {
       const checkIns = [checkIn("2026-01-05", [{ goalId: "h1", passed: false }])];
 
-      const trajectory = service.trajectoryFor("h1", "medium", 7, checkIns);
+      const ambitious = service.trajectoryFor("h1", "medium", 7, checkIns);
+      const humble = service.trajectoryFor("h1", "medium", 4, checkIns);
 
-      expect(trajectory.points[0]!.cost).toBe(40); // full first-day fail (docs §6.2)
-      expect(trajectory.finalState.consecutiveFails).toBe(1);
+      expect(ambitious.finalCost).toBe(40);
+      expect(humble.finalCost).toBe(30); // base 39.5 · φ(4)=0.75 → 29.6; the miss still counts
+      expect(humble.finalState.strength).toBe(ambitious.finalState.strength);
     });
-
-    it("misses start counting once they sink the week", () => {
-      // 5×/week: Mon + Tue misses are recoverable (6 and 5 days left),
-      // Wednesday's third miss leaves only 4 days for 5 passes → breaking.
-      const checkIns = [
-        checkIn("2026-01-05", [{ goalId: "h1", passed: false }]),
-        checkIn("2026-01-06", [{ goalId: "h1", passed: false }]),
-        checkIn("2026-01-07", [{ goalId: "h1", passed: false }]),
-      ];
-
-      const trajectory = service.trajectoryFor("h1", "medium", 5, checkIns);
-
-      expect(trajectory.points[0]!.cost).toBe(29); // neutral
-      expect(trajectory.points[1]!.cost).toBe(29); // neutral
-      expect(trajectory.points[2]!.cost).toBeGreaterThan(29); // the week just died
-      expect(trajectory.finalState.consecutiveFails).toBe(1); // only the breaking miss counts
-    });
-
-    it("weekly pass counting resets each Mon-Sun week", () => {
-      // 5×/week: five passes Mon-Fri, then a Saturday miss is recoverable
-      // (target already met). Next week's Thursday miss after zero passes is
-      // still recoverable (0 + 3 remaining... 0+3 < 5 → breaking!).
-      const week1 = ["2026-01-05", "2026-01-06", "2026-01-07", "2026-01-08", "2026-01-09"].map(
-        (d) => checkIn(d, [{ goalId: "h1", passed: true }]),
-      );
-      const satMiss = checkIn("2026-01-10", [{ goalId: "h1", passed: false }]);
-      const nextThuMiss = checkIn("2026-01-15", [{ goalId: "h1", passed: false }]);
-
-      const afterSat = service.trajectoryFor("h1", "medium", 5, [...week1, satMiss]);
-      const satCost = afterSat.points[afterSat.points.length - 1]!.cost;
-      expect(satCost).toBe(afterSat.points[afterSat.points.length - 2]!.cost); // neutral
-
-      const afterThu = service.trajectoryFor("h1", "medium", 5, [...week1, satMiss, nextThuMiss]);
-      const thuCost = afterThu.points[afterThu.points.length - 1]!.cost;
-      expect(thuCost).toBeGreaterThan(satCost); // new week, 0 passes, 3 days left < 5
-    });
-  });
-
-  it("lowering the target retroactively forgives now-recoverable misses AND discounts cost", () => {
-    // One Monday miss. At 7×/week it's a break; at 4×/week it was harmless.
-    const checkIns = [checkIn("2026-01-05", [{ goalId: "h1", passed: false }])];
-
-    const ambitious = service.trajectoryFor("h1", "medium", 7, checkIns);
-    const humble = service.trajectoryFor("h1", "medium", 4, checkIns);
-
-    expect(ambitious.finalCost).toBe(40);
-    expect(humble.finalCost).toBe(26); // 35·φ(4)=26.25→26, miss forgiven entirely
   });
 
   it("ignores check-ins that don't include this goal", () => {

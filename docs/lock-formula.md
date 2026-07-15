@@ -97,38 +97,53 @@ cost    =  clamp(round(base(H) · φ(T)), 1, 50)
 a goal can also *un-form* if an edited past check-in pushes its replayed cost back
 above 1).
 
-### 3.4 Weekly commitment: pricing and slack (added 2026-07-14)
+### 3.4 Weekly commitment pricing (added 2026-07-14, revised same day)
 
-The weekly frequency target `T` (1–7) participates in the formula two ways:
-
-**Commitment pricing.** The cost multiplier
+The weekly frequency target `T` (1–7) affects PRICING only, via the cost
+multiplier
 
 ```
 φ(T) = 1 − w · (7 − T) / 6        w = frequencyWeight, default 0.5
 ```
 
-makes a 7×/week promise cost full price while a 1×/week one costs (1−w) of it
-(35 → 18 for a fresh medium goal at defaults). Ambition is priced into the
-100-lock budget: you *can* commit to everything daily, but it crowds out
-everything else.
+A 7×/week promise costs full price; a 1×/week one costs (1−w) of it (35 → 18
+for a fresh medium goal at defaults). Ambition is priced into the lock
+capacity: you *can* commit to everything daily, but it crowds out everything
+else.
 
-**Weekly slack rule.** A planned-day miss only counts as a FAIL step when it
-*sinks the Mon-Sun week*: when `passesThisWeek + daysLeftInWeek < T`.
-Otherwise the miss is **recoverable** and completely neutral — strength and
-the consecutive-fail streak are untouched (the day still advances calibration).
-Shuffling your schedule inside the week is not a failure; doing the make-up
-day earns the normal pass reward. For a 7×/week goal every miss is a break,
-by construction — daily commitments have zero slack.
+**A planned miss always counts.** Scheduling a goal for a day IS the
+commitment; skipping that day always takes the fail step, whatever the weekly
+target. (A "weekly slack" rule that forgave misses while the weekly target
+was still reachable was built and removed the same day, by user decision: it
+opened a lower-the-target-at-the-last-minute loophole that erased misses.
+Without it there is nothing to cheat: editing the target any time, even
+mid-week, only re-prices the trajectory via φ — it never rewrites which days
+counted as misses. Pausing can't dodge a day either: a paused goal stays in
+any plan already made, and XP never comes from passing in the first place.)
 
-**The escape valve.** Both effects are computed against the goal's *CURRENT*
-target during replay, and editing the target triggers an immediate recompute.
-Someone who over-ambitiously picked 7×/week and watched costs climb has a real
-choice: keep the 7 and pay its honest price, or lower the target — which both
-applies the φ discount AND retroactively forgives past misses that would have
-been recoverable under the easier week. Locks drop immediately and visibly.
+**The escape valve.** Editing the target triggers an immediate recompute:
+lower an over-ambitious 7×/week and the goal instantly gets cheaper to hold
+(φ discount across the whole replayed trajectory); raise it and it costs
+more. Misses stay on the record either way.
 
-**Worked examples note:** every example in §6 assumes a 7×/week goal (φ = 1,
-all misses breaking), which is also what the unit-test fixtures use.
+**Worked examples note:** every example in §6 assumes a 7×/week goal (φ = 1),
+which is also what the unit-test fixtures use.
+
+### 3.5 Weekly lock capacity (added 2026-07-14)
+
+`WEEKLY_LOCK_CAPACITY = 100` (domain constant): the combined lock cost of all
+ACTIVE goals must fit inside it — deliberately the same 100 that bounds a
+single day's plan. This is the portfolio-level forced-focus mechanic:
+
+- Creating a goal, resuming a paused one, or onboarding a batch is **blocked**
+  (`LockCapacityExceededError`) when it would overflow the capacity.
+- Costs rising organically from misses CAN push an existing portfolio over;
+  the Goals page then shows an over-capacity warning and the week's real
+  decision: pause or delete a goal, or lower a weekly target (which cuts its
+  price via φ).
+- Paused goals cost nothing against the capacity; the Goals page ("Weekly
+  goals") shows the capacity meter, the current Mon-Sun week, and paused
+  goals in a separate "not counted" section.
 
 ## 4. Constants reference
 

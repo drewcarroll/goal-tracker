@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { UpdateGoalUseCase } from "./UpdateGoalUseCase";
 import { Goal } from "../../domain/entities/Goal";
 import { GoalRepository } from "../../domain/repositories/GoalRepository";
-import { GoalNotFoundError } from "../errors/ApplicationError";
+import { GoalNotFoundError, LockCapacityExceededError } from "../errors/ApplicationError";
 
 class InMemoryGoalRepository implements GoalRepository {
   constructor(private readonly goals: Goal[]) {}
@@ -18,14 +18,14 @@ class InMemoryGoalRepository implements GoalRepository {
 
 const NOW = new Date("2026-01-20T00:00:00.000Z");
 
-function goal(id: string, userId: string) {
+function goal(id: string, userId: string, initialLockCost = 35) {
   return Goal.create({
     id,
     userId,
     name: "Exercise",
     weeklyFrequencyTarget: 3,
     difficulty: "medium",
-    initialLockCost: 35,
+    initialLockCost,
     now: NOW,
   });
 }
@@ -45,6 +45,31 @@ describe("UpdateGoalUseCase", () => {
     const useCase = new UpdateGoalUseCase(new InMemoryGoalRepository([g]));
 
     const result = await useCase.execute({ userId: "user-1", goalId: "g1", action: "resume" });
+
+    expect(result.state).toBe("active");
+  });
+
+  it("rejects resuming a goal that no longer fits the weekly capacity", async () => {
+    // Active portfolio already at 95 locks; the paused goal costs 10 → 105 > 100.
+    const a1 = goal("a1", "user-1", 50);
+    const a2 = goal("a2", "user-1", 45);
+    const paused = goal("p1", "user-1", 10);
+    paused.pause();
+    const useCase = new UpdateGoalUseCase(new InMemoryGoalRepository([a1, a2, paused]));
+
+    await expect(
+      useCase.execute({ userId: "user-1", goalId: "p1", action: "resume" }),
+    ).rejects.toBeInstanceOf(LockCapacityExceededError);
+  });
+
+  it("allows resuming when it lands exactly on the capacity", async () => {
+    const a1 = goal("a1", "user-1", 50);
+    const a2 = goal("a2", "user-1", 45);
+    const paused = goal("p1", "user-1", 5);
+    paused.pause();
+    const useCase = new UpdateGoalUseCase(new InMemoryGoalRepository([a1, a2, paused]));
+
+    const result = await useCase.execute({ userId: "user-1", goalId: "p1", action: "resume" });
 
     expect(result.state).toBe("active");
   });

@@ -98,8 +98,7 @@ describe("EditGoalUseCase", () => {
     expect(result.currentLockCost).toBe(18);
   });
 
-  it("lowering the target retroactively forgives now-recoverable misses", async () => {
-    // A Monday miss: week-breaking at 7×/week, harmless at 4×/week.
+  it("lowering the target re-prices history but never erases a miss", async () => {
     const g = goal("g1", "user-1", 7);
     const monMiss = CheckIn.create({
       id: "c1",
@@ -117,7 +116,8 @@ describe("EditGoalUseCase", () => {
       weeklyFrequencyTarget: 4,
     });
 
-    expect(result.currentLockCost).toBe(26); // 35·φ(4)=26.25→26, the miss forgiven
+    // The miss still counts (base 39.5), only the pricing changes: ·φ(4)=0.75 → 30.
+    expect(result.currentLockCost).toBe(30);
   });
 
   it("rejects editing a goal the caller does not own", async () => {

@@ -92,16 +92,6 @@ export class LockCostService {
   }
 
   /**
-   * A planned-day miss that does NOT sink the weekly target (enough days
-   * remain in the week to still hit it). Neutral by design: strength and the
-   * consecutive-fail counter are untouched — shuffling your schedule inside
-   * the week is not a failure. The day still counts for calibration decay.
-   */
-  stepRecoverableMiss(state: HabitState): HabitState {
-    return { ...state, plannedDays: state.plannedDays + 1 };
-  }
-
-  /**
    * Lock cost for a state: piecewise linear in H, then scaled by the
    * commitment multiplier φ(T) = 1 − w·(7−T)/6, rounded half-up, clamped.
    * H ≥ 0 interpolates 1 (formed) … C0 (fresh); H < 0 interpolates

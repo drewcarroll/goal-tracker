@@ -62,6 +62,28 @@ describe("CreateGoalsFromOnboardingUseCase", () => {
     expect(repo.saved.every((g) => g.userId === "user-1")).toBe(true);
   });
 
+  it("rejects the whole batch when it would overflow the weekly capacity", async () => {
+    const repo = new InMemoryGoalRepository();
+    const useCase = new CreateGoalsFromOnboardingUseCase(
+      repo,
+      new InMemoryConfigRepository(),
+      fixedIds,
+      fixedClock,
+    );
+
+    await expect(
+      useCase.execute({
+        userId: "user-1",
+        selections: [
+          { name: "A", weeklyFrequencyTarget: 7, difficulty: "hard" }, // 45
+          { name: "B", weeklyFrequencyTarget: 7, difficulty: "hard" }, // 45
+          { name: "C", weeklyFrequencyTarget: 7, difficulty: "medium" }, // 35 → 125 > 100
+        ],
+      }),
+    ).rejects.toMatchObject({ code: "LOCK_CAPACITY_EXCEEDED" });
+    expect(repo.saved).toHaveLength(0); // atomic: no partial batch
+  });
+
   it("creates nothing for an empty selection list", async () => {
     const repo = new InMemoryGoalRepository();
     const useCase = new CreateGoalsFromOnboardingUseCase(

@@ -31,22 +31,19 @@ export default async function AppShellLayout({ children }: { children: ReactNode
     <div className="lg:flex">
       <TabNavigation />
       {/* `pb-24` clears the fixed mobile tab bar (h-16 + safe area); removed at lg. */}
-      <main className="min-h-dvh flex-1 px-4 pb-24 pt-6 lg:px-8 lg:pb-10">
-        <div className="mx-auto mb-5 flex w-full max-w-3xl items-center justify-end gap-2 text-sm">
-          <Link
-            href="/profile"
-            title="Profile"
-            className="inline-flex max-w-[60vw] items-center gap-1.5 rounded-full border border-gray-900/10 bg-white/70 py-1 pl-1.5 pr-3 shadow-sm backdrop-blur transition-transform active:scale-95"
-          >
-            <RankBadge rank={rank.rank} />
-            <span
-              className="truncate font-semibold"
-              style={{ color: rankVisual(rank.rank).color }}
-            >
-              {username}
-            </span>
-          </Link>
-        </div>
+      <main className="relative min-h-dvh flex-1 px-4 pb-24 pt-6 lg:px-8 lg:pb-10">
+        {/* Profile chip overlays the top-right, inline with each page's title,
+            so it never pushes the page content down. */}
+        <Link
+          href="/profile"
+          title="Profile"
+          className="absolute right-4 top-6 z-30 inline-flex max-w-[45vw] items-center gap-1.5 rounded-full border border-gray-900/10 bg-white/70 py-1 pl-1.5 pr-3 text-sm shadow-sm backdrop-blur transition-transform active:scale-95 lg:right-8"
+        >
+          <RankBadge rank={rank.rank} />
+          <span className="truncate font-semibold" style={{ color: rankVisual(rank.rank).color }}>
+            {username}
+          </span>
+        </Link>
         {children}
       </main>
     </div>

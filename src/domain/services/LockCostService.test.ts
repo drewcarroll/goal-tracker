@@ -149,16 +149,6 @@ describe("LockCostService", () => {
     });
   });
 
-  describe("stepRecoverableMiss", () => {
-    it("is neutral: strength and the fail streak stay put, the day still counts", () => {
-      const state: HabitState = { strength: 0.4, plannedDays: 12, consecutiveFails: 2 };
-      expect(service.stepRecoverableMiss(state)).toEqual({
-        strength: 0.4,
-        plannedDays: 13,
-        consecutiveFails: 2,
-      });
-    });
-  });
 
   describe("isFormed", () => {
     it("is true only at cost 1", () => {

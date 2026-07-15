@@ -20,9 +20,11 @@ export default async function HomePage() {
   const window = await getCheckInWindowUseCase.execute({ userId, timezone });
   const today = window.open ? window.targetDate : localDateService.today(timezone);
 
-  const [goals, todayPlan] = await Promise.all([
+  const { getTodayCheckInUseCase } = getContainer();
+  const [goals, todayPlan, todayCheckIn] = await Promise.all([
     getActiveGoalsUseCase.execute({ userId }),
     getTodayPlanUseCase.execute({ userId, date: today }),
+    getTodayCheckInUseCase.execute({ userId, date: today }),
   ]);
 
   return (
@@ -31,7 +33,7 @@ export default async function HomePage() {
         <h1 className="text-2xl font-bold tracking-tight">Home</h1>
         <p className="mt-1 text-gray-600">What you&apos;re working on today.</p>
       </div>
-      <TodayGoals goals={goals} todayPlan={todayPlan} />
+      <TodayGoals goals={goals} todayPlan={todayPlan} checkedIn={todayCheckIn !== null} />
     </section>
   );
 }

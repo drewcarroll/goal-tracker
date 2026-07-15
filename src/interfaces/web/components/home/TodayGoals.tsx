@@ -1,10 +1,12 @@
 import Link from "next/link";
 import type { GoalDTO } from "@/application/dtos/GoalDTO";
 import type { DailyPlanDTO } from "@/application/dtos/DailyPlanDTO";
+import { MoonIcon } from "@/interfaces/web/components/icons";
 
 /**
- * Today's scheduled goals from last night's plan. Read-only here — checking
- * them off happens on /checkin.
+ * Today's scheduled goals from last night's plan. Read-only here — the day
+ * ends with the "Going to bed?" log (that's where XP comes from; a skipped
+ * night just earns nothing).
  *
  * Grace path: if today has no plan at all (missed planning last night, or a
  * brand new user), this prompts to plan now instead of just showing nothing.
@@ -12,9 +14,11 @@ import type { DailyPlanDTO } from "@/application/dtos/DailyPlanDTO";
 export function TodayGoals({
   goals,
   todayPlan,
+  checkedIn,
 }: {
   goals: GoalDTO[];
   todayPlan: DailyPlanDTO | null;
+  checkedIn: boolean;
 }) {
   if (goals.length === 0) {
     return (
@@ -51,32 +55,37 @@ export function TodayGoals({
 
   return (
     <section aria-labelledby="today-goals-heading" className="flex flex-col gap-3">
-      <div className="flex items-baseline justify-between gap-3">
-        <h2 id="today-goals-heading" className="text-lg font-semibold text-gray-900">
-          Today
-        </h2>
-        <span className="text-sm text-gray-500">{todayPlan.locksSpent} locks</span>
-      </div>
+      <h2 id="today-goals-heading" className="text-lg font-semibold text-gray-900">
+        Today
+      </h2>
       <ul className="flex flex-col gap-2">
         {todayPlan.goalIds.map((goalId) => {
           const goal = byId.get(goalId);
           return (
             <li
               key={goalId}
-              className="flex items-center justify-between gap-3 rounded-2xl border border-gray-900/[0.06] bg-white p-4 shadow-sm"
+              className="rounded-2xl border border-gray-900/[0.06] bg-white p-4 shadow-sm"
             >
               <span className="truncate font-medium text-gray-900">{goal?.name ?? "Goal"}</span>
-              {goal && <span className="shrink-0 text-xs text-gray-400">{goal.currentLockCost} locks</span>}
             </li>
           );
         })}
       </ul>
-      <Link
-        href="/checkin"
-        className="rounded-xl bg-brand px-5 py-3 text-center text-base font-semibold text-white shadow-sm transition-colors hover:bg-brand-dark"
-      >
-        Check in
-      </Link>
+
+      {checkedIn ? (
+        <p className="rounded-xl bg-emerald-50 px-4 py-3 text-center text-sm font-medium text-emerald-700">
+          Day logged. See you tomorrow.
+        </p>
+      ) : (
+        <Link
+          href="/checkin"
+          className="flex items-center justify-center gap-2 rounded-xl bg-brand px-5 py-3.5 text-center text-base font-semibold text-white shadow-sm transition-colors hover:bg-brand-dark active:scale-[0.98]"
+        >
+          <MoonIcon className="h-5 w-5" />
+          Going to bed?
+          <span className="rounded-full bg-white/20 px-2 py-0.5 text-xs font-bold">+500 XP</span>
+        </Link>
+      )}
       <Link href="/plan" className="self-start text-sm font-medium text-brand hover:underline">
         Plan tomorrow →
       </Link>

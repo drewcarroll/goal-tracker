@@ -43,8 +43,8 @@ export function FrequencySlider({
       </div>
       {showHint && (
         <p className="mt-1.5 text-xs text-gray-400">
-          7× has no slack: any miss breaks the week. Fewer days costs fewer locks and misses can
-          be made up later in the week.
+          More days per week costs more locks. A scheduled day you skip always counts against the
+          goal.
         </p>
       )}
     </div>

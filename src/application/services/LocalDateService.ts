@@ -18,4 +18,10 @@ export class LocalDateService {
   tomorrow(timezone: string): string {
     return LocalDate.todayInTimezone(this.clock.now(), timezone).addDays(1).toString();
   }
+
+  /** The Mon-Sun week containing today in `timezone`, as YYYY-MM-DD bounds. */
+  weekOf(timezone: string): { start: string; end: string } {
+    const start = LocalDate.todayInTimezone(this.clock.now(), timezone).startOfWeek();
+    return { start: start.toString(), end: start.addDays(6).toString() };
+  }
 }

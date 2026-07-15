@@ -44,6 +44,16 @@ export class CheckInNotFoundError extends ApplicationError {
   }
 }
 
+export class LockCapacityExceededError extends ApplicationError {
+  public readonly code = "LOCK_CAPACITY_EXCEEDED";
+
+  constructor(wouldBe: number, capacity: number) {
+    super(
+      `That would put your active goals at ${wouldBe}/${capacity} locks. Pause or delete a goal, or lower a weekly target, to make room.`,
+    );
+  }
+}
+
 export class CheckInWindowClosedError extends ApplicationError {
   public readonly code = "CHECKIN_WINDOW_CLOSED";
 

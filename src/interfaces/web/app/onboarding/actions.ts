@@ -11,7 +11,7 @@ export type OnboardingActionResult =
 /** Translate thrown domain/application errors into a user-facing message. */
 function toErrorMessage(error: unknown): string {
   const coded = error as { code?: string; message?: string };
-  if (coded?.code === "VALIDATION_ERROR") {
+  if (coded?.code === "VALIDATION_ERROR" || coded?.code === "LOCK_CAPACITY_EXCEEDED") {
     return coded.message ?? "Those goals could not be created.";
   }
   return "Something went wrong. Please try again.";

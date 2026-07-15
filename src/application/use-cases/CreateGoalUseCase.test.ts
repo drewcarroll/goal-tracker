@@ -80,4 +80,43 @@ describe("CreateGoalUseCase", () => {
 
     expect(result.currentLockCost).toBe(30);
   });
+
+  it("rejects a goal that would overflow the weekly lock capacity", async () => {
+    const repo = new InMemoryGoalRepository();
+    const useCase = new CreateGoalUseCase(
+      repo,
+      new InMemoryConfigRepository(),
+      fixedIds,
+      fixedClock,
+    );
+    // Two hard 7×/week goals: 45 + 45 = 90 committed.
+    await useCase.execute({ userId: "user-1", name: "A", weeklyFrequencyTarget: 7, difficulty: "hard" });
+    await useCase.execute({ userId: "user-1", name: "B", weeklyFrequencyTarget: 7, difficulty: "hard" });
+
+    // A medium 7×/week (35) would land at 125 > 100.
+    await expect(
+      useCase.execute({ userId: "user-1", name: "C", weeklyFrequencyTarget: 7, difficulty: "medium" }),
+    ).rejects.toMatchObject({ code: "LOCK_CAPACITY_EXCEEDED" });
+    expect(repo.saved).toHaveLength(2); // nothing extra was created
+
+    // A light 1×/week easy goal (25·0.5 → 13) still fits: 103? No — 90+13=103 > 100.
+    // An easy 1×/week goal after pausing isn't tested here; boundary: 10 locks fits.
+  });
+
+  it("paused goals do not count against the capacity", async () => {
+    const repo = new InMemoryGoalRepository();
+    const useCase = new CreateGoalUseCase(
+      repo,
+      new InMemoryConfigRepository(),
+      fixedIds,
+      fixedClock,
+    );
+    await useCase.execute({ userId: "user-1", name: "A", weeklyFrequencyTarget: 7, difficulty: "hard" });
+    await useCase.execute({ userId: "user-1", name: "B", weeklyFrequencyTarget: 7, difficulty: "hard" });
+    repo.saved[0]!.pause(); // 45 locks freed
+
+    await expect(
+      useCase.execute({ userId: "user-1", name: "C", weeklyFrequencyTarget: 7, difficulty: "medium" }),
+    ).resolves.toMatchObject({ currentLockCost: 35 });
+  });
 });

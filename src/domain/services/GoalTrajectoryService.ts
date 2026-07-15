@@ -27,17 +27,16 @@ export interface GoalTrajectory {
  * included the goal, oldest first, through LockCostService from a fresh
  * state. Each step uses the goal's OWN mark (per-goal contingency).
  *
- * Weekly slack rule (docs/lock-formula.md §3.4): a miss only counts as a
- * FAIL when it sinks the week — when the passes already banked this Mon-Sun
- * week plus the days remaining can no longer reach the goal's weekly target.
- * A recoverable miss (5×/week goal, missed Tuesday, five days left) is
- * neutral: shuffling the schedule inside the week is not a failure. For a
- * 7×/week goal every miss is a break, by construction. The replay always
- * uses the goal's CURRENT target, so lowering an over-ambitious target
- * retroactively forgives misses that would have been recoverable under it.
+ * A planned-day miss ALWAYS takes the fail step — scheduling a goal for a
+ * day is the commitment, and skipping it costs locks regardless of how the
+ * rest of the week goes (deliberate design decision, 2026-07-14; an earlier
+ * "weekly slack" forgiveness rule was removed the same day because it opened
+ * a lower-the-target-to-erase-misses loophole). The weekly target only
+ * affects PRICING via φ (docs/lock-formula.md §3.4): the replay uses the
+ * goal's CURRENT target, so editing it re-prices the whole trajectory but
+ * never rewrites which days counted as misses.
  *
- * The replay also yields the "ghost point" projections shown on /progress;
- * nextIfFail is the worst case (a week-breaking miss).
+ * The replay also yields the "ghost point" projections shown on /progress.
  */
 export class GoalTrajectoryService {
   constructor(private readonly lockCostService: LockCostService) {}
@@ -59,28 +58,11 @@ export class GoalTrajectoryService {
 
     let state = this.lockCostService.initialState();
     let timesCompleted = 0;
-    let weekStart: string | null = null;
-    let passesThisWeek = 0;
 
     const points = ordered.map((checkIn) => {
-      const week = checkIn.date.startOfWeek().toString();
-      if (week !== weekStart) {
-        weekStart = week;
-        passesThisWeek = 0;
-      }
-
       const passed = checkIn.markFor(goalId)!;
-      if (passed) {
-        timesCompleted += 1;
-        passesThisWeek += 1;
-        state = this.lockCostService.step(state, true, difficulty);
-      } else {
-        const daysLeftInWeek = 6 - checkIn.date.dayOfWeekIndex();
-        const weekStillAchievable = passesThisWeek + daysLeftInWeek >= weeklyFrequencyTarget;
-        state = weekStillAchievable
-          ? this.lockCostService.stepRecoverableMiss(state)
-          : this.lockCostService.step(state, false, difficulty);
-      }
+      if (passed) timesCompleted += 1;
+      state = this.lockCostService.step(state, passed, difficulty);
       return {
         date: checkIn.date.toString(),
         cost: this.lockCostService.costFor(state, difficulty, weeklyFrequencyTarget),

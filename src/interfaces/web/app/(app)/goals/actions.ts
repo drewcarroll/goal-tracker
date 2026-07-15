@@ -16,7 +16,11 @@ function revalidateGoalDerivedPages(): void {
 
 function toErrorMessage(error: unknown): string {
   const coded = error as { code?: string; message?: string };
-  if (coded?.code === "VALIDATION_ERROR" || coded?.code === "GOAL_NOT_FOUND") {
+  if (
+    coded?.code === "VALIDATION_ERROR" ||
+    coded?.code === "GOAL_NOT_FOUND" ||
+    coded?.code === "LOCK_CAPACITY_EXCEEDED"
+  ) {
     return coded.message ?? "That goal could not be saved.";
   }
   return "Something went wrong. Please try again.";
