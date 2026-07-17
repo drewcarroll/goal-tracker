@@ -2,15 +2,9 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import type { GoalSuggestionDTO, GoalDifficulty } from "@/application/dtos/GoalDTO";
+import type { GoalSuggestionDTO } from "@/application/dtos/GoalDTO";
 import { FrequencySlider } from "@/interfaces/web/components/goals/FrequencySlider";
 import { createGoalsFromOnboardingAction } from "@/interfaces/web/app/onboarding/actions";
-
-const DIFFICULTIES: { value: GoalDifficulty; label: string; classes: string }[] = [
-  { value: "easy", label: "Easy", classes: "border-green-300 bg-green-50 text-green-800" },
-  { value: "medium", label: "Medium", classes: "border-amber-300 bg-amber-50 text-amber-800" },
-  { value: "hard", label: "Hard", classes: "border-orange-300 bg-orange-50 text-orange-800" },
-];
 
 type Step = 1 | 2 | 3;
 
@@ -25,7 +19,6 @@ export function OnboardingWizard({
   const [step, setStep] = useState<Step>(1);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [customInput, setCustomInput] = useState("");
-  const [difficulties, setDifficulties] = useState<Record<string, GoalDifficulty>>({});
   const [frequencies, setFrequencies] = useState<Record<string, number>>({});
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -61,10 +54,6 @@ export function OnboardingWizard({
     });
   }
 
-  function setDifficulty(name: string, difficulty: GoalDifficulty) {
-    setDifficulties((prev) => ({ ...prev, [name]: difficulty }));
-  }
-
   function setFrequency(name: string, target: number) {
     setFrequencies((prev) => ({ ...prev, [name]: target }));
   }
@@ -77,11 +66,6 @@ export function OnboardingWizard({
     setError(null);
     // Default every newly-selected goal so step 2 isn't a wall of unset
     // controls, while leaving prior choices untouched.
-    setDifficulties((prev) => {
-      const next = { ...prev };
-      for (const name of selected) next[name] ??= "medium";
-      return next;
-    });
     setFrequencies((prev) => {
       const next = { ...prev };
       for (const name of selected) next[name] ??= 3;
@@ -96,7 +80,6 @@ export function OnboardingWizard({
       const result = await createGoalsFromOnboardingAction(
         selectedNames.map((name) => ({
           name,
-          difficulty: difficulties[name] ?? "medium",
           weeklyFrequencyTarget: frequencies[name] ?? 3,
         })),
       );
@@ -116,13 +99,13 @@ export function OnboardingWizard({
         <p className="text-sm font-medium text-brand">Step {step} of 3</p>
         <h1 className="mt-1 text-2xl font-bold tracking-tight text-gray-900">
           {step === 1 && "What do you want to work on?"}
-          {step === 2 && "How hard, and how often?"}
+          {step === 2 && "How often?"}
           {step === 3 && "Confirm your goals"}
         </h1>
         <p className="mt-1 text-sm text-gray-600">
           {step === 1 && "Pick from the ideas below, or add your own."}
           {step === 2 &&
-            "Harder goals start at a higher lock cost, so you naturally focus on fewer of them."}
+            "Every goal starts at the same cost. What you actually do from here is what shapes it."}
           {step === 3 && "You can edit or pause these later from Goals."}
         </p>
       </div>
@@ -237,26 +220,6 @@ export function OnboardingWizard({
             {selectedNames.map((name) => (
               <div key={name} className="rounded-xl border border-gray-900/[0.06] bg-white p-4 shadow-sm">
                 <p className="mb-2.5 truncate text-base font-medium text-gray-900">{name}</p>
-                <p className="mb-1.5 text-sm font-medium text-gray-700">
-                  How hard do you think this will be to accomplish?
-                </p>
-                <div className="mb-3 flex gap-2">
-                  {DIFFICULTIES.map((d) => {
-                    const active = (difficulties[name] ?? "medium") === d.value;
-                    return (
-                      <button
-                        key={d.value}
-                        type="button"
-                        onClick={() => setDifficulty(name, d.value)}
-                        className={`flex-1 rounded-lg border px-3 py-2 text-sm font-semibold transition-colors ${
-                          active ? d.classes : "border-gray-900/[0.06] bg-white text-gray-400 hover:bg-gray-50"
-                        }`}
-                      >
-                        {d.label}
-                      </button>
-                    );
-                  })}
-                </div>
                 <FrequencySlider
                   value={frequencies[name] ?? 3}
                   onChange={(value) => setFrequency(name, value)}
@@ -287,28 +250,17 @@ export function OnboardingWizard({
       {step === 3 && (
         <div className="flex flex-col gap-6">
           <div className="flex flex-col gap-2 rounded-xl border border-gray-900/[0.06] bg-white p-4 shadow-sm">
-            {selectedNames.map((name) => {
-              const difficulty = difficulties[name] ?? "medium";
-              const d = DIFFICULTIES.find((x) => x.value === difficulty)!;
-              return (
-                <div
-                  key={name}
-                  className="flex items-center justify-between gap-3 border-b border-gray-100 py-2 last:border-0"
-                >
-                  <span className="text-sm font-medium text-gray-900">
-                    {name}
-                    <span className="ml-2 font-normal text-gray-400">
-                      {frequencies[name] ?? 3}x/week
-                    </span>
-                  </span>
-                  <span
-                    className={`shrink-0 rounded-full border px-2.5 py-0.5 text-xs font-semibold ${d.classes}`}
-                  >
-                    {d.label}
-                  </span>
-                </div>
-              );
-            })}
+            {selectedNames.map((name) => (
+              <div
+                key={name}
+                className="flex items-center justify-between gap-3 border-b border-gray-100 py-2 last:border-0"
+              >
+                <span className="text-sm font-medium text-gray-900">{name}</span>
+                <span className="shrink-0 text-xs font-medium text-gray-400">
+                  {frequencies[name] ?? 3}x/week
+                </span>
+              </div>
+            ))}
           </div>
 
           <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">

@@ -18,13 +18,12 @@ class InMemoryGoalRepository implements GoalRepository {
 
 const NOW = new Date("2026-01-20T00:00:00.000Z");
 
-function goal(id: string, userId: string, initialLockCost = 35) {
+function goal(id: string, userId: string, initialLockCost = 20) {
   return Goal.create({
     id,
     userId,
     name: "Exercise",
     weeklyFrequencyTarget: 3,
-    difficulty: "medium",
     initialLockCost,
     now: NOW,
   });

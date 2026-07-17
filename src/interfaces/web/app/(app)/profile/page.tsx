@@ -1,15 +1,23 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { cookies } from "next/headers";
 import { getContainer } from "@/infrastructure/container";
-import { currentUserId } from "@/interfaces/web/http/currentUser";
+import { currentUserId, currentTimezone } from "@/interfaces/web/http/currentUser";
 import { USER_COOKIE } from "@/interfaces/web/http/session";
 import { RankBadge } from "@/interfaces/web/components/profile/RankBadge";
 import { rankVisual } from "@/interfaces/web/components/profile/rankColors";
 import { WindowSettingsForm } from "@/interfaces/web/components/profile/WindowSettingsForm";
+import { DevModeGate } from "@/interfaces/web/components/profile/DevModeGate";
 import { DevModePanel } from "@/interfaces/web/components/profile/DevModePanel";
-import { ChevronRightIcon, LockIcon } from "@/interfaces/web/components/icons";
-import { isDevModeUnlocked } from "./actions";
+import { CheckInHistoryView } from "@/interfaces/web/components/profile/CheckInHistoryView";
+import { ChevronRightIcon } from "@/interfaces/web/components/icons";
+import {
+  isDevModeUnlocked,
+  recomputeAllGoalsPanelAction,
+  resetEconomyAction,
+  resetLockFormulaAction,
+  saveEconomyAction,
+  saveLockFormulaAction,
+} from "./actions";
 
 export const metadata: Metadata = { title: "Profile · Goal Tracker" };
 
@@ -18,20 +26,38 @@ export const dynamic = "force-dynamic";
 
 /**
  * Profile: the XP/rank progression (fueled purely by on-time nightly logs,
- * docs/progression.md), the private journal, and an Advanced section hiding
- * the check-in window settings and the password-gated dev mode.
+ * docs/progression.md), a history of past check-ins with each day's private
+ * journal note shown inline (folded in from the old standalone History/
+ * Journal tabs, 2026-07-16 — see docs/plan.md Phase 10), and an Advanced
+ * section hiding the check-in window settings and the password-gated dev
+ * mode.
  */
 export default async function ProfilePage() {
-  const { getRankUseCase, getUserSettingsUseCase, getLockFormulaConfigUseCase } = getContainer();
+  const {
+    getRankUseCase,
+    getUserSettingsUseCase,
+    getLockFormulaConfigUseCase,
+    getEconomyConfigUseCase,
+    getCheckInHistoryUseCase,
+    getAllGoalsUseCase,
+    getJournalHistoryUseCase,
+    localDateService,
+  } = getContainer();
   const userId = currentUserId();
   const username = cookies().get(USER_COOKIE)?.value ?? "";
+  const today = localDateService.today(currentTimezone());
 
   const devUnlocked = await isDevModeUnlocked();
-  const [rank, settings, configDto] = await Promise.all([
-    getRankUseCase.execute({ userId }),
-    getUserSettingsUseCase.execute({ userId }),
-    devUnlocked ? getLockFormulaConfigUseCase.execute() : Promise.resolve(null),
-  ]);
+  const [rank, settings, lockFormulaConfigDto, economyConfigDto, checkIns, goals, journalEntries] =
+    await Promise.all([
+      getRankUseCase.execute({ userId }),
+      getUserSettingsUseCase.execute({ userId }),
+      devUnlocked ? getLockFormulaConfigUseCase.execute() : Promise.resolve(null),
+      devUnlocked ? getEconomyConfigUseCase.execute() : Promise.resolve(null),
+      getCheckInHistoryUseCase.execute({ userId }),
+      getAllGoalsUseCase.execute({ userId }),
+      getJournalHistoryUseCase.execute({ userId }),
+    ]);
 
   const current = rankVisual(rank.rank);
   const next = rankVisual(rank.nextRank);
@@ -75,21 +101,24 @@ export default async function ProfilePage() {
         </div>
       </div>
 
-      <Link
-        href="/journal"
-        className="flex items-center justify-between gap-3 rounded-2xl border border-gray-900/[0.06] bg-white p-5 shadow-sm transition-transform active:scale-[0.99]"
-      >
-        <div className="flex min-w-0 items-center gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand/10 text-brand">
-            <LockIcon className="h-5 w-5" />
-          </span>
-          <div className="min-w-0">
-            <p className="font-semibold text-gray-900">Private journal</p>
-            <p className="truncate text-sm text-gray-500">Your nightly notes, for you only.</p>
-          </div>
-        </div>
-        <ChevronRightIcon className="h-4 w-4 shrink-0 text-gray-300" />
-      </Link>
+      <div>
+        <h2 className="mb-2 text-lg font-semibold text-gray-900">History</h2>
+        <p className="mb-3 -mt-1 text-sm text-gray-500">
+          Past check-ins, with that night&apos;s private journal note attached.
+        </p>
+        {goals.length === 0 ? (
+          <p className="rounded-2xl border border-dashed border-gray-300 bg-white p-6 text-center text-sm text-gray-500">
+            No goals yet, so nothing to look back on.
+          </p>
+        ) : (
+          <CheckInHistoryView
+            checkIns={checkIns}
+            goals={goals}
+            journalEntries={journalEntries}
+            today={today}
+          />
+        )}
+      </div>
 
       <details className="group rounded-2xl border border-gray-900/[0.06] bg-white shadow-sm">
         <summary className="flex cursor-pointer list-none items-center justify-between gap-3 p-5 [&::-webkit-details-marker]:hidden">
@@ -101,7 +130,32 @@ export default async function ProfilePage() {
             start={settings.checkInWindow.start}
             end={settings.checkInWindow.end}
           />
-          <DevModePanel unlocked={devUnlocked} configDto={configDto} />
+          <DevModeGate unlocked={devUnlocked}>
+            <div className="flex flex-col gap-4">
+              <DevModePanel
+                title="Lock formula"
+                hint="The lock formula's constants. See docs/lock-formula.md for what each one does."
+                warning="Changing constants rewrites all historical trajectories (costs are replayed from scratch). Stored costs refresh on the next check-in per goal, or press “Recompute all” to refresh them now."
+                configDto={lockFormulaConfigDto}
+                onSave={saveLockFormulaAction}
+                onReset={resetLockFormulaAction}
+                extraActions={[
+                  {
+                    label: "Recompute all goals",
+                    successText: "All goals recomputed under the current constants.",
+                    onClick: recomputeAllGoalsPanelAction,
+                  },
+                ]}
+              />
+              <DevModePanel
+                title="Economy"
+                hint="Battle-pass coin rewards and shop pricing. See docs/plan.md Phase 11 for what each one does."
+                configDto={economyConfigDto}
+                onSave={saveEconomyAction}
+                onReset={resetEconomyAction}
+              />
+            </div>
+          </DevModeGate>
         </div>
       </details>
 

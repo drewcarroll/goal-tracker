@@ -36,16 +36,28 @@ As of 2026-07-08 (Phase 5), there is a single unified `Goal` concept — see tha
 section below for the full rationale. The old split between a numeric-target
 "goal" and a catalog-bound "habit" no longer exists.
 
+As of 2026-07-16 (Phase 10), goals have NO difficulty field (every goal starts
+at the same lock cost — see `docs/lock-formula.md` §3.1).
+
+As of 2026-07-16 (Phase 11), the nav is six tabs: Home, Goals, Schedule,
+Friends, Trinkets, Profile. `/progress`, `/history`, and `/journal` no longer
+exist as standalone routes — see the Phase 10 section for where their
+functionality moved. Every goal has an `isPublic` flag (default `true`); a
+username registry backs a friend system; a coin/trinket economy (battle pass
++ shop + feed) layers on top of the nightly check-in flow.
+
 Working features that must keep working:
-- Username-cookie auth gate (`usernameToUserId` deterministic UUID, no passwords), middleware redirect to `/login`
-- `/home` — today's scheduled goals (from last night's `/plan`) + check-in/plan-tomorrow entry points
-- `/goals` — unified goal CRUD: freeform name, weekly frequency target, difficulty (set once, at creation), pause/resume, delete
-- `/onboarding` — first-run wizard: pick suggested goal ideas or type your own, set difficulty + weekly frequency, confirm
-- `/plan` — night-before planning within the 100-lock budget (`?for=today` grace path for a day with no plan at all)
-- `/checkin` — end-of-day pass/fail marks per scheduled goal + optional private journal entry
-- `/progress` — per-goal lock-cost trajectory chart, gamified "this week X/N" pips, 30-day pass rate, pass/fail calendar
-- `/history` — past check-ins: edit, delete, or backfill a missed day
-- `/journal` — private, chronological journal entries
+- Username-cookie auth gate (`usernameToUserId` deterministic UUID, no passwords), middleware redirect to `/login`; best-effort username registration into `usernames` at login (Phase 11)
+- `/home` — today's scheduled goals (from last night's `/plan`) + check-in/schedule-tomorrow entry points + the battle-pass day strip (Phase 11)
+- `/goals` — unified goal CRUD: freeform name, weekly frequency target, public/private toggle, pause/resume, delete; each card shows a compact habit-strength graph and the weekly key-capacity meter
+- `/goals/[id]` — one goal's full habit-strength graph (colored pass/fail points, green/red 14-day projection), times completed, 30-day pass rate
+- `/onboarding` — first-run wizard: pick suggested goal ideas or type your own, set weekly frequency, confirm (no difficulty step)
+- `/plan` — night-before scheduling within the 100-key budget (`?for=today` grace path for a day with no plan at all); the "Schedule" nav tab
+- `/checkin` — end-of-day pass/fail marks per scheduled goal + optional private journal entry + an automatic battle-pass day claim as the flow's last celebration step (Phase 11)
+- `/friends` — send/accept/decline/cancel friend requests by username, friends list; `/friends/[username]` — a friend's PUBLIC-only goals, stats, and daily log (Phase 11)
+- `/trinkets` — one tab, four segments: Battle Pass month calendar (with truncation), Shop (daily 5-slot rotation, flat pricing), Collection (owned trinkets, quantity-tracked), Feed (friends' claims/purchases) (Phase 11)
+- `/profile` — rank/XP hero, check-in history with each day's journal note shown inline, collapsed Advanced section (check-in window settings, password-gated dev mode with BOTH lock-formula and economy constants panels)
+- App-wide maintenance banner: if the current month has no entry in the 12-month battle-pass trinket map (July 2026 - June 2027, hardcoded on purpose), the `(app)` layout blocks all normal rendering behind a full-screen red banner (Phase 11)
 - Daily Vercel keepalive cron (`/api/cron/keepalive`) through `GetAllGoalsUseCase`
 
 ---
@@ -274,8 +286,370 @@ Spec: `docs/lock-formula.md` §3.4 (revised) and §3.5. Summary:
 - [x] (2026-07-14) **Header chip no longer shifts the UI** — the rank/profile chip is absolutely positioned top-right inside main, inline with each page's title, instead of occupying its own row.
 - [x] (2026-07-14) "Goal name" label (was "What are you committing to?"); capacity errors surfaced through goal/onboarding forms. 201 tests passing.
 
+### Phase 10: Progress-tab feedback round — graph redesign, IA consolidation, formula rework, disuse decay (user-directed, 2026-07-16)
+
+User feedback on the shipped app, addressed in one session. Full rationale for
+the formula changes lives in `docs/lock-formula.md` (updated in place, not a
+separate versioned doc); the user-facing explainer is the new
+`docs/how-it-works.md`.
+
+**Formula fixes**
+- [x] (2026-07-16) **Symmetric cost-mapping slope** — the negative-strength
+  branch used to squeeze the whole 50-cap range into a narrow band above C0,
+  so an early miss barely moved the cost while an early pass moved it a lot
+  (user report: "first ever scheduling a goal and you fail, only punished 30
+  to 31? feels like it should be worse"). Now both directions use the same
+  slope. `LockCostService.costFor` (`src/domain/services/LockCostService.ts`),
+  full worked-example rewrite in `docs/lock-formula.md` §3.3/§6.
+- [x] (2026-07-16) **Difficulty tier removed entirely** (user decision, see
+  Changelog) — `GoalDifficulty` deleted from the domain (`Goal` entity,
+  `LockFormulaConfig.initialCost`/`difficultyGainMultiplier`), application
+  (`GoalDTO`, `CreateGoalUseCase`, `CreateGoalsFromOnboardingUseCase`), and
+  every UI difficulty picker (`GoalsManager`'s add-goal form, `OnboardingWizard`
+  step 2). Uniform `initialCost = 20` replaces the 25/35/45 tiers. `supabase/schema.sql`
+  drops the `difficulty` column (idempotent `alter table ... drop column if
+  exists`) — **user still needs to run this in the Supabase SQL Editor**; until
+  then the live `habits` table still has `difficulty` as `NOT NULL`, which
+  blocks new goal creation (verified live: `createGoalAction` returns "Something
+  went wrong" because the insert fails the DB constraint — this is expected,
+  not a code bug, and resolves itself once the migration runs).
+  - **Latent bug found and fixed while the user ran this migration**: the
+    name-backfill `update` a few lines above unconditionally referenced
+    `catalog_id`, which a prior run of this same "idempotent" script had
+    already dropped — so re-running the full script on an already-migrated
+    database failed with `column "catalog_id" does not exist`, pre-dating
+    this session's changes (the bug was latent in the script since the
+    Phase 5 Goal/Habit unification). Fixed by checking
+    `information_schema.columns` first. Not caught by any test since
+    `supabase/schema.sql` has no automated test coverage — it's applied by
+    hand and only exercised by actually running it.
+- [x] (2026-07-16) **Disuse decay** — a goal absent from every daily plan for
+  `staleAfterDays` (default 10) consecutive calendar days now drifts its habit
+  strength toward NEUTRAL (not the punishing floor), geometrically, at
+  `decayRate` (default 0.03) per stale day — structurally distinct from a fail
+  (nothing was scheduled, so nothing was missed; this is entropy, not
+  judgment). New `LocalDate.daysUntil`, `LockCostService.decay`,
+  `GoalTrajectoryService` gap-walking (between check-ins AND trailing to
+  `today`), new `staleAfterDays`/`decayRate` config knobs (dev-mode tweakable
+  like every other constant). `GoalCostRecomputeService` now takes a `Clock`
+  to anchor trailing decay; stored costs only catch up to their true decayed
+  value on the user's next check-in event (no proactive daily job — documented
+  limitation, see `docs/lock-formula.md` §3.6 and the Discovered-work item
+  below).
+- [x] (2026-07-16) All formula worked examples in `docs/lock-formula.md` §6
+  recomputed by hand for the new C0=20 + symmetric-slope + no-difficulty
+  formula; every number verified via the corresponding Vitest assertion, not
+  just asserted.
+
+**Progress tab → Goals page**
+- [x] (2026-07-16) Deleted the 30-day pass/fail calendar (`DayResultCalendar`)
+  — permanent red for a FAIL day was flagged as too punishing and quit-inducing.
+- [x] (2026-07-16) Deleted the standalone `/progress` route, `ProgressView`,
+  `GoalTrajectoryChart`, `ChartTooltip`, `format.ts` — replaced by a new
+  `HabitStrengthChart` (`src/interfaces/web/components/goals/HabitStrengthChart.tsx`)
+  embedded directly on `/goals` (compact, no axes) and a new `/goals/[id]`
+  detail route (full chart with axes/tooltip/legend). The graph plots
+  NORMALIZED habit strength (0–1, never a raw lock/key number) with "Habit
+  Formed" at the top and "Not Sticking Yet" at the bottom (coined fresh,
+  deliberately softer than "Habit Failure" — the app's whole design language
+  avoids shame copy); a smooth (`type="natural"`) curve, not linear; real
+  history points colored green (passed) / red (missed); a 14-day green/red
+  dashed projection branching from the current point.
+- [x] (2026-07-16) `GoalTrajectoryService`/`GoalStatsDTO` extended with
+  `initialStrength`, `finalStrength`, per-point `strength`/`passed`, and
+  `projectionIfPass`/`projectionIfFail` (14-day normalized-strength arrays) —
+  additive, `nextIfPass`/`nextIfFail` (cost) kept for other consumers.
+  `PROJECTION_DAYS = 14` exported from the domain service.
+  `LockCostService.displayStrength` added: `(H − S_min) / (1 − S_min)`.
+- [x] (2026-07-16) The weekly "this week X/N" pips (previously part of the
+  deleted `GoalTrajectoryChart`) were NOT rebuilt anywhere yet — user said they
+  belong on the Schedule page, not Goals (Goals is meant to be week-agnostic);
+  flagged as discovered work below since it didn't make it into this session.
+- [x] (2026-07-16) Fixed a real overflow bug: the goal card's "N locks" chip
+  could wrap on narrow viewports (missing `whitespace-nowrap`); fixed
+  alongside the locks→keys rebrand.
+- [x] (2026-07-16) Fixed a real interaction bug found during live browser
+  verification: clicking a `HabitStrengthChart` inside a `<Link>`-wrapped goal
+  card didn't navigate — Recharts' SVG intercepted the click even with the
+  Tooltip disabled in compact mode. Fixed with `pointer-events-none` on the
+  compact chart's wrapper.
+
+**"Locks" → "keys" rebrand + Schedule tab**
+- [x] (2026-07-16) User-facing copy renamed "locks" → "keys" throughout
+  (`/plan`'s budget bar and per-goal chips, `FrequencySlider`'s hint,
+  `OnboardingWizard`'s step-2 copy, `GoalsManager`'s capacity meter and card
+  chips, both `ApplicationError` message strings for lock/capacity errors).
+  Internal domain/DB names (`LockCostService`, `currentLockCost`, the
+  `habits` table) intentionally left alone — presentation-only rename, not a
+  domain rename; noted in `docs/progression.md`.
+- [x] (2026-07-16) `/plan`'s `AlreadyPlanned` view rebuilt to list ALL active
+  goals (not just scheduled ones) with an explicit "Scheduled"/"Not scheduled"
+  pill each, addressing the ask to "more simply state which ones are
+  scheduled and which ones aren't"; the picker view gained the same pill
+  next to its existing checkbox.
+- [x] (2026-07-16) `NAV_ITEMS` (`src/interfaces/web/components/navigation/navItems.tsx`)
+  changed from Home/Goals/Progress/History/Profile to Home/Goals/Schedule
+  (→ `/plan`)/Profile — four tabs. `ScheduleIcon` (calendar glyph) replaces
+  the old `ProgressIcon`/`HistoryIcon`.
+
+**History + Journal folded into Profile**
+- [x] (2026-07-16) Deleted the standalone `/history` and `/journal` routes and
+  `JournalHistoryView`. `CheckInHistoryView` moved to
+  `src/interfaces/web/components/profile/CheckInHistoryView.tsx`, gained a
+  `journalEntries` prop, and now renders that day's journal note (text +
+  mood dots) inline on its check-in card when one exists — "journal is part
+  of nightly checkin, so should display there on each one."
+  `history/actions.ts` moved to `profile/checkInActions.ts` (same functions,
+  updated `revalidatePath` targets). `/profile` now fetches check-ins, goals,
+  and journal entries and renders this as a visible "History" section (not
+  buried in Advanced, since it's everyday content) above the collapsed
+  Advanced details.
+
+**Verification**
+- [x] (2026-07-16) `npm test` (216 passing, up from 202 — new decay + formula
+  tests), `type-check`, `lint`, all clean.
+- [x] (2026-07-16) End-to-end against the live Supabase project via a fresh
+  dev server + browser automation: `/goals` renders (existing pre-migration
+  goal's stored cost correctly left untouched until its next recompute, per
+  the documented retroactivity model), the compact chart preview renders and
+  its click-through to `/goals/[id]` works, the detail page's full chart
+  renders with "Habit Formed"/"Not Sticking Yet" labels and colored
+  projection lines, `/profile` renders the merged rank + history + inline
+  journal, nav confirmed as exactly 4 items. New-goal creation confirmed
+  BLOCKED pending the user's manual schema migration (see above) — this is
+  the one thing that couldn't be verified end-to-end this session.
+
+**Discovered work (added mid-build, not done this session)**
+- [ ] Rebuild the "this week X/N" per-goal completion pips somewhere on the
+  Schedule (`/plan`) page — they existed on the old `/progress` page's
+  per-goal chart and were dropped when that chart was deleted; user said they
+  belong on the weekly/schedule page, not Goals, but the actual rebuild
+  didn't happen this session.
+- [ ] No proactive daily recompute job for disuse decay — `Goal.currentLockCost`
+  only catches up to its true decayed value on the user's next check-in event
+  for ANY goal, not on a schedule. A correct fix is a Vercel cron (the app
+  already has one for keepalive) that walks all users and recomputes; out of
+  scope for this session, noted in `docs/lock-formula.md` §3.6.
+- [ ] `docs/how-it-works.md` (new, user-requested plain-language formula
+  explainer) references screenshots/UI verbally but has none embedded —
+  acceptable for a text doc, flagged only in case the user wants visuals
+  added later.
+
+### Phase 11: Friends, per-goal privacy, distinct rank badges, battle pass + shop + feed (user-directed, 2026-07-16)
+
+A large social + economy expansion, specified by the user with several
+`AskUserQuestion` clarifications resolved along the way, then elaborated into
+a full technical design by a background Plan agent before building started.
+
+**Friends + privacy**
+- [x] (2026-07-16) New `usernames` registry table (`user_id` -> `username`),
+  upserted best-effort at login (`app/api/login/route.ts`) — the only way to
+  go from a userId back to a display name, since this app has no accounts
+  table and derives `userId` as a one-way hash of the username.
+  `RegisterUsernameUseCase`, `SupabaseUsernameRepository`.
+- [x] (2026-07-16) `Friendship` entity (state machine: pending/accepted/
+  declined/cancelled), `FriendshipRepository`/`SupabaseFriendshipRepository`.
+  Use cases: `SendFriendRequestUseCase`, `AcceptFriendRequestUseCase`,
+  `DeclineFriendRequestUseCase`, `CancelFriendRequestUseCase`,
+  `GetFriendsListUseCase`, `GetPendingFriendRequestsUseCase`.
+  `/friends` (list + requests + send-by-username), root stub included.
+- [x] (2026-07-16) Every `Goal` gained `isPublic: boolean` (default `true` —
+  "defaults to no [private]", user's own wording). `GoalPrivacyService` is
+  the one place "never leak a private goal" is implemented:
+  `GetFriendPublicGoalsUseCase` filters goals; `GetFriendCheckInLogUseCase`
+  recomputes `dayResult` from ONLY the filtered public marks (never reuses
+  the stored `CheckIn.dayResult`, which would otherwise leak a private
+  goal's outcome) and drops any day with zero public marks entirely,
+  indistinguishable from no plan; `GetFriendGoalStatsUseCase` throws the
+  identical `GoalNotFoundError` for a private goal and a nonexistent one, so
+  no probe can tell the two apart. `/friends/[username]` renders a friend's
+  public goals + filtered log, reusing `HabitStrengthChart`.
+- [x] (2026-07-16) `GoalsManager`'s add/edit forms gained a "Private goal"
+  checkbox (unchecked/public by default); read-only card view shows a
+  "Private" badge when set.
+
+**Rank badges**
+- [x] (2026-07-16) Redesigned for distinctiveness at every level, not just
+  every 5th rank: `hue(rank) = (rank * 47) % 360` (discrete ~47°/rank jump,
+  replacing a ~9.3°/rank interpolation that made adjacent ranks nearly
+  identical); badge SHAPE cycles every tier (circle→hexagon→squircle→
+  diamond→pentagon→octagon→…, uncapped past rank 30); ring thickness
+  alternates 2px/3px by rank PARITY so same-tier adjacent ranks still read
+  differently. `rankColors.ts` rewritten, `RankBadge.tsx` rebuilt as a
+  3-layer nested-span structure (outer unclipped for the glow's box-shadow,
+  middle clipped for the ring color, inner clipped for the fill — `clip-path`
+  silently clips an element's own `box-shadow` too, so a single-layer
+  version would have invisibly sliced the glow off every non-circle shape;
+  caught before shipping, not as a live bug).
+
+**Economy foundation**
+- [x] (2026-07-16) `Coins` value object, `EconomyConfig` (dev-tunable, same
+  `app_config` partial-override pattern as `LockFormulaConfig`, sibling repo
+  not a shared one per the Plan agent's recommendation), `coin_wallets`
+  table + `increment_wallet_balance()` Postgres function for atomic
+  credit/debit (Supabase's JS client has no read-modify-write transaction
+  primitive, and a battle-pass claim racing a shop purchase could otherwise
+  lose an update). `DeterministicRewardService` (pure FNV-1a hash +
+  weighted pick) is the shared domain-safe randomness primitive — no Node
+  `crypto` allowed in `domain/`.
+- [x] (2026-07-16) `DevModePanel.tsx` genericized to `{title, hint, warning,
+  configDto, onSave, onReset, extraActions}` props (was hardcoded to the
+  lock formula) so it's one component for both constants panels, not a
+  fork; the shared password gate split out into a new `DevModeGate.tsx`
+  (one unlock cookie, two panels rendered inside it on `/profile`).
+
+**Battle pass**
+- [x] (2026-07-16) `BattlePassCalendarService`: `visibleDayCount = max(0,
+  daysInMonth - missesSoFar)` — the literal truncation rule (user's own
+  wording: "if you miss a day, day 31 ur never gonna get that reward... no
+  reason to show it, that'll just make you sad"). A "miss" = a calendar day
+  with no ON-TIME check-in, mirroring how XP already gates on
+  `submittedOnTime`. Truncated days are never rendered — no greyed-out/
+  failed placeholder for them, on the strip or the month-grid view.
+- [x] (2026-07-16) 12-month trinket map, July 2026 → June 2027
+  (`BattlePassCalendarMap.ts`), keyed by literal `(year, month)` — NOT a
+  cycling/modulo-12 lookup (explicit user requirement) — so it structurally
+  runs out after exactly these 12 months. Day 25 = the month's "legendary"
+  trinket; days 5/10/15/20 = smaller trinkets from the same monthly theme,
+  all `bp:`-namespaced.
+- [x] (2026-07-16) App-wide maintenance guard: `GetMaintenanceStatusUseCase`
+  checks whether the current `(year, month)` has a map entry; `(app)/
+  layout.tsx` renders a full-screen blocking red `MaintenanceBanner`
+  ("The app is currently experiencing difficulties. Please come back
+  later.") instead of any normal content when it doesn't — a deliberate
+  trip-wire the user asked for explicitly, not a bug-avoidance measure.
+- [x] (2026-07-16) `ClaimBattlePassDayUseCase` — automatic, no separate
+  "unclaimed inventory" step; called from `checkin/actions.ts` right after
+  `SubmitCheckInUseCase` succeeds, riding the same submit event (user
+  requirement: "a little animation for it after you submit a nightly log").
+  `CheckInFlow.tsx` gained a `battlePassClaim` step between `celebrate` and
+  `journal`. Re-derives claimability from the same calendar math as the
+  read path rather than trusting the client, so a stale UI can never claim
+  a truncated or already-claimed day. `battle_pass_claims` table (unique on
+  user+date) is the idempotency guard.
+- [x] (2026-07-16) Home page battle-pass strip (`BattlePassStrip.tsx`,
+  non-invasive, links to `/trinkets`) and the full month calendar view
+  (`BattlePassMonthCalendar.tsx`, weekday-aligned grid) on `/trinkets`.
+
+**Shop**
+- [x] (2026-07-16) 100-trinket catalog (`ShopTrinketCatalog.ts`), disjoint
+  from the battle-pass pool by the `shop:`/`bp:` id-prefix structurally (not
+  a runtime check) — rarity tiers sized 55/30/12/3 (common/rare/epic/
+  legendary) to match the default rotation weights. FLAT pricing — every
+  trinket costs the same (`EconomyConfig.shopTrinketPrice`); rarity only
+  affects how often it's offered, never its price (user reversed an earlier
+  rarity-tiered-pricing statement mid-session). NOT collect-once — buying a
+  duplicate is expected, `trinket_inventory` tracks quantity, UI shows a
+  "×N" badge.
+- [x] (2026-07-16) `ShopRollService` — deterministic daily 5-slot rotation
+  per (userId, date, slot), rarity-weighted. `GetShopOfferUseCase` /
+  `PurchaseShopSlotUseCase`; the purchase use case re-derives which trinket
+  a slot actually offers from the same roll rather than trusting a
+  client-supplied trinket id, and pre-checks the coin balance before
+  spending (clean `InsufficientCoinsError` rather than parsing a DB
+  constraint failure). Rate limit: `shop_purchases` unique on
+  (user, date, slot_index) — at most 1 purchase per offered slot per day,
+  ≤5/day total.
+- [x] (2026-07-16) `ShopOffer.tsx` client component on `/trinkets`: 5 slots,
+  rarity-colored borders, price/Owned/×N states, buy button gated on
+  affordability and same-day-repurchase.
+
+**Feed + Trinkets tab**
+- [x] (2026-07-16) `activity_events` table (flat, filtered by friend-id-list
+  at read time, no fan-out-on-write — fine at this app's scale, flagged as a
+  rework-later tradeoff if it ever mattered), populated by both the battle-
+  pass claim and shop-purchase use cases. `GetActivityFeedUseCase` reads
+  only accepted friends' events, never the viewer's own.
+  `GetTrinketCollectionUseCase` resolves a user's owned trinket ids (across
+  BOTH pools, via a new `TrinketCatalog.ts` id-prefix dispatcher) to
+  emoji/name/quantity for display.
+- [x] (2026-07-16) `/trinkets` is ONE tab, internally segmented Battle Pass |
+  Shop | Collection | Feed — deliberately not four more top-level tabs
+  (design doc). `NAV_ITEMS` now has 6 entries; Friends and Trinkets are
+  icon-only below the `sm:` breakpoint on the mobile tab bar (density fix —
+  6 full labels didn't fit), full labels return at `sm:`+ and on the
+  desktop rail.
+
+**Schema**
+- [x] (2026-07-16) `supabase/schema.sql` extended with `usernames`,
+  `friendships`, `coin_wallets` (+ `increment_wallet_balance()`),
+  `battle_pass_claims`, `trinket_inventory`, `pinned_trinkets`,
+  `shop_purchases`, `activity_events`, and `habits.is_public`. All
+  idempotent (`create table if not exists` / `add column if not exists`),
+  RLS-enabled with no policies (matches the existing pattern — the server
+  uses the service role, which bypasses RLS). **User has not yet re-applied
+  this to the live Supabase project** — every Phase 11 feature will fail
+  live (not just look wrong) until that migration runs; this is the single
+  blocking item before any live verification of this phase is possible.
+
+**Verification**
+- [x] (2026-07-16) `npm test` (341 passing, up from 291 pre-Phase-11),
+  `type-check`, `lint`, and `npm run build` all clean after every sub-phase
+  (economy foundation, battle pass, shop, feed/nav), not just once at the
+  end.
+- [ ] Live end-to-end browser verification (friend request round-trip
+  between two usernames, privacy toggle confirmed invisible to a friend,
+  battle-pass claim + truncation, shop purchase + rate limit, feed, rank
+  badges across several real levels, maintenance banner via a simulated
+  out-of-range month) — **blocked on the pending schema migration above**;
+  not done this session.
+
+**Discovered work (added mid-build, not done this session)**
+- [ ] `pinned_trinkets` table exists in the schema and has a repository-less
+  design note in `EconomyConfig.maxPinnedTrinkets`, but no use case or UI
+  was built to let a user actually choose which trinkets to showcase — the
+  Collection view currently shows everything owned, unpinned/unordered.
+- [ ] No proactive job re-rolls or expires anything — the shop's daily
+  offer and battle-pass coin amounts are computed on read, which is
+  correct and cheap, but there's no cron analogous to the keepalive one;
+  flagged only because Phase 10 left a similar gap for disuse decay and the
+  pattern is worth keeping in mind, not because anything is currently wrong.
+
 ## Changelog
 
+- 2026-07-16 — **Phase 11 shipped** (see section above): a major social +
+  economy expansion, specified by the user with several `AskUserQuestion`
+  clarifications resolved along the way and a background Plan agent pass
+  before building — five feature areas in one session:
+  1. **Friends + per-goal privacy** — send/accept requests by username
+     (new `usernames` registry, since this app has no accounts table),
+     view a friend's PUBLIC-only goals/log; every goal gained `isPublic`
+     (default `true`), with a dedicated `GoalPrivacyService` as the one
+     place "never leak a private goal, not even indirectly" is enforced.
+  2. **Rank badges redesigned** for distinctiveness at every level (not just
+     every 5th) — discrete hue jump, shape cycling per tier, ring-width
+     parity.
+  3. **Economy foundation** — coins, a dev-tunable `EconomyConfig` sibling
+     to `LockFormulaConfig`, and a genericized `DevModePanel` so both
+     constants panels share one component.
+  4. **Battle pass** — a 12-month trinket map keyed by literal (year,
+     month) so it structurally cannot silently cycle past June 2027 (user
+     requirement), the literal truncation mechanic ("if you miss a day, day
+     31 ur never gonna get that reward... no reason to show it"), an
+     app-wide full-screen maintenance banner as the trip-wire for running
+     outside the mapped range, and claiming wired into the existing
+     check-in celebration flow rather than a separate step.
+  5. **Shop + Feed + Trinkets tab** — 100 flatly-priced trinkets disjoint
+     from the battle-pass pool by id-prefix, a deterministic daily 5-slot
+     rotation, quantity-tracked (not collect-once) ownership, a friend
+     activity feed, and one `/trinkets` tab internally segmented into all
+     four pieces rather than four new top-level tabs. Nav is now 6 tabs.
+  341 tests passing (up from 291), `type-check`/`lint`/`build` clean after
+  every sub-phase. **Not done this session**: live end-to-end browser
+  verification — blocked on the user re-applying the extended
+  `supabase/schema.sql` (new tables: usernames, friendships, coin_wallets,
+  battle_pass_claims, trinket_inventory, pinned_trinkets, shop_purchases,
+  activity_events, plus `habits.is_public`) to the live Supabase project.
+  Also deferred: a pin/showcase UI for the `pinned_trinkets` table, which
+  exists in schema but has no use case or UI yet.
+- 2026-07-16 — **Phase 10 shipped** (see section above): a full feedback round on the shipped app, covering formula math, the Progress tab, navigation/IA, and a new mechanic — six user-directed scope decisions in one session:
+  1. **Symmetric cost-mapping slope** — fixes the "first fail barely costs anything" complaint by pricing a miss on the same scale as a pass would have earned.
+  2. **Difficulty tier removed entirely** (user: "I think actually I want to remove the easy/medium/hard thing... initially it should be cheap regardless of the goal") — uniform `initialCost = 20` replaces 25/35/45 tiers; confirmed via `AskUserQuestion` (full removal including the gain-rate multiplier, not just cost; 20 keys over 25) before the cross-cutting refactor. Needs a manual Supabase migration to drop the now-unused `difficulty` column — **not yet run by the user**, blocks new goal creation until it is (existing goals unaffected).
+  3. **Disuse decay added** (user: "doesn't that hurt habit consolidation? ...locks creep back in?") — a goal unscheduled for 10+ days drifts toward neutral, forgiving a struggling goal and de-freshening a formed one; explicitly NOT the same mechanic as a fail (no loss aversion, no escalation, resets toward neutral not the floor).
+  4. **Progress tab retired** — the 30-day pass/fail calendar (permanent red = too punishing) deleted outright; the per-goal graph moved onto `/goals` (compact) and new `/goals/[id]` (full), redesigned as a normalized "Habit Formed"/"Not Sticking Yet" strength curve instead of a raw lock-cost line, since the user found the old chart's concept good but the presentation punishing/cluttered.
+  5. **"Locks" → "keys" rebrand + Schedule tab** — user-facing copy only (internal domain names unchanged); nav went from 5 tabs to 4 (Home/Goals/Schedule/Profile).
+  6. **History + Journal folded into Profile** — journal entries now render inline on their corresponding check-in day rather than as a separate list.
+  Also requested and delivered: a new plain-language `docs/how-it-works.md` (distinct from the implementer-facing `docs/lock-formula.md`) explaining the current mechanics to the user directly. 216 tests passing (up from 202), `type-check`/`lint` clean, most of the rebuilt UI verified end-to-end against the live Supabase project via browser automation — new-goal creation is the one path that couldn't be verified live, since it's blocked on the pending schema migration. Two items deliberately deferred, tracked as discovered work above: rebuilding the "this week X/N" pips on the Schedule page, and a proactive daily decay-recompute cron (decay is currently lazy, refreshed only on the user's next check-in).
 - 2026-07-14 (round 5) — **Phase 9 shipped** (see section above): weekly capacity system with meter + enforcement, Goals page reframed as the weekly portfolio, slack rule removed in favor of "a planned miss always counts" (user decision, closes the edit-to-cheat loophole; target edits stay free and only re-price), home page gets the "Going to bed?" CTA, header chip overlay, concise copy. Live-data note: goals created before capacity enforcement can exceed 100 combined; the page shows the warning rather than blocking.
 - 2026-07-14 (round 4) — **Phase 8 shipped** (see section above): weekly slack rule + commitment pricing + target-edit escape valve in the lock formula (docs/lock-formula.md §3.4), frequency slider, new flat suggestions list, difficulty question copy, dev-unlock overflow fix. Note for live data: existing goals' stored costs will shift on their next recompute (targets below 7 now get the φ discount and past misses may be forgiven under the slack rule) — use dev mode's "Recompute all goals" to apply immediately.
 - 2026-07-14 (round 3) — **Phase 7 shipped** (see section above): formula-based XP ranks replacing the threshold array (first-log rank-up, eventually-linear cadence), programmatic per-rank color schemes with tier ornaments, badge-to-badge progress bar, "Submit +500 XP" show-don't-tell flow, redesigned rank-up celebration, emoji purge in favor of a custom SVG icon set, midnight-violet brand refresh, Advanced section on /profile hiding window settings + dev mode, and a mobile overflow pass. `docs/progression.md` §2 rewritten to match.

@@ -25,6 +25,31 @@ import { GetLockFormulaConfigUseCase } from "@/application/use-cases/GetLockForm
 import { UpdateLockFormulaConfigUseCase } from "@/application/use-cases/UpdateLockFormulaConfigUseCase";
 import { ResetLockFormulaConfigUseCase } from "@/application/use-cases/ResetLockFormulaConfigUseCase";
 import { RecomputeAllGoalsUseCase } from "@/application/use-cases/RecomputeAllGoalsUseCase";
+import { RegisterUsernameUseCase } from "@/application/use-cases/RegisterUsernameUseCase";
+import { SendFriendRequestUseCase } from "@/application/use-cases/SendFriendRequestUseCase";
+import { AcceptFriendRequestUseCase } from "@/application/use-cases/AcceptFriendRequestUseCase";
+import { DeclineFriendRequestUseCase } from "@/application/use-cases/DeclineFriendRequestUseCase";
+import { CancelFriendRequestUseCase } from "@/application/use-cases/CancelFriendRequestUseCase";
+import { GetFriendsListUseCase } from "@/application/use-cases/GetFriendsListUseCase";
+import { GetPendingFriendRequestsUseCase } from "@/application/use-cases/GetPendingFriendRequestsUseCase";
+import { GetFriendPublicGoalsUseCase } from "@/application/use-cases/GetFriendPublicGoalsUseCase";
+import { GetFriendCheckInLogUseCase } from "@/application/use-cases/GetFriendCheckInLogUseCase";
+import { GetFriendGoalStatsUseCase } from "@/application/use-cases/GetFriendGoalStatsUseCase";
+import { GetEconomyConfigUseCase } from "@/application/use-cases/GetEconomyConfigUseCase";
+import { UpdateEconomyConfigUseCase } from "@/application/use-cases/UpdateEconomyConfigUseCase";
+import { ResetEconomyConfigUseCase } from "@/application/use-cases/ResetEconomyConfigUseCase";
+import { GetCoinBalanceUseCase } from "@/application/use-cases/GetCoinBalanceUseCase";
+import { GetBattlePassCalendarUseCase } from "@/application/use-cases/GetBattlePassCalendarUseCase";
+import { ClaimBattlePassDayUseCase } from "@/application/use-cases/ClaimBattlePassDayUseCase";
+import { GetMaintenanceStatusUseCase } from "@/application/use-cases/GetMaintenanceStatusUseCase";
+import { GetShopOfferUseCase } from "@/application/use-cases/GetShopOfferUseCase";
+import { PurchaseShopSlotUseCase } from "@/application/use-cases/PurchaseShopSlotUseCase";
+import { GetTrinketCollectionUseCase } from "@/application/use-cases/GetTrinketCollectionUseCase";
+import { GetActivityFeedUseCase } from "@/application/use-cases/GetActivityFeedUseCase";
+import { GoalPrivacyService } from "@/domain/services/GoalPrivacyService";
+import { BattlePassCalendarService } from "@/domain/services/BattlePassCalendarService";
+import { ShopRollService } from "@/domain/services/ShopRollService";
+import { DeterministicRewardService } from "@/domain/services/DeterministicRewardService";
 import { LocalDateService } from "@/application/services/LocalDateService";
 import { CheckInWindowResolver } from "@/application/services/CheckInWindowResolver";
 import { GoalCostRecomputeService } from "@/application/services/GoalCostRecomputeService";
@@ -35,6 +60,14 @@ import { SupabaseCheckInRepository } from "./repositories/SupabaseCheckInReposit
 import { SupabaseJournalRepository } from "./repositories/SupabaseJournalRepository";
 import { SupabaseConfigRepository } from "./repositories/SupabaseConfigRepository";
 import { SupabaseUserSettingsRepository } from "./repositories/SupabaseUserSettingsRepository";
+import { SupabaseUsernameRepository } from "./repositories/SupabaseUsernameRepository";
+import { SupabaseFriendshipRepository } from "./repositories/SupabaseFriendshipRepository";
+import { SupabaseEconomyConfigRepository } from "./repositories/SupabaseEconomyConfigRepository";
+import { SupabaseCoinWalletRepository } from "./repositories/SupabaseCoinWalletRepository";
+import { SupabaseBattlePassClaimRepository } from "./repositories/SupabaseBattlePassClaimRepository";
+import { SupabaseTrinketInventoryRepository } from "./repositories/SupabaseTrinketInventoryRepository";
+import { SupabaseActivityEventRepository } from "./repositories/SupabaseActivityEventRepository";
+import { SupabaseShopPurchaseRepository } from "./repositories/SupabaseShopPurchaseRepository";
 import { UuidGenerator } from "./id/UuidGenerator";
 import { SystemClock } from "./time/SystemClock";
 
@@ -60,14 +93,27 @@ function buildContainer() {
   const journalRepository = new SupabaseJournalRepository(supabase);
   const configRepository = new SupabaseConfigRepository(supabase);
   const userSettingsRepository = new SupabaseUserSettingsRepository(supabase);
+  const usernameRepository = new SupabaseUsernameRepository(supabase);
+  const friendshipRepository = new SupabaseFriendshipRepository(supabase);
+  const economyConfigRepository = new SupabaseEconomyConfigRepository(supabase);
+  const coinWalletRepository = new SupabaseCoinWalletRepository(supabase);
+  const battlePassClaimRepository = new SupabaseBattlePassClaimRepository(supabase);
+  const trinketInventoryRepository = new SupabaseTrinketInventoryRepository(supabase);
+  const activityEventRepository = new SupabaseActivityEventRepository(supabase);
+  const shopPurchaseRepository = new SupabaseShopPurchaseRepository(supabase);
   const idGenerator = new UuidGenerator();
   const clock = new SystemClock();
+  const goalPrivacyService = new GoalPrivacyService();
+  const deterministicRewardService = new DeterministicRewardService();
+  const battlePassCalendarService = new BattlePassCalendarService(deterministicRewardService);
+  const shopRollService = new ShopRollService(deterministicRewardService);
 
   // Shared application services.
   const recomputeService = new GoalCostRecomputeService(
     goalRepository,
     checkInRepository,
     configRepository,
+    clock,
   );
   const checkInWindowResolver = new CheckInWindowResolver(userSettingsRepository, clock);
 
@@ -127,6 +173,85 @@ function buildContainer() {
     updateLockFormulaConfigUseCase: new UpdateLockFormulaConfigUseCase(configRepository),
     resetLockFormulaConfigUseCase: new ResetLockFormulaConfigUseCase(configRepository),
     recomputeAllGoalsUseCase: new RecomputeAllGoalsUseCase(goalRepository, recomputeService),
+    registerUsernameUseCase: new RegisterUsernameUseCase(usernameRepository),
+    sendFriendRequestUseCase: new SendFriendRequestUseCase(
+      friendshipRepository,
+      usernameRepository,
+      idGenerator,
+      clock,
+    ),
+    acceptFriendRequestUseCase: new AcceptFriendRequestUseCase(
+      friendshipRepository,
+      usernameRepository,
+      clock,
+    ),
+    declineFriendRequestUseCase: new DeclineFriendRequestUseCase(friendshipRepository, clock),
+    cancelFriendRequestUseCase: new CancelFriendRequestUseCase(friendshipRepository, clock),
+    getFriendsListUseCase: new GetFriendsListUseCase(friendshipRepository, usernameRepository),
+    getPendingFriendRequestsUseCase: new GetPendingFriendRequestsUseCase(
+      friendshipRepository,
+      usernameRepository,
+    ),
+    getFriendPublicGoalsUseCase: new GetFriendPublicGoalsUseCase(
+      goalRepository,
+      friendshipRepository,
+      goalPrivacyService,
+    ),
+    getFriendCheckInLogUseCase: new GetFriendCheckInLogUseCase(
+      goalRepository,
+      checkInRepository,
+      friendshipRepository,
+      goalPrivacyService,
+    ),
+    getFriendGoalStatsUseCase: new GetFriendGoalStatsUseCase(
+      goalRepository,
+      checkInRepository,
+      configRepository,
+      friendshipRepository,
+    ),
+    getEconomyConfigUseCase: new GetEconomyConfigUseCase(economyConfigRepository),
+    updateEconomyConfigUseCase: new UpdateEconomyConfigUseCase(economyConfigRepository),
+    resetEconomyConfigUseCase: new ResetEconomyConfigUseCase(economyConfigRepository),
+    getCoinBalanceUseCase: new GetCoinBalanceUseCase(coinWalletRepository),
+    getBattlePassCalendarUseCase: new GetBattlePassCalendarUseCase(
+      checkInRepository,
+      battlePassClaimRepository,
+      economyConfigRepository,
+      battlePassCalendarService,
+    ),
+    claimBattlePassDayUseCase: new ClaimBattlePassDayUseCase(
+      checkInRepository,
+      battlePassClaimRepository,
+      economyConfigRepository,
+      coinWalletRepository,
+      trinketInventoryRepository,
+      activityEventRepository,
+      battlePassCalendarService,
+      clock,
+    ),
+    getMaintenanceStatusUseCase: new GetMaintenanceStatusUseCase(clock),
+    getShopOfferUseCase: new GetShopOfferUseCase(
+      shopPurchaseRepository,
+      economyConfigRepository,
+      coinWalletRepository,
+      trinketInventoryRepository,
+      shopRollService,
+    ),
+    purchaseShopSlotUseCase: new PurchaseShopSlotUseCase(
+      shopPurchaseRepository,
+      economyConfigRepository,
+      coinWalletRepository,
+      trinketInventoryRepository,
+      activityEventRepository,
+      shopRollService,
+      clock,
+    ),
+    getTrinketCollectionUseCase: new GetTrinketCollectionUseCase(trinketInventoryRepository),
+    getActivityFeedUseCase: new GetActivityFeedUseCase(
+      friendshipRepository,
+      usernameRepository,
+      activityEventRepository,
+    ),
     localDateService: new LocalDateService(clock),
   };
 }

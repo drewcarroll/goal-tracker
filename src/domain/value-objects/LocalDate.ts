@@ -70,6 +70,14 @@ export class LocalDate {
     return this.addDays(-this.dayOfWeekIndex());
   }
 
+  /** Calendar days from this date to `other` (negative if `other` is earlier). */
+  daysUntil(other: LocalDate): number {
+    const msPerDay = 24 * 60 * 60 * 1000;
+    const start = new Date(`${this.value}T00:00:00Z`).getTime();
+    const end = new Date(`${other.value}T00:00:00Z`).getTime();
+    return Math.round((end - start) / msPerDay);
+  }
+
   toString(): string {
     return this.value;
   }

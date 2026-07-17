@@ -67,3 +67,36 @@ export function BoltIcon(props: IconProps) {
     </svg>
   );
 }
+
+export function KeyIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <circle cx="8" cy="15" r="4" />
+      <path d="m10.8 12.2 8.7-8.7" />
+      <path d="m16 7 2.5 2.5" />
+      <path d="m19 4 1.5 1.5" />
+    </svg>
+  );
+}
+
+export function CalendarIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <rect x="3.5" y="5" width="17" height="16" rx="2" />
+      <path d="M8 3v4" />
+      <path d="M16 3v4" />
+      <path d="M3.5 10h17" />
+    </svg>
+  );
+}
+
+export function CoinIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <circle cx="12" cy="12" r="9" />
+      <circle cx="12" cy="12" r="5.5" />
+      <path d="M12 9v6" />
+      <path d="M10 10.5c0-1 .8-1.5 2-1.5s2 .5 2 1.3-.8 1.2-2 1.4-2 .6-2 1.5.8 1.3 2 1.3 2-.5 2-1.5" />
+    </svg>
+  );
+}

@@ -75,6 +75,24 @@ describe("LocalDate", () => {
     });
   });
 
+  describe("daysUntil", () => {
+    it("counts forward days", () => {
+      expect(LocalDate.create("2026-07-06").daysUntil(LocalDate.create("2026-07-10"))).toBe(4);
+    });
+
+    it("is negative for a date in the past", () => {
+      expect(LocalDate.create("2026-07-10").daysUntil(LocalDate.create("2026-07-06"))).toBe(-4);
+    });
+
+    it("is zero for the same date", () => {
+      expect(LocalDate.create("2026-07-06").daysUntil(LocalDate.create("2026-07-06"))).toBe(0);
+    });
+
+    it("rolls over a month boundary", () => {
+      expect(LocalDate.create("2026-07-31").daysUntil(LocalDate.create("2026-08-02"))).toBe(2);
+    });
+  });
+
   describe("todayInTimezone", () => {
     it("derives the local calendar day for a timezone behind UTC", () => {
       // 2026-07-06 03:00 UTC is still 2026-07-05 evening in Los Angeles (UTC-7 in July).

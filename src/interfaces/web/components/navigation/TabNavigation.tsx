@@ -78,7 +78,9 @@ export function TabNavigation() {
                   >
                     <item.Icon className="h-[22px] w-[22px]" aria-hidden="true" />
                   </span>
-                  {item.label}
+                  <span className={item.compactLabelOnMobile ? "hidden sm:inline" : undefined}>
+                    {item.label}
+                  </span>
                 </Link>
               </li>
             );

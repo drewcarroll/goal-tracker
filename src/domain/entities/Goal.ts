@@ -1,7 +1,5 @@
 import { ValidationError } from "../errors/DomainError";
-import type { GoalDifficulty } from "../services/LockCostService";
 
-export type { GoalDifficulty } from "../services/LockCostService";
 export type GoalState = "active" | "paused" | "formed";
 
 const NAME_MAX_LENGTH = 200;
@@ -15,9 +13,10 @@ export interface GoalProps {
   name: string;
   /** How many days a week you're committing to, e.g. 3 for "3x/week". */
   weeklyFrequencyTarget: number;
-  difficulty: GoalDifficulty;
   currentLockCost: number;
   state: GoalState;
+  /** Whether friends can see this goal at all. Defaults to true (public). */
+  isPublic: boolean;
   createdAt: Date;
 }
 
@@ -36,8 +35,8 @@ export class Goal {
   private constructor(private props: GoalProps) {}
 
   /**
-   * Create a brand new goal. `initialLockCost` is the difficulty's starting
-   * cost from the CURRENT lock-formula config (a tweakable constant), so the
+   * Create a brand new goal. `initialLockCost` is the uniform starting cost
+   * from the CURRENT lock-formula config (a tweakable constant), so the
    * caller computes it via LockCostService.initialCostFor — the entity can't
    * know which config is active (that's an application concern).
    */
@@ -46,8 +45,8 @@ export class Goal {
     userId: string;
     name: string;
     weeklyFrequencyTarget: number;
-    difficulty: GoalDifficulty;
     initialLockCost: number;
+    isPublic?: boolean;
     now?: Date;
   }): Goal {
     Goal.assertValidName(params.name);
@@ -58,9 +57,9 @@ export class Goal {
       userId: params.userId,
       name: params.name.trim(),
       weeklyFrequencyTarget: params.weeklyFrequencyTarget,
-      difficulty: params.difficulty,
       currentLockCost: params.initialLockCost,
       state: "active",
+      isPublic: params.isPublic ?? true,
       createdAt: params.now ?? new Date(),
     });
   }
@@ -73,18 +72,13 @@ export class Goal {
     return new Goal(props);
   }
 
-  /**
-   * Edit the name and/or weekly frequency target. Difficulty is intentionally
-   * NOT editable here: it seeds the replayed cost trajectory's starting
-   * point (see GoalTrajectoryService), so changing it after check-in history
-   * exists would retroactively rewrite that history's chart. Simplest to
-   * just not allow it — create a new goal if the difficulty was wrong.
-   */
-  edit(details: { name: string; weeklyFrequencyTarget: number }): void {
+  /** Edit the name, weekly frequency target, and/or privacy. */
+  edit(details: { name: string; weeklyFrequencyTarget: number; isPublic: boolean }): void {
     Goal.assertValidName(details.name);
     Goal.assertValidWeeklyFrequencyTarget(details.weeklyFrequencyTarget);
     this.props.name = details.name.trim();
     this.props.weeklyFrequencyTarget = details.weeklyFrequencyTarget;
+    this.props.isPublic = details.isPublic;
   }
 
   /**
@@ -164,14 +158,14 @@ export class Goal {
   get weeklyFrequencyTarget(): number {
     return this.props.weeklyFrequencyTarget;
   }
-  get difficulty(): GoalDifficulty {
-    return this.props.difficulty;
-  }
   get currentLockCost(): number {
     return this.props.currentLockCost;
   }
   get state(): GoalState {
     return this.props.state;
+  }
+  get isPublic(): boolean {
+    return this.props.isPublic;
   }
   get createdAt(): Date {
     return this.props.createdAt;

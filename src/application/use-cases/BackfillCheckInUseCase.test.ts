@@ -58,7 +58,12 @@ function buildUseCase(goals: Goal[]) {
     useCase: new BackfillCheckInUseCase(
       goalRepository,
       checkIns,
-      new GoalCostRecomputeService(goalRepository, checkIns, new InMemoryConfigRepository()),
+      new GoalCostRecomputeService(
+        goalRepository,
+        checkIns,
+        new InMemoryConfigRepository(),
+        fixedClock,
+      ),
       fixedIds,
       fixedClock,
     ),
@@ -72,8 +77,7 @@ function goal(id: string) {
     userId: "user-1",
     name: "Exercise",
     weeklyFrequencyTarget: 7,
-    difficulty: "medium",
-    initialLockCost: 35,
+    initialLockCost: 20,
     now: new Date("2026-01-01T00:00:00.000Z"),
   });
 }
@@ -92,7 +96,7 @@ describe("BackfillCheckInUseCase", () => {
     expect(result.date).toBe("2026-01-20");
     expect(result.submittedOnTime).toBe(false); // honesty preserved, no rank point
     expect(checkIns.saved).toHaveLength(1);
-    expect(g1.currentLockCost).toBe(30); // the pass still counts fully for the lock track
+    expect(g1.currentLockCost).toBe(17); // the pass still counts fully for the lock track
   });
 
   it("rejects a mark against a goal the caller does not own", async () => {

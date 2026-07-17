@@ -24,7 +24,7 @@ export class LockBudgetExceededError extends ApplicationError {
   public readonly code = "LOCK_BUDGET_EXCEEDED";
 
   constructor(locksRequested: number) {
-    super(`That plan would spend ${locksRequested} locks, over the 100-lock daily budget.`);
+    super(`That schedule would spend ${locksRequested} keys, over the 100-key daily budget.`);
   }
 }
 
@@ -49,7 +49,7 @@ export class LockCapacityExceededError extends ApplicationError {
 
   constructor(wouldBe: number, capacity: number) {
     super(
-      `That would put your active goals at ${wouldBe}/${capacity} locks. Pause or delete a goal, or lower a weekly target, to make room.`,
+      `That would put your active goals at ${wouldBe}/${capacity} keys. Pause or delete a goal, or lower a weekly target, to make room.`,
     );
   }
 }
@@ -59,5 +59,69 @@ export class CheckInWindowClosedError extends ApplicationError {
 
   constructor(opensAt: string) {
     super(`The nightly check-in isn't open right now — it opens at ${opensAt}.`);
+  }
+}
+
+export class UserNotFoundError extends ApplicationError {
+  public readonly code = "USER_NOT_FOUND";
+
+  constructor(username: string) {
+    super(`No user named "${username}" was found.`);
+  }
+}
+
+export class FriendRequestAlreadyExistsError extends ApplicationError {
+  public readonly code = "FRIEND_REQUEST_ALREADY_EXISTS";
+
+  constructor() {
+    super("There's already a pending or accepted friendship with this person.");
+  }
+}
+
+export class FriendshipNotFoundError extends ApplicationError {
+  public readonly code = "FRIENDSHIP_NOT_FOUND";
+
+  constructor() {
+    super("That friend request was not found.");
+  }
+}
+
+export class NotFriendsError extends ApplicationError {
+  public readonly code = "NOT_FRIENDS";
+
+  constructor() {
+    super("You are not friends with this user.");
+  }
+}
+
+export class MaintenanceModeError extends ApplicationError {
+  public readonly code = "MAINTENANCE_MODE";
+
+  constructor() {
+    super("The app is currently experiencing difficulties. Please come back later.");
+  }
+}
+
+export class BattlePassDayNotClaimableError extends ApplicationError {
+  public readonly code = "BATTLE_PASS_DAY_NOT_CLAIMABLE";
+
+  constructor(date: string) {
+    super(`"${date}" isn't claimable — it's already claimed, truncated, or hasn't happened yet.`);
+  }
+}
+
+export class ShopSlotAlreadyPurchasedError extends ApplicationError {
+  public readonly code = "SHOP_SLOT_ALREADY_PURCHASED";
+
+  constructor() {
+    super("You've already bought from that slot today.");
+  }
+}
+
+export class InsufficientCoinsError extends ApplicationError {
+  public readonly code = "INSUFFICIENT_COINS";
+
+  constructor() {
+    super("Not enough coins for that.");
   }
 }

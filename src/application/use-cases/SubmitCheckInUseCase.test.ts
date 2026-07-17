@@ -68,15 +68,13 @@ const NIGHT = new Date("2026-01-21T02:00:00.000Z");
 const MIDMORNING = new Date("2026-01-21T10:00:00.000Z");
 const fixedIds: IdGenerator = { generate: () => "checkin-1" };
 
-function goal(id: string, difficulty: "easy" | "medium" | "hard" = "medium") {
-  const initialCost = { easy: 25, medium: 35, hard: 45 }[difficulty];
+function goal(id: string) {
   return Goal.create({
     id,
     userId: "user-1",
     name: "Exercise",
     weeklyFrequencyTarget: 7,
-    difficulty,
-    initialLockCost: initialCost,
+    initialLockCost: 20,
     now: new Date("2026-01-01T00:00:00.000Z"),
   });
 }
@@ -88,7 +86,7 @@ function buildUseCase(goals: Goal[], now: Date, checkIns = new InMemoryCheckInRe
     goalRepository,
     checkIns,
     new CheckInWindowResolver(new InMemoryUserSettingsRepository(), clock),
-    new GoalCostRecomputeService(goalRepository, checkIns, new InMemoryConfigRepository()),
+    new GoalCostRecomputeService(goalRepository, checkIns, new InMemoryConfigRepository(), clock),
     fixedIds,
     clock,
   );
@@ -126,8 +124,8 @@ describe("SubmitCheckInUseCase", () => {
     });
 
     expect(result.dayResult).toBe("PASS");
-    expect(g1.currentLockCost).toBe(30); // medium first-day pass: 35 → 30
-    expect(g2.currentLockCost).toBe(30);
+    expect(g1.currentLockCost).toBe(17); // first-day pass: 20 → 17
+    expect(g2.currentLockCost).toBe(17);
   });
 
   it("moves each goal by its OWN mark — a pass never gets another goal's fail bump", async () => {
@@ -146,8 +144,8 @@ describe("SubmitCheckInUseCase", () => {
 
     // The DAY still reads FAIL (calendar display), but costs are per-goal.
     expect(result.dayResult).toBe("FAIL");
-    expect(g1.currentLockCost).toBe(30); // its own pass: 35 → 30
-    expect(g2.currentLockCost).toBe(40); // its own fail: 35 → 40 (docs §6.2)
+    expect(g1.currentLockCost).toBe(17); // its own pass: 20 → 17
+    expect(g2.currentLockCost).toBe(26); // its own fail: 20 → 26 (docs §6.2)
   });
 
   it("rejects a submission outside the check-in window and saves nothing", async () => {
@@ -163,7 +161,7 @@ describe("SubmitCheckInUseCase", () => {
       }),
     ).rejects.toBeInstanceOf(CheckInWindowClosedError);
     expect(checkIns.saved).toHaveLength(0);
-    expect(g1.currentLockCost).toBe(35); // untouched
+    expect(g1.currentLockCost).toBe(20); // untouched
   });
 
   it("rejects a mark against a goal the caller does not own", async () => {

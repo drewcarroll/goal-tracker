@@ -1,11 +1,15 @@
 # Goal Tracker
 
 A personal-use habit-formation app: set goals ("Read, 3x/week," "No soda,
-7x/week"), plan tomorrow's goals each night within a 100-lock daily budget,
-check them off honor-system style each day, and watch each goal's lock cost
-trend toward "formed" as you keep it up — or climb (capped, never punished)
-when you miss. No streaks, ever. Next.js + Supabase, deployed to Vercel,
-structured as a strict four-layer Clean Architecture.
+7x/week"), schedule tomorrow's goals each night within a 100-key daily budget
+(unlock a goal by scheduling it), check them off honor-system style each day,
+and watch each goal's habit-strength graph trend toward "Habit Formed" as you
+keep it up — or drift the other way (capped, never punished) when you miss.
+Every goal starts at the same cost; there's no difficulty guess, only what you
+actually do. A goal left unscheduled for a while also drifts gently back
+toward neutral (disuse decay) rather than staying frozen forever. No streaks,
+ever. Next.js + Supabase, deployed to Vercel, structured as a strict
+four-layer Clean Architecture.
 
 There's no accounts system — sign-in is a username typed on `/login`, hashed
 into a deterministic UUID that scopes all of that person's data. See
@@ -55,17 +59,21 @@ npm run dev
 
 ## Pages
 
-| Route         | Description                                                    |
-| ------------- | ---------------------------------------------------------------- |
-| `/login`      | Username entry (no password)                                     |
-| `/home`       | Today's scheduled goals + check-in/plan-tomorrow entry points     |
-| `/goals`      | Create, edit, pause/resume, delete goals                         |
-| `/onboarding` | Guided first-run setup: pick or add goals, set difficulty + frequency |
-| `/plan`       | Night-before planning within the 100-lock budget (`?for=today` grace path) |
-| `/checkin`    | End-of-day pass/fail marks + optional private journal entry      |
-| `/progress`   | Per-goal lock-cost trajectory, this-week pips, 30-day pass rate, calendar |
-| `/history`    | Past check-ins — edit, delete, or backfill a missed day           |
-| `/journal`    | Private, chronological journal entries                            |
+Four tabs (Home, Goals, Schedule, Profile) plus a few flow pages reached by
+link. `/progress`, `/history`, and `/journal` were retired 2026-07-16 — the
+per-goal graph moved onto `/goals` and `/goals/[id]`, and check-in history
+(with each day's journal note shown inline) moved into `/profile`.
+
+| Route          | Description                                                    |
+| --------------- | ---------------------------------------------------------------- |
+| `/login`       | Username entry (no password)                                     |
+| `/home`        | Today's scheduled goals + check-in/schedule-tomorrow entry points |
+| `/goals`       | Create, edit, pause/resume, delete goals; each goal card shows a compact habit-strength graph and the weekly key-capacity meter |
+| `/goals/[id]`  | One goal's full habit-strength graph (colored pass/fail points, green/red 14-day projection), times completed, 30-day pass rate |
+| `/onboarding`  | Guided first-run setup: pick or add goals, set weekly frequency (no difficulty question) |
+| `/plan`        | Night-before scheduling within the 100-key budget (`?for=today` grace path); the "Schedule" tab |
+| `/checkin`     | End-of-day pass/fail marks + optional private journal entry      |
+| `/profile`     | Rank/XP, check-in history with journal notes inline, and a collapsed Advanced section (check-in window settings, password-gated dev mode) |
 
 Plus `POST /api/login`, `GET /api/logout`, and `GET /api/cron/keepalive`
 (daily Supabase keepalive ping, see `vercel.json`).
@@ -88,16 +96,24 @@ domain imports NOTHING from outside itself
 Pure business rules, zero outside dependencies.
 
 - `entities/Goal.ts` — self-validating entity: freeform name, weekly
-  frequency target, difficulty, and a lock cost that trends toward 1
-  ("formed") on passed days and up (capped at 50) on failed ones.
+  frequency target, and a lock cost that trends toward 1 ("formed") on passed
+  days and up (capped at 50) on failed ones. No difficulty field — every goal
+  starts at the same cost (see `docs/lock-formula.md` §3.1).
 - `entities/DailyPlan.ts`, `CheckIn.ts`, `JournalEntry.ts`.
-- `value-objects/LocalDate.ts` — user-local calendar day (never server UTC).
+- `value-objects/LocalDate.ts` — user-local calendar day (never server UTC),
+  including `daysUntil` for the disuse-decay gap math below.
 - `value-objects/GoalSuggestions.ts` — optional "quick add" ideas, not a closed catalog.
-- `services/LockCostService.ts` — the cost-trajectory math.
+- `services/LockCostService.ts` — the cost-trajectory math, including disuse
+  decay (a goal unscheduled for a while drifts back toward neutral).
 - `services/GoalTrajectoryService.ts` — reconstructs a goal's full cost
-  history by replaying its check-ins (there's no cost-history table).
+  history by replaying its check-ins (there's no cost-history table),
+  applying decay across any gap beyond the stale threshold.
 - `repositories/` — repository interfaces (ports).
 - `errors/` — domain exceptions.
+
+The full formula — research grounding, every constant, worked examples — is
+`docs/lock-formula.md`; `docs/how-it-works.md` is the plain-language version
+for end users.
 
 ### `src/application/` — use cases
 

@@ -37,9 +37,9 @@ export class GetGoalStatsUseCase {
     const allCheckIns = await this.checkInRepository.findByUserId(dto.userId);
     const trajectory = trajectoryService.trajectoryFor(
       goal.id,
-      goal.difficulty,
       goal.weeklyFrequencyTarget,
       allCheckIns,
+      dto.today,
     );
 
     const goalCheckIns = allCheckIns.filter((checkIn) => checkIn.markFor(goal.id) !== undefined);
@@ -66,9 +66,13 @@ export class GetGoalStatsUseCase {
       label: goal.name,
       weeklyFrequencyTarget: goal.weeklyFrequencyTarget,
       trajectory: trajectory.points,
+      initialStrength: trajectory.initialStrength,
+      finalStrength: trajectory.finalStrength,
       timesCompleted: trajectory.timesCompleted,
       nextIfPass: trajectory.nextIfPass,
       nextIfFail: trajectory.nextIfFail,
+      projectionIfPass: trajectory.projectionIfPass,
+      projectionIfFail: trajectory.projectionIfFail,
       last30: { checkedInDays, passedDays, passRate },
       thisWeek: { completed: thisWeekCompleted, target: goal.weeklyFrequencyTarget },
     };

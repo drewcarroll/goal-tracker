@@ -9,10 +9,10 @@ export const metadata: Metadata = { title: "Set up goals · Goal Tracker" };
 export const dynamic = "force-dynamic";
 
 /**
- * Goal onboarding: pick suggested ideas (or type your own), sort them into a
- * difficulty + weekly frequency, confirm. Standalone (outside the tab shell)
- * since it's a wizard, not a persistent tab — reachable on first visit post-
- * login or again later from /goals.
+ * Goal onboarding: pick suggested ideas (or type your own), set a weekly
+ * frequency, confirm. Standalone (outside the tab shell) since it's a
+ * wizard, not a persistent tab — reachable on first visit post-login or
+ * again later from /goals.
  */
 export default async function OnboardingPage() {
   const { getGoalSuggestionsUseCase, getActiveGoalsUseCase } = getContainer();

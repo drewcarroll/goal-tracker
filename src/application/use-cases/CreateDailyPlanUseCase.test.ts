@@ -38,21 +38,20 @@ const NOW = new Date("2026-01-20T00:00:00.000Z");
 const fixedClock: Clock = { now: () => NOW };
 const fixedIds: IdGenerator = { generate: () => "plan-1" };
 
-function goal(id: string, difficulty: "easy" | "medium" | "hard", userId = "user-1") {
+function goal(id: string, initialLockCost: number, userId = "user-1") {
   return Goal.create({
     id,
     userId,
     name: "Exercise",
     weeklyFrequencyTarget: 3,
-    difficulty,
-    initialLockCost: { easy: 25, medium: 35, hard: 45 }[difficulty],
+    initialLockCost,
     now: NOW,
   });
 }
 
 describe("CreateDailyPlanUseCase", () => {
   it("sums the requested goals' server-side costs into locksSpent", async () => {
-    const goals = new InMemoryGoalRepository([goal("g1", "easy"), goal("g2", "medium")]);
+    const goals = new InMemoryGoalRepository([goal("g1", 25), goal("g2", 35)]);
     const plans = new InMemoryDailyPlanRepository();
     const useCase = new CreateDailyPlanUseCase(goals, plans, fixedIds, fixedClock);
 
@@ -68,11 +67,7 @@ describe("CreateDailyPlanUseCase", () => {
   });
 
   it("rejects a plan that exceeds the 100-lock budget", async () => {
-    const goals = new InMemoryGoalRepository([
-      goal("g1", "hard"),
-      goal("g2", "hard"),
-      goal("g3", "hard"),
-    ]);
+    const goals = new InMemoryGoalRepository([goal("g1", 45), goal("g2", 45), goal("g3", 45)]);
     const plans = new InMemoryDailyPlanRepository();
     const useCase = new CreateDailyPlanUseCase(goals, plans, fixedIds, fixedClock);
 
@@ -83,7 +78,7 @@ describe("CreateDailyPlanUseCase", () => {
   });
 
   it("rejects scheduling a goal the caller does not own", async () => {
-    const goals = new InMemoryGoalRepository([goal("g1", "easy", "someone-else")]);
+    const goals = new InMemoryGoalRepository([goal("g1", 25, "someone-else")]);
     const useCase = new CreateDailyPlanUseCase(
       goals,
       new InMemoryDailyPlanRepository(),
@@ -97,7 +92,7 @@ describe("CreateDailyPlanUseCase", () => {
   });
 
   it("rejects scheduling a paused goal", async () => {
-    const paused = goal("g1", "easy");
+    const paused = goal("g1", 25);
     paused.pause();
     const useCase = new CreateDailyPlanUseCase(
       new InMemoryGoalRepository([paused]),

@@ -10,10 +10,12 @@ import { IdGenerator } from "../ports/IdGenerator";
 import { Clock } from "../ports/Clock";
 
 /**
- * Use Case: create a single new goal, at the starting lock cost the CURRENT
- * formula config assigns its difficulty (initial costs are dev-tweakable).
- * Blocked when the new goal would overflow the weekly lock capacity — taking
- * on more commitment requires making room first.
+ * Use Case: create a single new goal, at the CURRENT formula config's
+ * uniform starting lock cost (dev-tweakable) — there is no difficulty
+ * guess; the goal's own pass/fail history is what differentiates it from
+ * here (docs/lock-formula.md §3.1). Blocked when the new goal would overflow
+ * the weekly lock capacity — taking on more commitment requires making room
+ * first.
  */
 export class CreateGoalUseCase {
   constructor(
@@ -25,10 +27,7 @@ export class CreateGoalUseCase {
 
   async execute(dto: CreateGoalDTO): Promise<GoalDTO> {
     const config = await this.configRepository.getLockFormulaConfig();
-    const initialLockCost = new LockCostService(config).initialCostFor(
-      dto.difficulty,
-      dto.weeklyFrequencyTarget,
-    );
+    const initialLockCost = new LockCostService(config).initialCostFor(dto.weeklyFrequencyTarget);
 
     const existing = await this.goalRepository.findByUserId(dto.userId);
     const activeLocks = existing
@@ -43,8 +42,8 @@ export class CreateGoalUseCase {
       userId: dto.userId,
       name: dto.name,
       weeklyFrequencyTarget: dto.weeklyFrequencyTarget,
-      difficulty: dto.difficulty,
       initialLockCost,
+      isPublic: dto.isPublic,
       now: this.clock.now(),
     });
 

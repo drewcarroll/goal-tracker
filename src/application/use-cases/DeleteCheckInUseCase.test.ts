@@ -12,6 +12,9 @@ import {
 } from "../../domain/value-objects/LockFormulaConfig";
 import { CheckInNotFoundError } from "../errors/ApplicationError";
 import { GoalCostRecomputeService } from "../services/GoalCostRecomputeService";
+import { Clock } from "../ports/Clock";
+
+const fixedClock: Clock = { now: () => new Date("2026-01-02T00:00:00.000Z") };
 
 class InMemoryGoalRepository implements GoalRepository {
   constructor(private readonly goals: Goal[]) {}
@@ -56,8 +59,7 @@ function goal(id: string) {
     userId: "user-1",
     name: "Exercise",
     weeklyFrequencyTarget: 7,
-    difficulty: "easy",
-    initialLockCost: 25,
+    initialLockCost: 20,
     now: new Date("2026-01-01T00:00:00.000Z"),
   });
 }
@@ -82,6 +84,7 @@ function buildUseCase(goals: Goal[], checkIns: CheckIn[]) {
         goalRepository,
         checkInRepository,
         new InMemoryConfigRepository(),
+        fixedClock,
       ),
     ),
     checkInRepository,
@@ -100,7 +103,7 @@ describe("DeleteCheckInUseCase", () => {
 
     expect(checkInRepository.checkIns).toHaveLength(0);
     // No check-ins left at all -> falls back to the starting cost.
-    expect(g1.currentLockCost).toBe(25);
+    expect(g1.currentLockCost).toBe(20);
   });
 
   it("recomputes forward: removing an earlier day still leaves later days correct", async () => {
@@ -115,8 +118,8 @@ describe("DeleteCheckInUseCase", () => {
 
     await useCase.execute({ userId: "user-1", date: "2026-01-01" });
 
-    // Only day 2 remains, replayed as the goal's FIRST day: easy pass 25 → 21.
-    expect(g1.currentLockCost).toBe(21);
+    // Only day 2 remains, replayed as the goal's FIRST day: pass 20 → 17.
+    expect(g1.currentLockCost).toBe(17);
   });
 
   it("rejects deleting a day with no existing check-in", async () => {

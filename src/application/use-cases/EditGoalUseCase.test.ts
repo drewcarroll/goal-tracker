@@ -12,6 +12,11 @@ import {
 } from "../../domain/value-objects/LockFormulaConfig";
 import { GoalNotFoundError } from "../errors/ApplicationError";
 import { GoalCostRecomputeService } from "../services/GoalCostRecomputeService";
+import { Clock } from "../ports/Clock";
+
+// Close to the check-ins used below, so recompute's disuse decay (10-day
+// stale threshold) never accidentally kicks in on these tests.
+const recomputeClock: Clock = { now: () => new Date("2026-01-06T00:00:00.000Z") };
 
 class InMemoryGoalRepository implements GoalRepository {
   constructor(private readonly goals: Goal[]) {}
@@ -53,8 +58,7 @@ function goal(id: string, userId: string, weeklyFrequencyTarget = 7) {
     userId,
     name: "Exercise",
     weeklyFrequencyTarget,
-    difficulty: "medium",
-    initialLockCost: 35,
+    initialLockCost: 20,
     now: NOW,
   });
 }
@@ -64,7 +68,12 @@ function buildUseCase(goals: Goal[], checkIns: CheckIn[] = []) {
   const checkInRepository = new InMemoryCheckInRepository(checkIns);
   return new EditGoalUseCase(
     goalRepository,
-    new GoalCostRecomputeService(goalRepository, checkInRepository, new InMemoryConfigRepository()),
+    new GoalCostRecomputeService(
+      goalRepository,
+      checkInRepository,
+      new InMemoryConfigRepository(),
+      recomputeClock,
+    ),
   );
 }
 
@@ -77,10 +86,25 @@ describe("EditGoalUseCase", () => {
       goalId: "g1",
       name: "Exercise daily",
       weeklyFrequencyTarget: 7,
+      isPublic: true,
     });
 
     expect(result.name).toBe("Exercise daily");
-    expect(result.currentLockCost).toBe(35);
+    expect(result.currentLockCost).toBe(20);
+  });
+
+  it("updates privacy", async () => {
+    const useCase = buildUseCase([goal("g1", "user-1")]);
+
+    const result = await useCase.execute({
+      userId: "user-1",
+      goalId: "g1",
+      name: "Exercise",
+      weeklyFrequencyTarget: 7,
+      isPublic: false,
+    });
+
+    expect(result.isPublic).toBe(false);
   });
 
   it("recomputes the cost when the weekly target changes (commitment pricing)", async () => {
@@ -91,11 +115,12 @@ describe("EditGoalUseCase", () => {
       goalId: "g1",
       name: "Exercise",
       weeklyFrequencyTarget: 1,
+      isPublic: true,
     });
 
-    // No history: cost = 35·φ(1) = 35·0.5 = 17.5 → 18. Locks drop with the target.
+    // No history: cost = 20·φ(1) = 20·0.5 = 10. Locks drop with the target.
     expect(result.weeklyFrequencyTarget).toBe(1);
-    expect(result.currentLockCost).toBe(18);
+    expect(result.currentLockCost).toBe(10);
   });
 
   it("lowering the target re-prices history but never erases a miss", async () => {
@@ -114,17 +139,24 @@ describe("EditGoalUseCase", () => {
       goalId: "g1",
       name: "Exercise",
       weeklyFrequencyTarget: 4,
+      isPublic: true,
     });
 
-    // The miss still counts (base 39.5), only the pricing changes: ·φ(4)=0.75 → 30.
-    expect(result.currentLockCost).toBe(30);
+    // The miss still counts (base 25.7), only the pricing changes: ·φ(4)=0.75 → 19.
+    expect(result.currentLockCost).toBe(19);
   });
 
   it("rejects editing a goal the caller does not own", async () => {
     const useCase = buildUseCase([goal("g1", "user-1")]);
 
     await expect(
-      useCase.execute({ userId: "intruder", goalId: "g1", name: "x", weeklyFrequencyTarget: 1 }),
+      useCase.execute({
+        userId: "intruder",
+        goalId: "g1",
+        name: "x",
+        weeklyFrequencyTarget: 1,
+        isPublic: true,
+      }),
     ).rejects.toBeInstanceOf(GoalNotFoundError);
   });
 
@@ -132,7 +164,13 @@ describe("EditGoalUseCase", () => {
     const useCase = buildUseCase([goal("g1", "user-1")]);
 
     await expect(
-      useCase.execute({ userId: "user-1", goalId: "g1", name: "", weeklyFrequencyTarget: 3 }),
+      useCase.execute({
+        userId: "user-1",
+        goalId: "g1",
+        name: "",
+        weeklyFrequencyTarget: 3,
+        isPublic: true,
+      }),
     ).rejects.toThrow();
   });
 });

@@ -10,6 +10,11 @@ import {
   DEFAULT_LOCK_FORMULA_CONFIG,
   type LockFormulaConfig,
 } from "../../domain/value-objects/LockFormulaConfig";
+import { Clock } from "../ports/Clock";
+
+// Matches the check-ins' dates in every test below, so no test accidentally
+// triggers disuse decay (well under the default 10-day stale threshold).
+const fixedClock: Clock = { now: () => new Date("2026-01-02T00:00:00.000Z") };
 
 class InMemoryGoalRepository implements GoalRepository {
   constructor(private readonly goals: Goal[]) {}
@@ -63,6 +68,7 @@ function buildService(goals: Goal[], checkIns: CheckIn[]) {
     new InMemoryGoalRepository(goals),
     new InMemoryCheckInRepository(checkIns),
     new InMemoryConfigRepository(),
+    fixedClock,
   );
 }
 
@@ -75,38 +81,38 @@ describe("GoalCostRecomputeService", () => {
       userId: "user-1",
       name: "Exercise",
       weeklyFrequencyTarget: 7,
-      difficulty: "easy", // starts at 25
       currentLockCost: 7, // deliberately wrong — must be overwritten by recompute
       state: "active",
+      isPublic: true,
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
     });
     const checkIns = [
-      checkIn("2026-01-01", [{ goalId: "g1", passed: true }]), // κ=2.50 → H=0.18   → 21
-      checkIn("2026-01-02", [{ goalId: "g1", passed: true }]), // κ=2.35 → H≈0.319 → 17
+      checkIn("2026-01-01", [{ goalId: "g1", passed: true }]), // κ=2.50 → H=0.15    → 17
+      checkIn("2026-01-02", [{ goalId: "g1", passed: true }]), // κ=2.35 → H≈0.2699 → 15
     ];
     const service = buildService([goal], checkIns);
 
     await service.recompute("user-1", "g1");
 
-    expect(goal.currentLockCost).toBe(17);
+    expect(goal.currentLockCost).toBe(15);
   });
 
-  it("falls back to the difficulty's starting cost when there's no check-in history", async () => {
+  it("falls back to the configured starting cost when there's no check-in history", async () => {
     const goal = Goal.rehydrate({
       id: "g1",
       userId: "user-1",
       name: "Exercise",
       weeklyFrequencyTarget: 7,
-      difficulty: "hard", // starts at 45
       currentLockCost: 10,
       state: "active",
+      isPublic: true,
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
     });
     const service = buildService([goal], []);
 
     await service.recompute("user-1", "g1");
 
-    expect(goal.currentLockCost).toBe(45);
+    expect(goal.currentLockCost).toBe(20);
   });
 
   it("is a no-op when the goal no longer exists", async () => {
@@ -121,8 +127,7 @@ describe("GoalCostRecomputeService", () => {
       userId: "user-1",
       name: "Exercise",
       weeklyFrequencyTarget: 7,
-      difficulty: "easy",
-      initialLockCost: 25,
+      initialLockCost: 20,
       now: new Date("2026-01-01T00:00:00.000Z"),
     });
     const g2 = Goal.create({
@@ -130,8 +135,7 @@ describe("GoalCostRecomputeService", () => {
       userId: "user-1",
       name: "Meditate",
       weeklyFrequencyTarget: 7,
-      difficulty: "medium",
-      initialLockCost: 35,
+      initialLockCost: 20,
       now: new Date("2026-01-01T00:00:00.000Z"),
     });
     const checkIns = [
@@ -146,8 +150,8 @@ describe("GoalCostRecomputeService", () => {
 
     // g1 passed → its cost DROPS even though g2's miss failed the day;
     // g2's own fail pushes only g2 up. (Phase 6 per-goal contingency.)
-    expect(g1.currentLockCost).toBe(21); // easy pass, κ=2.5 → H=0.18 → 21
-    expect(g2.currentLockCost).toBe(40); // medium first-day fail → 40 (docs §6.2)
+    expect(g1.currentLockCost).toBe(17); // pass, κ=2.5 → H=0.15 → 17
+    expect(g2.currentLockCost).toBe(26); // first-day fail → 26 (docs §6.2)
   });
 
   it("recomputes with the CURRENT config (dev-mode tweaks are retroactive)", async () => {
@@ -156,8 +160,7 @@ describe("GoalCostRecomputeService", () => {
       userId: "user-1",
       name: "Exercise",
       weeklyFrequencyTarget: 7,
-      difficulty: "medium",
-      initialLockCost: 35,
+      initialLockCost: 20,
       now: new Date("2026-01-01T00:00:00.000Z"),
     });
     const checkIns = [checkIn("2026-01-01", [{ goalId: "g1", passed: true }])];
@@ -169,11 +172,12 @@ describe("GoalCostRecomputeService", () => {
         calibrationBoost: 1, // no calibration phase
         gainRate: 0.1,
       }),
+      fixedClock,
     );
 
     await service.recompute("user-1", "g1");
 
-    // gain = 0.1·(1−0) = 0.1 → cost = 1 + 34·0.9 = 31.6 → 32 (not the default 30)
-    expect(goal.currentLockCost).toBe(32);
+    // gain = 0.1·(1−0) = 0.1 → cost = 1 + 19·0.9 = 18.1 → 18 (not the default 17)
+    expect(goal.currentLockCost).toBe(18);
   });
 });

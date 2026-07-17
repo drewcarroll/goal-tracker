@@ -11,12 +11,15 @@ import { ValidationError } from "../errors/DomainError";
  * replayed trajectories (see docs/lock-formula.md §5).
  */
 export interface LockFormulaConfig {
-  /** Lock cost of a brand-new goal, per difficulty (C0). */
-  initialCost: { easy: number; medium: number; hard: number };
+  /**
+   * Lock cost of a brand-new goal (C0), uniform across all goals — there is
+   * no difficulty tier (removed 2026-07-16, see docs/lock-formula.md §3.1).
+   * The goal's own pass/fail history is the only thing that differentiates
+   * an easy goal from a hard one from here.
+   */
+  initialCost: number;
   /** Base fraction of the remaining gap closed per pass (g). */
   gainRate: number;
-  /** Per-difficulty multiplier on the gain rate (μ) — easy forms faster. */
-  difficultyGainMultiplier: { easy: number; medium: number; hard: number };
   /** Fail rate as a multiple of the pass rate (λ, Tversky–Kahneman ≈ 2). */
   lossAversion: number;
   /** Multiplier per additional consecutive fail (f, "don't miss twice"). */
@@ -35,12 +38,24 @@ export interface LockFormulaConfig {
    * 1×/week goal pays (1−w). 0 disables commitment pricing.
    */
   frequencyWeight: number;
+  /**
+   * Consecutive calendar days a goal can go unscheduled (not appear in ANY
+   * daily plan) before disuse decay starts (docs/lock-formula.md §3.6). A
+   * short break under this threshold has no effect at all.
+   */
+  staleAfterDays: number;
+  /**
+   * Fraction of the remaining distance to NEUTRAL (H=0, not the punishing
+   * floor) that closes per stale day beyond staleAfterDays. This is entropy,
+   * not judgment: a formed habit gets a little rusty, a struggling one gets
+   * a clean slate — see docs/lock-formula.md §3.6. 0 disables decay entirely.
+   */
+  decayRate: number;
 }
 
 export const DEFAULT_LOCK_FORMULA_CONFIG: LockFormulaConfig = {
-  initialCost: { easy: 25, medium: 35, hard: 45 },
+  initialCost: 20,
   gainRate: 0.06,
-  difficultyGainMultiplier: { easy: 1.2, medium: 1.0, hard: 0.85 },
   lossAversion: 2.0,
   failEscalation: 1.7,
   maxEscalationCount: 4,
@@ -48,6 +63,8 @@ export const DEFAULT_LOCK_FORMULA_CONFIG: LockFormulaConfig = {
   calibrationDays: 10,
   minStrength: -1,
   frequencyWeight: 0.5,
+  staleAfterDays: 10,
+  decayRate: 0.03,
 };
 
 interface NumericBound {
@@ -58,13 +75,8 @@ interface NumericBound {
 
 /** Sane ranges, mirrored in docs/lock-formula.md §4. Dev mode enforces these. */
 export const LOCK_FORMULA_BOUNDS: Record<string, NumericBound> = {
-  "initialCost.easy": { min: 5, max: 49, integer: true },
-  "initialCost.medium": { min: 5, max: 49, integer: true },
-  "initialCost.hard": { min: 5, max: 49, integer: true },
+  initialCost: { min: 5, max: 49, integer: true },
   gainRate: { min: 0.01, max: 0.25 },
-  "difficultyGainMultiplier.easy": { min: 0.5, max: 2 },
-  "difficultyGainMultiplier.medium": { min: 0.5, max: 2 },
-  "difficultyGainMultiplier.hard": { min: 0.5, max: 2 },
   lossAversion: { min: 1, max: 3 },
   failEscalation: { min: 1, max: 3 },
   maxEscalationCount: { min: 1, max: 10, integer: true },
@@ -72,6 +84,8 @@ export const LOCK_FORMULA_BOUNDS: Record<string, NumericBound> = {
   calibrationDays: { min: 0, max: 30, integer: true },
   minStrength: { min: -3, max: -0.1 },
   frequencyWeight: { min: 0, max: 0.8 },
+  staleAfterDays: { min: 3, max: 60, integer: true },
+  decayRate: { min: 0, max: 0.2 },
 };
 
 function readPath(config: LockFormulaConfig, path: string): unknown {
@@ -107,14 +121,6 @@ export function lockFormulaConfigFrom(override: unknown): LockFormulaConfig {
   const config: LockFormulaConfig = {
     ...DEFAULT_LOCK_FORMULA_CONFIG,
     ...partial,
-    initialCost: {
-      ...DEFAULT_LOCK_FORMULA_CONFIG.initialCost,
-      ...(partial.initialCost ?? {}),
-    },
-    difficultyGainMultiplier: {
-      ...DEFAULT_LOCK_FORMULA_CONFIG.difficultyGainMultiplier,
-      ...(partial.difficultyGainMultiplier ?? {}),
-    },
   };
   assertValidLockFormulaConfig(config);
   return config;

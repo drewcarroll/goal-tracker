@@ -38,7 +38,7 @@ let counter = 0;
 const fixedIds: IdGenerator = { generate: () => `goal-${++counter}` };
 
 describe("CreateGoalsFromOnboardingUseCase", () => {
-  it("creates one goal per selection, each at its difficulty's starting cost", async () => {
+  it("creates one goal per selection, each at the uniform starting cost", async () => {
     const repo = new InMemoryGoalRepository();
     const useCase = new CreateGoalsFromOnboardingUseCase(
       repo,
@@ -50,14 +50,14 @@ describe("CreateGoalsFromOnboardingUseCase", () => {
     const result = await useCase.execute({
       userId: "user-1",
       selections: [
-        { name: "Exercise", weeklyFrequencyTarget: 7, difficulty: "easy" },
-        { name: "Meditate", weeklyFrequencyTarget: 7, difficulty: "hard" },
+        { name: "Exercise", weeklyFrequencyTarget: 7 },
+        { name: "Meditate", weeklyFrequencyTarget: 4 },
       ],
     });
 
     expect(result).toHaveLength(2);
-    expect(result[0]).toMatchObject({ name: "Exercise", currentLockCost: 25, state: "active" });
-    expect(result[1]).toMatchObject({ name: "Meditate", currentLockCost: 45, state: "active" });
+    expect(result[0]).toMatchObject({ name: "Exercise", currentLockCost: 20, state: "active" });
+    expect(result[1]).toMatchObject({ name: "Meditate", currentLockCost: 15, state: "active" }); // φ(4)=0.75
     expect(repo.saved).toHaveLength(2);
     expect(repo.saved.every((g) => g.userId === "user-1")).toBe(true);
   });
@@ -71,14 +71,14 @@ describe("CreateGoalsFromOnboardingUseCase", () => {
       fixedClock,
     );
 
+    // Six 7×/week goals at 20 each = 120 > 100.
     await expect(
       useCase.execute({
         userId: "user-1",
-        selections: [
-          { name: "A", weeklyFrequencyTarget: 7, difficulty: "hard" }, // 45
-          { name: "B", weeklyFrequencyTarget: 7, difficulty: "hard" }, // 45
-          { name: "C", weeklyFrequencyTarget: 7, difficulty: "medium" }, // 35 → 125 > 100
-        ],
+        selections: ["A", "B", "C", "D", "E", "F"].map((name) => ({
+          name,
+          weeklyFrequencyTarget: 7,
+        })),
       }),
     ).rejects.toMatchObject({ code: "LOCK_CAPACITY_EXCEEDED" });
     expect(repo.saved).toHaveLength(0); // atomic: no partial batch

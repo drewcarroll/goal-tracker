@@ -4,8 +4,8 @@
  * Weekly-frequency picker: a 1-7 slider with tick labels and a live value
  * readout. Replaces the old number input (which invited values like "07").
  * The hint line makes the commitment trade-off visible: more days per week
- * means a higher lock cost and zero slack at 7; fewer days means cheaper
- * locks and room to shuffle the schedule inside the week.
+ * means more keys to unlock it and zero slack at 7; fewer days means fewer
+ * keys and room to shuffle the schedule inside the week.
  */
 export function FrequencySlider({
   value,
@@ -43,7 +43,7 @@ export function FrequencySlider({
       </div>
       {showHint && (
         <p className="mt-1.5 text-xs text-gray-400">
-          More days per week costs more locks. A scheduled day you skip always counts against the
+          More days per week costs more keys. A scheduled day you skip always counts against the
           goal.
         </p>
       )}

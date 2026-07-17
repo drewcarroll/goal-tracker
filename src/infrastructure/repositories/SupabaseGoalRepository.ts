@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { Goal, type GoalDifficulty, type GoalState } from "@/domain/entities/Goal";
+import { Goal, type GoalState } from "@/domain/entities/Goal";
 import { GoalRepository } from "@/domain/repositories/GoalRepository";
 
 const GOALS_TABLE = "habits"; // physical table name predates the Goal/Habit merge — see docs/plan.md
@@ -10,9 +10,9 @@ interface GoalRow {
   user_id: string;
   name: string;
   weekly_frequency_target: number;
-  difficulty: GoalDifficulty;
   current_lock_cost: number;
   state: GoalState;
+  is_public: boolean;
   created_at: string;
 }
 
@@ -56,9 +56,9 @@ export class SupabaseGoalRepository implements GoalRepository {
         user_id: goal.userId,
         name: goal.name,
         weekly_frequency_target: goal.weeklyFrequencyTarget,
-        difficulty: goal.difficulty,
         current_lock_cost: goal.currentLockCost,
         state: goal.state,
+        is_public: goal.isPublic,
         created_at: goal.createdAt.toISOString(),
       },
       { onConflict: "id" },
@@ -81,9 +81,9 @@ export class SupabaseGoalRepository implements GoalRepository {
       userId: row.user_id,
       name: row.name,
       weeklyFrequencyTarget: row.weekly_frequency_target,
-      difficulty: row.difficulty,
       currentLockCost: row.current_lock_cost,
       state: row.state,
+      isPublic: row.is_public,
       createdAt: new Date(row.created_at),
     });
   }

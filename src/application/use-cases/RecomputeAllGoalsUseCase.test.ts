@@ -11,6 +11,9 @@ import {
   type LockFormulaConfig,
 } from "../../domain/value-objects/LockFormulaConfig";
 import { GoalCostRecomputeService } from "../services/GoalCostRecomputeService";
+import { Clock } from "../ports/Clock";
+
+const fixedClock: Clock = { now: () => new Date("2026-01-02T00:00:00.000Z") };
 
 class InMemoryGoalRepository implements GoalRepository {
   constructor(private readonly goals: Goal[]) {}
@@ -52,8 +55,7 @@ describe("RecomputeAllGoalsUseCase", () => {
       userId: "user-1",
       name: "Exercise",
       weeklyFrequencyTarget: 7,
-      difficulty: "medium",
-      initialLockCost: 35,
+      initialLockCost: 20,
       now: new Date("2026-01-01T00:00:00.000Z"),
     });
     const checkIns = [
@@ -69,13 +71,18 @@ describe("RecomputeAllGoalsUseCase", () => {
     const checkInRepository = new InMemoryCheckInRepository(checkIns);
     const useCase = new RecomputeAllGoalsUseCase(
       goalRepository,
-      new GoalCostRecomputeService(goalRepository, checkInRepository, new TweakedConfigRepository()),
+      new GoalCostRecomputeService(
+        goalRepository,
+        checkInRepository,
+        new TweakedConfigRepository(),
+        fixedClock,
+      ),
     );
 
     const result = await useCase.execute({ userId: "user-1" });
 
     expect(result.recomputed).toBe(1);
-    // Under the tweaked config: gain 0.12 → H=0.12 → cost 1 + 34·0.88 = 30.92 → 31.
-    expect(g1.currentLockCost).toBe(31);
+    // Under the tweaked config: gain 0.12 → H=0.12 → cost 1 + 19·0.88 = 17.72 → 18.
+    expect(g1.currentLockCost).toBe(18);
   });
 });

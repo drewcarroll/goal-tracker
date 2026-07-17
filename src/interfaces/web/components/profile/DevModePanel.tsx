@@ -1,15 +1,21 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import type { LockFormulaConfigDTO } from "@/application/use-cases/GetLockFormulaConfigUseCase";
-import { AlertTriangleIcon, WrenchIcon } from "@/interfaces/web/components/icons";
-import {
-  lockDevModeAction,
-  recomputeAllGoalsAction,
-  resetLockFormulaAction,
-  saveLockFormulaAction,
-  unlockDevModeAction,
-} from "@/interfaces/web/app/(app)/profile/actions";
+import { AlertTriangleIcon } from "@/interfaces/web/components/icons";
+
+interface ConfigDTO {
+  config: object;
+  defaults: object;
+  bounds: Record<string, { min: number; max: number; integer?: boolean }>;
+}
+
+type ActionResult = { ok: true } | { ok: false; error: string };
+
+export interface DevModePanelExtraAction {
+  label: string;
+  onClick: () => Promise<ActionResult>;
+  successText: string;
+}
 
 function readPath(config: object, path: string): number {
   return path
@@ -32,19 +38,28 @@ function buildNested(flat: Record<string, number>): Record<string, unknown> {
 }
 
 /**
- * The password-gated constants editor (docs/progression.md §4). Every knob of
- * the lock formula (docs/lock-formula.md §4), with save / reset-to-defaults /
- * recompute-all. Changes are retroactive: trajectories redraw as if the new
- * constants had always applied.
+ * A single constants editor panel — generic over whichever config it's
+ * pointed at (lock formula, economy, ...). The password gate itself lives
+ * one level up in DevModeGate, since dev mode is one cookie shared by every
+ * panel, not a per-panel concept.
  */
 export function DevModePanel({
-  unlocked,
+  title,
+  hint,
+  warning,
   configDto,
+  onSave,
+  onReset,
+  extraActions,
 }: {
-  unlocked: boolean;
-  configDto: LockFormulaConfigDTO | null;
+  title: string;
+  hint: string;
+  warning?: string;
+  configDto: ConfigDTO | null;
+  onSave: (config: Record<string, unknown>) => Promise<ActionResult>;
+  onReset: () => Promise<ActionResult>;
+  extraActions?: DevModePanelExtraAction[];
 }) {
-  const [password, setPassword] = useState("");
   const [message, setMessage] = useState<{ kind: "error" | "ok"; text: string } | null>(null);
   const [pending, startTransition] = useTransition();
   const [values, setValues] = useState<Record<string, string>>(() =>
@@ -58,7 +73,7 @@ export function DevModePanel({
       : {},
   );
 
-  function run(action: () => Promise<{ ok: boolean; error?: string }>, okText: string) {
+  function run(action: () => Promise<ActionResult>, okText: string) {
     setMessage(null);
     startTransition(async () => {
       const result = await action();
@@ -70,37 +85,6 @@ export function DevModePanel({
     });
   }
 
-  if (!unlocked) {
-    return (
-      <div className="flex flex-col gap-3 rounded-2xl border border-dashed border-gray-300 bg-white p-5">
-        <h2 className="font-semibold text-gray-900">Developer mode</h2>
-        <p className="text-sm text-gray-600">Tweak the lock-formula constants. Password required.</p>
-        {message && (
-          <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
-            {message.text}
-          </p>
-        )}
-        <div className="flex min-w-0 items-stretch gap-2">
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Password"
-            className="w-full min-w-0 flex-1 rounded-xl border border-gray-300 bg-white px-3.5 py-2.5 text-base text-gray-900 shadow-sm outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/30"
-          />
-          <button
-            type="button"
-            onClick={() => run(() => unlockDevModeAction(password), "Unlocked.")}
-            disabled={pending || password.length === 0}
-            className="shrink-0 whitespace-nowrap rounded-xl bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-gray-700 disabled:opacity-60"
-          >
-            {pending ? "…" : "Unlock"}
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   if (!configDto) return null;
 
   function handleSave() {
@@ -108,38 +92,22 @@ export function DevModePanel({
     for (const [path, raw] of Object.entries(values)) {
       flat[path] = Number(raw);
     }
-    run(() => saveLockFormulaAction(buildNested(flat)), "Saved. Trajectories now use these constants.");
+    run(() => onSave(buildNested(flat)), "Saved.");
   }
 
   return (
     <div className="flex flex-col gap-4 rounded-2xl border border-gray-900/20 bg-white p-5 shadow-sm">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h2 className="inline-flex items-center gap-2 font-semibold text-gray-900">
-            <WrenchIcon className="h-4 w-4 text-gray-400" />
-            Developer mode
-          </h2>
-          <p className="mt-1 text-sm text-gray-600">
-            The lock formula&apos;s constants. See docs/lock-formula.md for what each one does.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => run(() => lockDevModeAction(), "Locked.")}
-          className="shrink-0 text-sm font-medium text-gray-500 hover:underline"
-        >
-          Lock
-        </button>
+      <div>
+        <h3 className="font-semibold text-gray-900">{title}</h3>
+        <p className="mt-1 text-sm text-gray-600">{hint}</p>
       </div>
 
-      <p className="flex items-start gap-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
-        <AlertTriangleIcon className="mt-0.5 h-4 w-4 shrink-0" />
-        <span>
-          Changing constants rewrites all historical trajectories (costs are replayed from
-          scratch). Stored costs refresh on the next check-in per goal, or press “Recompute all”
-          to refresh them now.
-        </span>
-      </p>
+      {warning && (
+        <p className="flex items-start gap-2 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          <AlertTriangleIcon className="mt-0.5 h-4 w-4 shrink-0" />
+          <span>{warning}</span>
+        </p>
+      )}
 
       {message && (
         <p
@@ -178,27 +146,23 @@ export function DevModePanel({
       <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
         <button
           type="button"
-          onClick={() =>
-            run(() => resetLockFormulaAction(), "Reset to defaults. Reload to see fresh values.")
-          }
+          onClick={() => run(() => onReset(), "Reset to defaults. Reload to see fresh values.")}
           disabled={pending}
           className="rounded-xl border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 disabled:opacity-60"
         >
           Reset to defaults
         </button>
-        <button
-          type="button"
-          onClick={() =>
-            run(async () => {
-              const result = await recomputeAllGoalsAction();
-              return result.ok ? { ok: true } : result;
-            }, "All goals recomputed under the current constants.")
-          }
-          disabled={pending}
-          className="rounded-xl border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 disabled:opacity-60"
-        >
-          Recompute all goals
-        </button>
+        {extraActions?.map((action) => (
+          <button
+            key={action.label}
+            type="button"
+            onClick={() => run(action.onClick, action.successText)}
+            disabled={pending}
+            className="rounded-xl border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 disabled:opacity-60"
+          >
+            {action.label}
+          </button>
+        ))}
         <button
           type="button"
           onClick={handleSave}

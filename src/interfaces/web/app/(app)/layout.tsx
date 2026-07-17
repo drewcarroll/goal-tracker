@@ -5,8 +5,9 @@ import { getContainer } from "@/infrastructure/container";
 import { TabNavigation } from "@/interfaces/web/components/navigation/TabNavigation";
 import { RankBadge } from "@/interfaces/web/components/profile/RankBadge";
 import { rankVisual } from "@/interfaces/web/components/profile/rankColors";
+import { MaintenanceBanner } from "@/interfaces/web/components/MaintenanceBanner";
 import { USER_COOKIE } from "@/interfaces/web/http/session";
-import { currentUserId } from "@/interfaces/web/http/currentUser";
+import { currentUserId, currentTimezone } from "@/interfaces/web/http/currentUser";
 
 // Every tab reads live data per request, so this whole segment must never be
 // statically prerendered (the data only exists at runtime, behind the gate).
@@ -23,6 +24,11 @@ export const dynamic = "force-dynamic";
  * (docs/progression.md §2.3).
  */
 export default async function AppShellLayout({ children }: { children: ReactNode }) {
+  const { getMaintenanceStatusUseCase } = getContainer();
+  if (getMaintenanceStatusUseCase.execute(currentTimezone()).blocked) {
+    return <MaintenanceBanner />;
+  }
+
   const username = cookies().get(USER_COOKIE)?.value ?? "";
   const { getRankUseCase } = getContainer();
   const rank = await getRankUseCase.execute({ userId: currentUserId() });

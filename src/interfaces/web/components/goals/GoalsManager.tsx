@@ -1,9 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition } from "react";
-import type { GoalDTO, GoalDifficulty } from "@/application/dtos/GoalDTO";
-import type { GoalSuggestionDTO } from "@/application/dtos/GoalDTO";
+import type { GoalDTO, GoalSuggestionDTO } from "@/application/dtos/GoalDTO";
+import type { GoalStatsDTO } from "@/application/dtos/GoalStatsDTO";
 import { FrequencySlider } from "./FrequencySlider";
+import { HabitStrengthChart } from "./HabitStrengthChart";
+import { ChevronRightIcon } from "@/interfaces/web/components/icons";
 import {
   createGoalAction,
   editGoalAction,
@@ -11,20 +14,18 @@ import {
   deleteGoalAction,
 } from "@/interfaces/web/app/(app)/goals/actions";
 
-const DIFFICULTIES: { value: GoalDifficulty; label: string; classes: string }[] = [
-  { value: "easy", label: "Easy", classes: "border-green-300 bg-green-50 text-green-800" },
-  { value: "medium", label: "Medium", classes: "border-amber-300 bg-amber-50 text-amber-800" },
-  { value: "hard", label: "Hard", classes: "border-orange-300 bg-orange-50 text-orange-800" },
-];
-
 export function GoalsManager({
   initialGoals,
   suggestions,
   capacity,
+  statsByGoalId,
+  today,
 }: {
   initialGoals: GoalDTO[];
   suggestions: GoalSuggestionDTO[];
   capacity: number;
+  statsByGoalId: Record<string, GoalStatsDTO>;
+  today: string;
 }) {
   const [goals, setGoals] = useState<GoalDTO[]>(initialGoals);
 
@@ -50,7 +51,7 @@ export function GoalsManager({
       {goals.length > 0 && (
         <div className="rounded-2xl border border-gray-900/[0.06] bg-white p-4 shadow-sm">
           <div className="flex items-baseline justify-between gap-3">
-            <span className="text-sm font-medium text-gray-700">This week&apos;s locks</span>
+            <span className="text-sm font-medium text-gray-700">This week&apos;s keys</span>
             <span className={`text-sm font-bold ${over ? "text-red-600" : "text-gray-900"}`}>
               {committed} / {capacity}
             </span>
@@ -65,7 +66,7 @@ export function GoalsManager({
           </div>
           {over && (
             <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
-              Your goals cost more than {capacity} locks now. Pause or delete one, or lower a
+              Your goals cost more than {capacity} keys now. Pause or delete one, or lower a
               weekly target, to fit the week.
             </p>
           )}
@@ -82,7 +83,14 @@ export function GoalsManager({
         <>
           <ul className="flex flex-col gap-2">
             {active.map((goal) => (
-              <GoalCard key={goal.id} goal={goal} onUpdated={upsert} onDeleted={remove} />
+              <GoalCard
+                key={goal.id}
+                goal={goal}
+                stats={statsByGoalId[goal.id]}
+                today={today}
+                onUpdated={upsert}
+                onDeleted={remove}
+              />
             ))}
           </ul>
           {paused.length > 0 && (
@@ -92,7 +100,14 @@ export function GoalsManager({
               </h2>
               <ul className="flex flex-col gap-2">
                 {paused.map((goal) => (
-                  <GoalCard key={goal.id} goal={goal} onUpdated={upsert} onDeleted={remove} />
+                  <GoalCard
+                    key={goal.id}
+                    goal={goal}
+                    stats={statsByGoalId[goal.id]}
+                    today={today}
+                    onUpdated={upsert}
+                    onDeleted={remove}
+                  />
                 ))}
               </ul>
             </div>
@@ -105,16 +120,21 @@ export function GoalsManager({
 
 function GoalCard({
   goal,
+  stats,
+  today,
   onUpdated,
   onDeleted,
 }: {
   goal: GoalDTO;
+  stats: GoalStatsDTO | undefined;
+  today: string;
   onUpdated: (goal: GoalDTO) => void;
   onDeleted: (goalId: string) => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(goal.name);
   const [weeklyFrequencyTarget, setWeeklyFrequencyTarget] = useState(goal.weeklyFrequencyTarget);
+  const [isPublic, setIsPublic] = useState(goal.isPublic);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -122,7 +142,7 @@ function GoalCard({
   function handleSaveEdit() {
     setError(null);
     startTransition(async () => {
-      const result = await editGoalAction(goal.id, name, weeklyFrequencyTarget);
+      const result = await editGoalAction(goal.id, name, weeklyFrequencyTarget, isPublic);
       if (result.ok) {
         onUpdated(result.goal);
         setEditing(false);
@@ -180,6 +200,20 @@ function GoalCard({
             Lowering the target makes this goal cheaper to hold; raising it costs more. Past
             misses always stay counted either way.
           </p>
+          <label className="flex items-center justify-between gap-3 rounded-xl border border-gray-900/[0.06] bg-gray-50/60 px-3.5 py-2.5">
+            <span className="min-w-0">
+              <span className="block text-sm font-medium text-gray-700">Private goal</span>
+              <span className="block text-xs text-gray-400">
+                Friends won&apos;t see this goal at all if it&apos;s private.
+              </span>
+            </span>
+            <input
+              type="checkbox"
+              checked={!isPublic}
+              onChange={(e) => setIsPublic(!e.target.checked)}
+              className="h-5 w-5 shrink-0 accent-brand"
+            />
+          </label>
           {error && <p className="text-sm text-red-600">{error}</p>}
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <button
@@ -188,6 +222,7 @@ function GoalCard({
                 setEditing(false);
                 setName(goal.name);
                 setWeeklyFrequencyTarget(goal.weeklyFrequencyTarget);
+                setIsPublic(goal.isPublic);
                 setError(null);
               }}
               disabled={pending}
@@ -226,13 +261,37 @@ function GoalCard({
                 Formed
               </span>
             )}
+            {!goal.isPublic && (
+              <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-500">
+                Private
+              </span>
+            )}
           </div>
           <p className="mt-0.5 text-xs text-gray-400">{goal.weeklyFrequencyTarget}×/week</p>
         </div>
-        <span className="shrink-0 rounded-full bg-brand/10 px-2.5 py-1 text-xs font-bold text-brand">
-          {goal.currentLockCost} locks
+        <span className="shrink-0 whitespace-nowrap rounded-full bg-brand/10 px-2.5 py-1 text-xs font-bold text-brand">
+          {goal.currentLockCost} keys
         </span>
       </div>
+
+      {stats && (
+        <Link
+          href={`/goals/${goal.id}`}
+          className="mt-3 block rounded-xl border border-gray-900/[0.06] bg-gray-50/60 p-2 transition-colors active:bg-gray-100"
+        >
+          <div className="pointer-events-none">
+            <HabitStrengthChart stats={stats} today={today} compact />
+          </div>
+          <span className="mt-1 flex items-center justify-between text-xs text-gray-400">
+            <span>
+              Times completed: <span className="font-medium text-gray-600">{stats.timesCompleted}</span>
+            </span>
+            <span className="flex items-center gap-0.5 font-medium text-brand">
+              View <ChevronRightIcon className="h-3.5 w-3.5" />
+            </span>
+          </span>
+        </Link>
+      )}
 
       {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
 
@@ -291,14 +350,14 @@ function AddGoalForm({
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [weeklyFrequencyTarget, setWeeklyFrequencyTarget] = useState(3);
-  const [difficulty, setDifficulty] = useState<GoalDifficulty>("medium");
+  const [isPublic, setIsPublic] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   function reset() {
     setName("");
     setWeeklyFrequencyTarget(3);
-    setDifficulty("medium");
+    setIsPublic(true);
     setError(null);
   }
 
@@ -309,7 +368,7 @@ function AddGoalForm({
       return;
     }
     startTransition(async () => {
-      const result = await createGoalAction(name, weeklyFrequencyTarget, difficulty);
+      const result = await createGoalAction(name, weeklyFrequencyTarget, isPublic);
       if (result.ok) {
         onCreated(result.goal);
         reset();
@@ -363,27 +422,20 @@ function AddGoalForm({
 
       <FrequencySlider value={weeklyFrequencyTarget} onChange={setWeeklyFrequencyTarget} showHint />
 
-      <div>
-        <p className="mb-1.5 text-sm font-medium text-gray-700">
-          How hard do you think this will be to accomplish?
-        </p>
-        <div className="flex gap-2">
-          {DIFFICULTIES.map((d) => (
-            <button
-              key={d.value}
-              type="button"
-              onClick={() => setDifficulty(d.value)}
-              className={`flex-1 rounded-lg border px-3 py-2 text-sm font-semibold transition-colors ${
-                difficulty === d.value
-                  ? d.classes
-                  : "border-gray-900/[0.06] bg-white text-gray-400 hover:bg-gray-50"
-              }`}
-            >
-              {d.label}
-            </button>
-          ))}
-        </div>
-      </div>
+      <label className="flex items-center justify-between gap-3 rounded-xl border border-gray-900/[0.06] bg-gray-50/60 px-3.5 py-2.5">
+        <span className="min-w-0">
+          <span className="block text-sm font-medium text-gray-700">Private goal</span>
+          <span className="block text-xs text-gray-400">
+            Friends won&apos;t see this goal at all if it&apos;s private.
+          </span>
+        </span>
+        <input
+          type="checkbox"
+          checked={!isPublic}
+          onChange={(e) => setIsPublic(!e.target.checked)}
+          className="h-5 w-5 shrink-0 accent-brand"
+        />
+      </label>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 

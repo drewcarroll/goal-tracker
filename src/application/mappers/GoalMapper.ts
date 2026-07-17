@@ -12,9 +12,9 @@ export class GoalMapper {
       userId: goal.userId,
       name: goal.name,
       weeklyFrequencyTarget: goal.weeklyFrequencyTarget,
-      difficulty: goal.difficulty,
       currentLockCost: goal.currentLockCost,
       state: goal.state,
+      isPublic: goal.isPublic,
       createdAt: goal.createdAt.toISOString(),
     };
   }

@@ -45,7 +45,7 @@ export function TodayGoals({
           href="/plan?for=today"
           className="mt-3 inline-block rounded-xl bg-brand px-5 py-3 text-base font-semibold text-white shadow-sm transition-colors hover:bg-brand-dark"
         >
-          Plan today
+          Schedule today
         </Link>
       </section>
     );
@@ -87,7 +87,7 @@ export function TodayGoals({
         </Link>
       )}
       <Link href="/plan" className="self-start text-sm font-medium text-brand hover:underline">
-        Plan tomorrow →
+        Schedule tomorrow →
       </Link>
     </section>
   );

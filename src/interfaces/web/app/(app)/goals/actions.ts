@@ -3,15 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { getContainer } from "@/infrastructure/container";
 import { currentUserId } from "@/interfaces/web/http/currentUser";
-import type { GoalDTO, GoalDifficulty } from "@/application/dtos/GoalDTO";
+import type { GoalDTO } from "@/application/dtos/GoalDTO";
 
-/** A goal's cost/state feeds Home, Plan, Progress, and History too. */
+/** A goal's cost/state feeds Home, Schedule, and Profile's history section too. */
 function revalidateGoalDerivedPages(): void {
   revalidatePath("/home");
   revalidatePath("/goals");
   revalidatePath("/plan");
-  revalidatePath("/progress");
-  revalidatePath("/history");
+  revalidatePath("/profile");
 }
 
 function toErrorMessage(error: unknown): string {
@@ -31,13 +30,18 @@ export type GoalActionResult = { ok: true; goal: GoalDTO } | { ok: false; error:
 export async function createGoalAction(
   name: string,
   weeklyFrequencyTarget: number,
-  difficulty: GoalDifficulty,
+  isPublic: boolean,
 ): Promise<GoalActionResult> {
   const { createGoalUseCase } = getContainer();
   const userId = currentUserId();
 
   try {
-    const goal = await createGoalUseCase.execute({ userId, name, weeklyFrequencyTarget, difficulty });
+    const goal = await createGoalUseCase.execute({
+      userId,
+      name,
+      weeklyFrequencyTarget,
+      isPublic,
+    });
     revalidateGoalDerivedPages();
     return { ok: true, goal };
   } catch (error) {
@@ -49,12 +53,19 @@ export async function editGoalAction(
   goalId: string,
   name: string,
   weeklyFrequencyTarget: number,
+  isPublic: boolean,
 ): Promise<GoalActionResult> {
   const { editGoalUseCase } = getContainer();
   const userId = currentUserId();
 
   try {
-    const goal = await editGoalUseCase.execute({ userId, goalId, name, weeklyFrequencyTarget });
+    const goal = await editGoalUseCase.execute({
+      userId,
+      goalId,
+      name,
+      weeklyFrequencyTarget,
+      isPublic,
+    });
     revalidateGoalDerivedPages();
     return { ok: true, goal };
   } catch (error) {

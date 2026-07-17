@@ -7,9 +7,8 @@ const base = {
   userId: "user-1",
   name: "Exercise",
   weeklyFrequencyTarget: 3,
-  difficulty: "medium" as const,
   // Computed by the caller via LockCostService.initialCostFor at creation.
-  initialLockCost: 35,
+  initialLockCost: 20,
   now: new Date("2026-01-01T00:00:00.000Z"),
 };
 
@@ -18,9 +17,13 @@ describe("Goal", () => {
     const goal = Goal.create(base);
     expect(goal.name).toBe("Exercise");
     expect(goal.weeklyFrequencyTarget).toBe(3);
-    expect(goal.currentLockCost).toBe(35);
+    expect(goal.currentLockCost).toBe(20);
     expect(goal.state).toBe("active");
-    expect(goal.difficulty).toBe("medium");
+    expect(goal.isPublic).toBe(true);
+  });
+
+  it("accepts an explicit isPublic: false at creation", () => {
+    expect(Goal.create({ ...base, isPublic: false }).isPublic).toBe(false);
   });
 
   it("rejects an out-of-range initial lock cost", () => {
@@ -59,9 +62,9 @@ describe("Goal", () => {
       userId: "user-1",
       name: "Exercise",
       weeklyFrequencyTarget: 3,
-      difficulty: "hard",
       currentLockCost: 20,
       state: "active",
+      isPublic: true,
       createdAt: new Date("2026-01-01T00:00:00.000Z"),
     };
 
@@ -80,20 +83,23 @@ describe("Goal", () => {
   });
 
   describe("edit", () => {
-    it("updates the name and weekly frequency target without touching cost", () => {
+    it("updates the name, weekly frequency target, and privacy without touching cost", () => {
       const goal = Goal.create(base);
-      goal.edit({ name: "Exercise daily", weeklyFrequencyTarget: 5 });
+      goal.edit({ name: "Exercise daily", weeklyFrequencyTarget: 5, isPublic: false });
       expect(goal.name).toBe("Exercise daily");
       expect(goal.weeklyFrequencyTarget).toBe(5);
-      expect(goal.currentLockCost).toBe(35);
+      expect(goal.currentLockCost).toBe(20);
+      expect(goal.isPublic).toBe(false);
     });
 
     it("re-validates invariants", () => {
       const goal = Goal.create(base);
-      expect(() => goal.edit({ name: "", weeklyFrequencyTarget: 3 })).toThrow(ValidationError);
-      expect(() => goal.edit({ name: "Exercise", weeklyFrequencyTarget: 10 })).toThrow(
-        ValidationError,
-      );
+      expect(() =>
+        goal.edit({ name: "", weeklyFrequencyTarget: 3, isPublic: true }),
+      ).toThrow(ValidationError);
+      expect(() =>
+        goal.edit({ name: "Exercise", weeklyFrequencyTarget: 10, isPublic: true }),
+      ).toThrow(ValidationError);
     });
   });
 
@@ -116,9 +122,9 @@ describe("Goal", () => {
         userId: "user-1",
         name: "Exercise",
         weeklyFrequencyTarget: 3,
-        difficulty: "easy",
         currentLockCost: 1,
         state: "formed",
+        isPublic: true,
         createdAt: base.now,
       });
       goal.recomputeCost(5);

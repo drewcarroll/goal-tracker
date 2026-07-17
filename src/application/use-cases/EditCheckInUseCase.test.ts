@@ -12,6 +12,9 @@ import {
 } from "../../domain/value-objects/LockFormulaConfig";
 import { CheckInNotFoundError, GoalNotFoundError } from "../errors/ApplicationError";
 import { GoalCostRecomputeService } from "../services/GoalCostRecomputeService";
+import { Clock } from "../ports/Clock";
+
+const fixedClock: Clock = { now: () => new Date("2026-01-01T00:00:00.000Z") };
 
 class InMemoryGoalRepository implements GoalRepository {
   constructor(private readonly goals: Goal[]) {}
@@ -52,15 +55,13 @@ class InMemoryConfigRepository implements ConfigRepository {
   async resetLockFormulaConfig(): Promise<void> {}
 }
 
-function goal(id: string, difficulty: "easy" | "medium" | "hard" = "easy") {
-  const initialCost = { easy: 25, medium: 35, hard: 45 }[difficulty];
+function goal(id: string) {
   return Goal.create({
     id,
     userId: "user-1",
     name: "Exercise",
     weeklyFrequencyTarget: 7,
-    difficulty,
-    initialLockCost: initialCost,
+    initialLockCost: 20,
     now: new Date("2026-01-01T00:00:00.000Z"),
   });
 }
@@ -91,6 +92,7 @@ function buildUseCase(goals: Goal[], checkIns: CheckIn[]) {
         goalRepository,
         checkInRepository,
         new InMemoryConfigRepository(),
+        fixedClock,
       ),
     ),
     checkInRepository,
@@ -112,7 +114,7 @@ describe("EditCheckInUseCase", () => {
     });
 
     expect(result.dayResult).toBe("PASS");
-    expect(g1.currentLockCost).toBe(21); // easy first-day pass: 25 → 21, not a fail bump
+    expect(g1.currentLockCost).toBe(17); // first-day pass: 20 → 17, not a fail bump
   });
 
   it("recomputes a goal that was removed from the marks too", async () => {
@@ -136,7 +138,7 @@ describe("EditCheckInUseCase", () => {
     });
 
     // g2 has no check-ins left at all -> falls back to its starting cost.
-    expect(g2.currentLockCost).toBe(25);
+    expect(g2.currentLockCost).toBe(20);
   });
 
   it("preserves the on-time flag — an edit can never mint a rank point", async () => {

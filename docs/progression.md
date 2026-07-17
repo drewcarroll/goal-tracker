@@ -14,8 +14,14 @@ The app has exactly three progression tracks. Nothing else (no streaks, ever).
 | Track | Fuel | Reward | Where shown |
 |---|---|---|---|
 | **Rank** (per user) | Submitting the nightly check-in **on time**, once per day. Passing goals earns nothing extra here. | Rank number, colored username + filled badge circle | Header (always), `/profile` (detail) |
-| **Locks** (per goal) | Passing that specific goal (its own ✓, per-goal contingency) | Cost drops → you can schedule more tomorrow; at cost 1 the goal is **Formed** | `/plan` budget, `/progress` trajectory chart |
-| **Per-goal detail** | Same marks | "Times completed: X" + full habit-forming graph with pass/fail ghost-point preview | `/progress` goal cards |
+| **Keys** (per goal, called "locks" internally — see below) | Passing that specific goal (its own ✓, per-goal contingency) | Cost drops → you can schedule more tomorrow; at cost 1 the goal is **Formed** | `/plan` ("Schedule" tab) budget, per-goal strength graph |
+| **Per-goal detail** | Same marks | "Times completed: X" + the habit-strength graph (colored pass/fail points, green/red 14-day projection) | `/goals` cards (compact) and `/goals/[id]` (full) — folded in from the old standalone `/progress` tab 2026-07-16 |
+
+**Naming note (2026-07-16):** the user-facing currency is branded **"keys"** — you
+unlock a goal by scheduling it, and passing it makes it cheaper to unlock next
+time. Internally the domain/DB still use `lock`/`Lock*` names (`LockCostService`,
+`currentLockCost`, the `habits` table) — that's an implementation detail, not
+user-visible; don't reintroduce the word "locks" in UI copy.
 
 Failure gives **nothing** and takes nothing visible away in the rank track — a fail
 only moves that one goal's lock cost (see `docs/lock-formula.md`). A missed nightly
@@ -30,7 +36,7 @@ log simply earns no point.
   exchange rate is presentation polish ("Submit +500 XP" reads better than
   "+1 log") without inventing new earning mechanics. Max one per logical day by
   construction (check-ins are unique per user+date).
-- Backfilled or edited past days via `/history` **never** earn XP: on-time status
+- Backfilled or edited past days via Profile's History section **never** earn XP: on-time status
   is stamped at original submission (`check_ins.submitted_on_time`) and preserved by
   edits. You can correct history honestly without farming rank.
 - XP is all-time cumulative and never decreases. Deleting a check-in does remove
@@ -116,16 +122,17 @@ server-side from the submission's local wall-clock time `t`:
 - Timezone changes / DST: the wall-clock time in the current `gt_tz` is what counts.
   Worst case around a DST shift the window is an hour longer/shorter that night —
   accepted, not worth special-casing.
-- `/history` backfill of a missed past day remains possible (honesty > streaks) but is
-  stamped `submitted_on_time = false` → no rank point, and it still recomputes lock
-  costs normally.
+- Backfilling a missed past day (from Profile's History section, folded in from
+  the old standalone `/history` tab 2026-07-16) remains possible (honesty >
+  streaks) but is stamped `submitted_on_time = false` → no rank point, and it
+  still recomputes lock costs normally.
 - Existing check-in rows predating this feature are backfilled `submitted_on_time =
   true` (don't zero anyone's rank history).
 
 ### 3.3 What the window does NOT gate
 
-Planning (`/plan`), history, journal, goals CRUD are untouched. Only the nightly
-check-in submission is windowed.
+Planning (`/plan`, the "Schedule" tab), check-in history + journal (Profile),
+goals CRUD are untouched. Only the nightly check-in submission is windowed.
 
 ### 3.4 Settings
 
@@ -177,6 +184,6 @@ Supabase SQL Editor — see `.claude/skills/supabase-migration`).
 | Ports | `src/domain/repositories/ConfigRepository.ts`, `UserSettingsRepository.ts` |
 | Supabase impls | `src/infrastructure/repositories/SupabaseConfigRepository.ts`, `SupabaseUserSettingsRepository.ts` |
 | Header badge | `src/interfaces/web/components/profile/RankBadge.tsx` + `(app)/layout.tsx` |
-| Profile page | `src/interfaces/web/app/(app)/profile/page.tsx` + `actions.ts` |
+| Profile page (rank + history + journal inline + Advanced) | `src/interfaces/web/app/(app)/profile/page.tsx` + `actions.ts` + `checkInActions.ts` |
 | Check-in gating + celebration | `src/interfaces/web/components/checkin/CheckInFlow.tsx`, `(app)/checkin/page.tsx` + `actions.ts` |
-| Times completed + ghost points | `src/interfaces/web/components/progress/GoalTrajectoryChart.tsx` |
+| Habit-strength graph (times completed, pass/fail points, projections) | `src/interfaces/web/components/goals/HabitStrengthChart.tsx`, used on `/goals` (compact) and `/goals/[id]` (full) |

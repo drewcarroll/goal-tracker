@@ -18,13 +18,13 @@ describe("LockFormulaConfig", () => {
       expect(lockFormulaConfigFrom({})).toEqual(DEFAULT_LOCK_FORMULA_CONFIG);
     });
 
-    it("deep-merges partial overrides over defaults", () => {
+    it("merges partial overrides over defaults", () => {
       const config = lockFormulaConfigFrom({
         gainRate: 0.1,
-        initialCost: { medium: 30 },
+        initialCost: 30,
       });
       expect(config.gainRate).toBe(0.1);
-      expect(config.initialCost).toEqual({ easy: 25, medium: 30, hard: 45 });
+      expect(config.initialCost).toBe(30);
       expect(config.lossAversion).toBe(DEFAULT_LOCK_FORMULA_CONFIG.lossAversion);
     });
 
@@ -32,14 +32,12 @@ describe("LockFormulaConfig", () => {
       expect(() => lockFormulaConfigFrom({ gainRate: 0.5 })).toThrow(ValidationError);
       expect(() => lockFormulaConfigFrom({ lossAversion: 0 })).toThrow(ValidationError);
       expect(() => lockFormulaConfigFrom({ minStrength: 1 })).toThrow(ValidationError);
-      expect(() => lockFormulaConfigFrom({ initialCost: { easy: 60 } })).toThrow(ValidationError);
+      expect(() => lockFormulaConfigFrom({ initialCost: 60 })).toThrow(ValidationError);
     });
 
     it("rejects non-integers where an integer is required", () => {
       expect(() => lockFormulaConfigFrom({ calibrationDays: 5.5 })).toThrow(ValidationError);
-      expect(() => lockFormulaConfigFrom({ initialCost: { medium: 30.7 } })).toThrow(
-        ValidationError,
-      );
+      expect(() => lockFormulaConfigFrom({ initialCost: 30.7 })).toThrow(ValidationError);
     });
 
     it("rejects non-numeric values", () => {

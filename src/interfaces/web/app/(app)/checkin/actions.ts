@@ -5,6 +5,7 @@ import { getContainer } from "@/infrastructure/container";
 import { currentUserId, currentTimezone } from "@/interfaces/web/http/currentUser";
 import type { CheckInDTO, GoalMarkDTO } from "@/application/dtos/CheckInDTO";
 import type { JournalEntryDTO } from "@/application/dtos/JournalEntryDTO";
+import type { ClaimBattlePassDayResultDTO } from "@/application/dtos/BattlePassDTO";
 
 function toErrorMessage(error: unknown): string {
   const coded = error as { code?: string; message?: string };
@@ -32,6 +33,8 @@ export type SubmitCheckInActionResult =
         xpForRankUp: number;
         rankedUp: boolean;
       };
+      /** Today's battle-pass claim, an extension of this same submit event. Null if it couldn't be claimed (e.g. already claimed). */
+      battlePassClaim: ClaimBattlePassDayResultDTO | null;
     }
   | { ok: false; error: string };
 
@@ -40,6 +43,12 @@ export type SubmitCheckInActionResult =
  * resolved entirely server-side from the user's timezone and check-in window
  * (never the client's clock); outside the window the use case rejects.
  * On success the fresh rank is returned so the flow can celebrate the point.
+ *
+ * The battle-pass day claim rides the same submit event (user requirement,
+ * 2026-07-16: "a little animation for it after you submit a nightly log,
+ * like claim the coins / claim the trinket") — there is no separate
+ * "unclaimed inventory" step. A claim failure never fails the check-in
+ * itself; it just means nothing to celebrate this time.
  */
 export async function submitCheckInAction(
   marks: GoalMarkDTO[],
@@ -48,7 +57,7 @@ export async function submitCheckInAction(
     return { ok: false, error: "Mark at least one goal to check in." };
   }
 
-  const { submitCheckInUseCase, getRankUseCase } = getContainer();
+  const { submitCheckInUseCase, getRankUseCase, claimBattlePassDayUseCase } = getContainer();
   const userId = currentUserId();
 
   try {
@@ -59,11 +68,19 @@ export async function submitCheckInAction(
       marks,
     });
     const after = await getRankUseCase.execute({ userId });
+
+    let battlePassClaim: ClaimBattlePassDayResultDTO | null = null;
+    try {
+      battlePassClaim = await claimBattlePassDayUseCase.execute({ userId, date: checkIn.date });
+    } catch {
+      battlePassClaim = null;
+    }
+
     revalidatePath("/checkin");
     revalidatePath("/home");
-    revalidatePath("/progress");
-    revalidatePath("/history");
+    revalidatePath("/goals");
     revalidatePath("/profile");
+    revalidatePath("/trinkets");
     return {
       ok: true,
       checkIn,
@@ -76,6 +93,7 @@ export async function submitCheckInAction(
         xpForRankUp: after.xpForRankUp,
         rankedUp: after.rank > before.rank,
       },
+      battlePassClaim,
     };
   } catch (error) {
     return { ok: false, error: toErrorMessage(error) };

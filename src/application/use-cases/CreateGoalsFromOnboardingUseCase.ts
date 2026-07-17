@@ -11,10 +11,10 @@ import { Clock } from "../ports/Clock";
 
 /**
  * Use Case: bulk-create goals from onboarding's selections. Each selection
- * becomes its own goal at the starting lock cost the current formula config
- * assigns its difficulty. The whole batch must fit the weekly lock capacity
- * alongside anything already active — over-ambition is caught before any
- * goal is created, not halfway through the batch.
+ * becomes its own goal at the current formula config's uniform starting lock
+ * cost — no difficulty guess. The whole batch must fit the weekly lock
+ * capacity alongside anything already active — over-ambition is caught
+ * before any goal is created, not halfway through the batch.
  */
 export class CreateGoalsFromOnboardingUseCase {
   constructor(
@@ -34,8 +34,7 @@ export class CreateGoalsFromOnboardingUseCase {
       .filter((g) => g.state === "active")
       .reduce((sum, g) => sum + g.currentLockCost, 0);
     const newLocks = dto.selections.reduce(
-      (sum, selection) =>
-        sum + lockCostService.initialCostFor(selection.difficulty, selection.weeklyFrequencyTarget),
+      (sum, selection) => sum + lockCostService.initialCostFor(selection.weeklyFrequencyTarget),
       0,
     );
     if (activeLocks + newLocks > WEEKLY_LOCK_CAPACITY) {
@@ -48,11 +47,7 @@ export class CreateGoalsFromOnboardingUseCase {
         userId: dto.userId,
         name: selection.name,
         weeklyFrequencyTarget: selection.weeklyFrequencyTarget,
-        difficulty: selection.difficulty,
-        initialLockCost: lockCostService.initialCostFor(
-          selection.difficulty,
-          selection.weeklyFrequencyTarget,
-        ),
+        initialLockCost: lockCostService.initialCostFor(selection.weeklyFrequencyTarget),
         now,
       }),
     );

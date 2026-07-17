@@ -60,8 +60,7 @@ function makeGoal(id = "g1", userId = "user-1") {
     userId,
     name: "Exercise",
     weeklyFrequencyTarget: 7,
-    difficulty: "easy",
-    initialLockCost: 25,
+    initialLockCost: 20,
     now: new Date("2026-01-01T00:00:00.000Z"),
   });
 }

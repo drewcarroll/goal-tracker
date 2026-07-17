@@ -6,6 +6,8 @@ import {
   normalizeUsername,
   isValidTimezone,
 } from "../../../http/session";
+import { usernameToUserId } from "../../../http/currentUser";
+import { getContainer } from "@/infrastructure/container";
 
 /**
  * Stores the submitted username in an httpOnly cookie and redirects to /home.
@@ -38,5 +40,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   };
   response.cookies.set(USER_COOKIE, username, cookieOptions);
   response.cookies.set(TIMEZONE_COOKIE, timezone, cookieOptions);
+
+  // Best-effort: a registry failure should never block login itself (the
+  // app worked without one before this feature existed). A user who isn't
+  // registered just won't be findable by a friend request yet — they'll be
+  // registered on their next login attempt.
+  try {
+    await getContainer().registerUsernameUseCase.execute({
+      userId: usernameToUserId(username),
+      username,
+    });
+  } catch {
+    // Swallowed deliberately — see comment above.
+  }
+
   return response;
 }

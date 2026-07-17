@@ -3,7 +3,7 @@ import { getContainer } from "@/infrastructure/container";
 import { currentUserId, currentTimezone } from "@/interfaces/web/http/currentUser";
 import { PlanningScreen } from "@/interfaces/web/components/plan/PlanningScreen";
 
-export const metadata: Metadata = { title: "Plan · Goal Tracker" };
+export const metadata: Metadata = { title: "Schedule · Goal Tracker" };
 
 // Reads live data per request, so it must never be statically prerendered.
 export const dynamic = "force-dynamic";
@@ -35,10 +35,11 @@ export default async function PlanPage({
     <section className="mx-auto flex w-full max-w-md flex-col gap-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">
-          {forToday ? "Plan today" : "Plan tomorrow"}
+          {forToday ? "Schedule today" : "Schedule tomorrow"}
         </h1>
         <p className="mt-1 text-gray-600">
-          Pick what you&apos;ll attempt, within your 100-lock budget.
+          Pick what you&apos;ll attempt, within your 100-key budget. Unlock a goal by scheduling
+          it.
         </p>
       </div>
       <PlanningScreen

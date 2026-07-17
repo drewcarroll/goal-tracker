@@ -28,7 +28,11 @@ export class EditGoalUseCase {
     }
 
     const targetChanged = goal.weeklyFrequencyTarget !== dto.weeklyFrequencyTarget;
-    goal.edit({ name: dto.name, weeklyFrequencyTarget: dto.weeklyFrequencyTarget });
+    goal.edit({
+      name: dto.name,
+      weeklyFrequencyTarget: dto.weeklyFrequencyTarget,
+      isPublic: dto.isPublic,
+    });
     await this.goalRepository.save(goal);
 
     if (targetChanged) {

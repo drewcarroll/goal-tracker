@@ -4,12 +4,13 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { GoalDTO } from "@/application/dtos/GoalDTO";
 import type { CheckInDTO } from "@/application/dtos/CheckInDTO";
+import type { ClaimBattlePassDayResultDTO } from "@/application/dtos/BattlePassDTO";
 import { RankBadge } from "@/interfaces/web/components/profile/RankBadge";
 import { rankVisual } from "@/interfaces/web/components/profile/rankColors";
-import { LockIcon } from "@/interfaces/web/components/icons";
+import { LockIcon, CoinIcon } from "@/interfaces/web/components/icons";
 import { submitCheckInAction, saveJournalAction } from "@/interfaces/web/app/(app)/checkin/actions";
 
-type Step = "marks" | "confirm" | "celebrate" | "journal";
+type Step = "marks" | "confirm" | "celebrate" | "battlePassClaim" | "journal";
 
 type RankReward = {
   xpEarned: number;
@@ -76,6 +77,7 @@ function CheckInWizard({ goals }: { goals: GoalDTO[] }) {
   const [text, setText] = useState("");
   const [mood, setMood] = useState<number | null>(null);
   const [reward, setReward] = useState<RankReward | null>(null);
+  const [battlePassClaim, setBattlePassClaim] = useState<ClaimBattlePassDayResultDTO | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -97,6 +99,7 @@ function CheckInWizard({ goals }: { goals: GoalDTO[] }) {
       );
       if (result.ok) {
         setReward(result.rank);
+        setBattlePassClaim(result.battlePassClaim);
         setStep("celebrate");
       } else {
         setError(result.error);
@@ -264,6 +267,41 @@ function CheckInWizard({ goals }: { goals: GoalDTO[] }) {
           </p>
         </div>
 
+        <button
+          type="button"
+          onClick={() => setStep(battlePassClaim ? "battlePassClaim" : "journal")}
+          className="mt-1 w-full rounded-xl bg-brand px-5 py-3.5 text-base font-semibold text-white shadow-sm transition-colors hover:bg-brand-dark active:scale-[0.98] sm:w-auto sm:px-8"
+        >
+          Continue
+        </button>
+      </div>
+    );
+  }
+
+  if (step === "battlePassClaim" && battlePassClaim) {
+    return (
+      <div className="flex flex-col items-center gap-4 overflow-hidden rounded-2xl border border-gray-900/[0.06] bg-white p-8 text-center shadow-sm">
+        <div className="animate-pop-in text-6xl leading-none">
+          {battlePassClaim.kind === "trinket" ? battlePassClaim.trinket.emoji : "🪙"}
+        </div>
+        <div className="animate-rise-in">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-amber-600">
+            Battle pass
+          </p>
+          {battlePassClaim.kind === "trinket" ? (
+            <>
+              <h2 className="mt-1 text-2xl font-bold text-gray-900">{battlePassClaim.trinket.name}</h2>
+              {battlePassClaim.quantity > 1 && (
+                <p className="mt-1 text-sm text-gray-500">×{battlePassClaim.quantity} owned</p>
+              )}
+            </>
+          ) : (
+            <h2 className="mt-1 inline-flex items-center gap-1.5 text-2xl font-bold text-gray-900">
+              <CoinIcon className="h-6 w-6 text-amber-500" />+
+              {battlePassClaim.coinAmount.toLocaleString()}
+            </h2>
+          )}
+        </div>
         <button
           type="button"
           onClick={() => setStep("journal")}

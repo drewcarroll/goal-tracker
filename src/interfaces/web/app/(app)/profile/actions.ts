@@ -64,7 +64,6 @@ export async function lockDevModeAction(): Promise<ProfileActionResult> {
 /** Every page that shows a cost or trajectory — constants rewrite them all. */
 function revalidateCostDerivedPages(): void {
   revalidatePath("/profile");
-  revalidatePath("/progress");
   revalidatePath("/plan");
   revalidatePath("/home");
   revalidatePath("/goals");
@@ -115,6 +114,49 @@ export async function recomputeAllGoalsAction(): Promise<RecomputeActionResult> 
     const result = await recomputeAllGoalsUseCase.execute({ userId: currentUserId() });
     revalidateCostDerivedPages();
     return { ok: true, recomputed: result.recomputed };
+  } catch (error) {
+    return { ok: false, error: toErrorMessage(error) };
+  }
+}
+
+/** Adapts recomputeAllGoalsAction's {recomputed} success shape to the generic {ok} panel action shape. */
+export async function recomputeAllGoalsPanelAction(): Promise<ProfileActionResult> {
+  const result = await recomputeAllGoalsAction();
+  return result.ok ? { ok: true } : result;
+}
+
+/** Every page that reads coin balance or shop/battle-pass state — economy constants rewrite them all. */
+function revalidateEconomyDerivedPages(): void {
+  revalidatePath("/profile");
+  revalidatePath("/home");
+  revalidatePath("/trinkets");
+}
+
+export async function saveEconomyAction(
+  config: Record<string, unknown>,
+): Promise<ProfileActionResult> {
+  if (!(await isDevModeUnlocked())) {
+    return { ok: false, error: "Dev mode is locked." };
+  }
+  const { updateEconomyConfigUseCase } = getContainer();
+  try {
+    await updateEconomyConfigUseCase.execute({ config });
+    revalidateEconomyDerivedPages();
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: toErrorMessage(error) };
+  }
+}
+
+export async function resetEconomyAction(): Promise<ProfileActionResult> {
+  if (!(await isDevModeUnlocked())) {
+    return { ok: false, error: "Dev mode is locked." };
+  }
+  const { resetEconomyConfigUseCase } = getContainer();
+  try {
+    await resetEconomyConfigUseCase.execute();
+    revalidateEconomyDerivedPages();
+    return { ok: true };
   } catch (error) {
     return { ok: false, error: toErrorMessage(error) };
   }
