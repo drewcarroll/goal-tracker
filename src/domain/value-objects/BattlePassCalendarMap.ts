@@ -41,7 +41,7 @@ function monthOf(
 const BATTLE_PASS_MONTH_DEFINITIONS: readonly BattlePassMonthDefinition[] = [
   monthOf(2026, 7, "Independence Day / summer", {
     5: ["🎆", "Fireworks"],
-    10: ["🍉", "Watermelon Slice"],
+    10: ["🌊", "Ocean Wave"],
     15: ["🕶️", "Sunglasses"],
     20: ["🏖️", "Beach Day"],
     25: ["🗽", "Liberty"],
@@ -54,7 +54,7 @@ const BATTLE_PASS_MONTH_DEFINITIONS: readonly BattlePassMonthDefinition[] = [
     25: ["🌠", "Perseid"],
   }),
   monthOf(2026, 9, "Back to school / harvest moon", {
-    5: ["🍎", "Teacher's Apple"],
+    5: ["✏️", "Sharp Pencil"],
     10: ["📚", "Stack of Books"],
     15: ["🍂", "Falling Leaf"],
     20: ["🌾", "Harvest Sheaf"],

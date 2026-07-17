@@ -11,6 +11,37 @@
   --safe-area-inset-right: env(safe-area-inset-right);
   --safe-area-inset-bottom: env(safe-area-inset-bottom);
   --safe-area-inset-left: env(safe-area-inset-left);
+
+  /* "Bubblegum" (default theme) — a warm, candy-bright pink instead of the
+     old boilerplate violet. Values are space-separated RGB triples so
+     Tailwind's `bg-brand/10` opacity modifier keeps working (see
+     tailwind.config.ts's withOpacity). Swappable per data-theme for the
+     theme picker (Profile > Advanced > Appearance, see ColorTheme.ts). */
+  --brand: 255 71 133; /* #ff4785 */
+  --brand-dark: 224 42 104; /* #e02a68 */
+  --brand-light: 255 214 229; /* #ffd6e5 */
+  --wash: 255 71 133; /* background radial wash tint, matches --brand by default */
+}
+
+:root[data-theme="citrus"] {
+  --brand: 255 122 42; /* #ff7a2a */
+  --brand-dark: 216 92 20; /* #d85c14 */
+  --brand-light: 255 224 199; /* #ffe0c7 */
+  --wash: 255 122 42;
+}
+
+:root[data-theme="mint"] {
+  --brand: 13 166 130; /* #0da682 */
+  --brand-dark: 8 128 100; /* #088064 */
+  --brand-light: 198 240 227; /* #c6f0e3 */
+  --wash: 13 166 130;
+}
+
+:root[data-theme="violet"] {
+  --brand: 124 58 237; /* #7c3aed, the original default */
+  --brand-dark: 109 40 217; /* #6d28d9 */
+  --brand-light: 221 204 253; /* #ddccfd */
+  --wash: 124 58 237;
 }
 
 @layer base {
@@ -22,13 +53,13 @@
   }
 
   body {
-    @apply bg-gray-50 text-gray-900 antialiased;
+    @apply bg-orange-50/40 text-gray-900 antialiased;
     /* Mobile-first: fill the dynamic viewport and never scroll sideways. */
     @apply min-h-dvh overflow-x-hidden;
     /* A soft brand-tinted wash at the top so pages don't read as flat gray. */
     background-image: radial-gradient(
       60rem 24rem at 50% -6rem,
-      rgba(124, 58, 237, 0.09),
+      rgb(var(--wash) / 0.12),
       transparent 70%
     );
     background-repeat: no-repeat;

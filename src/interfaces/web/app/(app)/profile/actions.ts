@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { getContainer } from "@/infrastructure/container";
 import { currentUserId } from "@/interfaces/web/http/currentUser";
+import { THEME_COOKIE, isValidColorTheme } from "@/interfaces/web/http/session";
 
 /**
  * Dev-mode gate. This is a personal app: the password is a tripwire against
@@ -18,12 +19,44 @@ export async function isDevModeUnlocked(): Promise<boolean> {
   return cookies().get(DEV_COOKIE)?.value === "1";
 }
 
+/**
+ * Sets the color-theme preset. Presentation-only, so it's a plain cookie
+ * (like the username/timezone cookies) rather than a UserSettings/DB field —
+ * no business logic ever reads it, only the root layout's data-theme attribute.
+ */
+export async function setThemeAction(themeId: string): Promise<void> {
+  if (!isValidColorTheme(themeId)) return;
+  cookies().set(THEME_COOKIE, themeId, {
+    httpOnly: false,
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365,
+  });
+  revalidatePath("/", "layout");
+}
+
 function toErrorMessage(error: unknown): string {
   const coded = error as { code?: string; message?: string };
-  if (coded?.code === "VALIDATION_ERROR") {
+  if (coded?.code === "VALIDATION_ERROR" || coded?.code === "TOO_MANY_PINNED_TRINKETS") {
     return coded.message ?? "That couldn't be saved.";
   }
   return "Something went wrong. Please try again.";
+}
+
+export type SetPinnedTrinketsActionResult = { ok: true } | { ok: false; error: string };
+
+/** Choose which owned trinkets to showcase (Profile > Collection). */
+export async function setPinnedTrinketsAction(
+  trinketIds: string[],
+): Promise<SetPinnedTrinketsActionResult> {
+  const { setPinnedTrinketsUseCase } = getContainer();
+  try {
+    await setPinnedTrinketsUseCase.execute({ userId: currentUserId(), trinketIds });
+    revalidatePath("/profile");
+    return { ok: true };
+  } catch (error) {
+    return { ok: false, error: toErrorMessage(error) };
+  }
 }
 
 export type ProfileActionResult = { ok: true } | { ok: false; error: string };

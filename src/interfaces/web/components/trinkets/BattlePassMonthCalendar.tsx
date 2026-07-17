@@ -1,4 +1,5 @@
 import type { BattlePassCalendarDTO } from "@/application/dtos/BattlePassDTO";
+import { CoinIcon } from "@/interfaces/web/components/icons";
 
 const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -56,8 +57,12 @@ export function BattlePassMonthCalendar({
               key={day}
               className={`flex aspect-square flex-col items-center justify-center rounded-lg border text-xs ${cellClasses(cell)}`}
             >
-              <span className="text-lg leading-none">
-                {cell.kind === "trinket" ? cell.trinketEmoji : "🪙"}
+              <span className="flex h-5 items-center justify-center text-lg leading-none">
+                {cell.kind === "trinket" ? (
+                  cell.trinketEmoji
+                ) : (
+                  <CoinIcon className="h-5 w-5 text-amber-500" />
+                )}
               </span>
               <span className="mt-0.5 text-[10px] font-semibold text-gray-500">{cell.day}</span>
               {cell.kind === "coins" && (

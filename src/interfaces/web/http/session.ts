@@ -25,6 +25,25 @@ export const TIMEZONE_COOKIE = "gt_tz";
  * session predating this feature). */
 export const DEFAULT_TIMEZONE = "UTC";
 
+/** Name of the cookie holding the chosen color-theme preset (see globals.css's data-theme blocks). */
+export const THEME_COOKIE = "gt_theme";
+
+export const COLOR_THEMES = [
+  { id: "bubblegum", label: "Bubblegum", swatch: "#ff4785" },
+  { id: "citrus", label: "Citrus", swatch: "#ff7a2a" },
+  { id: "mint", label: "Mint", swatch: "#0da682" },
+  { id: "violet", label: "Violet", swatch: "#7c3aed" },
+] as const;
+
+export type ColorThemeId = (typeof COLOR_THEMES)[number]["id"];
+
+export function isValidColorTheme(value: string): value is ColorThemeId {
+  return COLOR_THEMES.some((theme) => theme.id === value);
+}
+
+/** Default theme when no cookie is present. */
+export const DEFAULT_COLOR_THEME: ColorThemeId = "bubblegum";
+
 /** Canonical form of a username: trimmed and lowercased. */
 export function normalizeUsername(raw: string): string {
   return raw.trim().toLowerCase();

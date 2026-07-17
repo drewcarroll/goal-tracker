@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { ShopOfferDTO } from "@/application/dtos/ShopDTO";
-import { purchaseShopSlotAction } from "@/interfaces/web/app/(app)/trinkets/actions";
+import { purchaseShopSlotAction } from "@/interfaces/web/app/(app)/shop/actions";
 
 const RARITY_STYLES: Record<string, string> = {
   common: "border-gray-300 bg-gray-50",
@@ -16,7 +16,9 @@ const RARITY_STYLES: Record<string, string> = {
  * Today's 5-slot rotating shop offer. Every trinket is flatly priced (user
  * decision, 2026-07-16) — rarity only changes the border color here, not the
  * price. Buying a duplicate is expected: owned quantity shows as a "×N"
- * badge rather than the slot becoming uneditable once owned once.
+ * badge rather than the slot becoming uneditable once owned once. The 5
+ * slots are always 5 distinct trinkets (ShopRollService, fixed 2026-07-17
+ * after a live duplicate-slot bug).
  */
 export function ShopOffer({ offer }: { offer: ShopOfferDTO }) {
   const router = useRouter();
@@ -43,8 +45,6 @@ export function ShopOffer({ offer }: { offer: ShopOfferDTO }) {
 
   return (
     <div className="rounded-2xl border border-gray-900/[0.06] bg-white p-4 shadow-sm sm:p-5">
-      <h2 className="mb-3 text-lg font-semibold text-gray-900">Shop</h2>
-
       {error && (
         <p role="alert" className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
           {error}

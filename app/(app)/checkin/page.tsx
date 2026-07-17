@@ -1,1 +1,1 @@
-export { default, metadata } from "@/interfaces/web/app/(app)/checkin/page";
+export { default } from "@/interfaces/web/app/(app)/checkin/page";

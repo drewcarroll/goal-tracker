@@ -5,6 +5,7 @@ import { getContainer } from "@/infrastructure/container";
 import { currentUserId, currentTimezone } from "@/interfaces/web/http/currentUser";
 import { GoalNotFoundError } from "@/application/errors/ApplicationError";
 import { HabitStrengthChart } from "@/interfaces/web/components/goals/HabitStrengthChart";
+import { GoalDetailActions } from "@/interfaces/web/components/goals/GoalDetailActions";
 import { ChevronRightIcon } from "@/interfaces/web/components/icons";
 
 export const metadata: Metadata = { title: "Goal · Goal Tracker" };
@@ -46,10 +47,17 @@ export default async function GoalDetailPage({ params }: { params: { id: string 
 
       <div>
         <div className="flex flex-wrap items-center gap-2">
-          <h1 className="min-w-0 truncate text-2xl font-bold tracking-tight">{goal.name}</h1>
+          <h1 className="font-display min-w-0 truncate text-2xl font-bold tracking-tight">
+            {goal.name}
+          </h1>
           {goal.state === "formed" && (
             <span className="shrink-0 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">
               Formed
+            </span>
+          )}
+          {!goal.isPublic && (
+            <span className="shrink-0 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-500">
+              Private
             </span>
           )}
         </div>
@@ -75,12 +83,7 @@ export default async function GoalDetailPage({ params }: { params: { id: string 
         </div>
       </div>
 
-      <Link
-        href="/goals"
-        className="self-center text-sm font-medium text-brand hover:underline"
-      >
-        Edit or pause this goal →
-      </Link>
+      <GoalDetailActions goal={goal} />
     </section>
   );
 }

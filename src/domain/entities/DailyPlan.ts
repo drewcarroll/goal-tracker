@@ -1,8 +1,6 @@
 import { ValidationError } from "../errors/DomainError";
 import { LocalDate } from "../value-objects/LocalDate";
 
-const MAX_LOCKS = 100;
-
 export interface DailyPlanProps {
   id: string;
   userId: string;
@@ -10,17 +8,19 @@ export interface DailyPlanProps {
   date: LocalDate;
   /** Goal ids scheduled for this day. */
   goalIds: readonly string[];
-  /** Sum of the scheduled goals' lock costs at planning time. Invariant: <= 100. */
+  /** Sum of the scheduled goals' lock costs at planning time. Display only, no daily cap. */
   locksSpent: number;
   createdAt: Date;
 }
 
 /**
  * DailyPlan entity — the night-before commitment of which goals to attempt
- * tomorrow, within a 100-lock daily budget. Has identity; is fixed once
- * created (planning happens once, the night before — no auto-recurrence, no
- * same-day edits modeled here). Enforces its own invariants and knows nothing
- * about persistence or transport.
+ * tomorrow. Has identity; is fixed once created (planning happens once, the
+ * night before — no auto-recurrence, no same-day edits modeled here).
+ * Enforces its own invariants and knows nothing about persistence or
+ * transport. No daily key cap (removed 2026-07-18, user decision: "daily
+ * should be uncapped") — the weekly budget lives entirely in the UI as an
+ * informational ceiling, not a domain invariant.
  */
 export class DailyPlan {
   private constructor(private props: DailyPlanProps) {}
@@ -63,9 +63,6 @@ export class DailyPlan {
   private static assertValidLocksSpent(locksSpent: number): void {
     if (!Number.isFinite(locksSpent) || locksSpent < 0) {
       throw new ValidationError("Locks spent must be a non-negative number.");
-    }
-    if (locksSpent > MAX_LOCKS) {
-      throw new ValidationError(`Locks spent cannot exceed the daily budget of ${MAX_LOCKS}.`);
     }
   }
 

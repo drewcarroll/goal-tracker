@@ -46,6 +46,9 @@ import { GetShopOfferUseCase } from "@/application/use-cases/GetShopOfferUseCase
 import { PurchaseShopSlotUseCase } from "@/application/use-cases/PurchaseShopSlotUseCase";
 import { GetTrinketCollectionUseCase } from "@/application/use-cases/GetTrinketCollectionUseCase";
 import { GetActivityFeedUseCase } from "@/application/use-cases/GetActivityFeedUseCase";
+import { GetPinnedTrinketsUseCase } from "@/application/use-cases/GetPinnedTrinketsUseCase";
+import { SetPinnedTrinketsUseCase } from "@/application/use-cases/SetPinnedTrinketsUseCase";
+import { GetWeeklyScheduleStatusUseCase } from "@/application/use-cases/GetWeeklyScheduleStatusUseCase";
 import { GoalPrivacyService } from "@/domain/services/GoalPrivacyService";
 import { BattlePassCalendarService } from "@/domain/services/BattlePassCalendarService";
 import { ShopRollService } from "@/domain/services/ShopRollService";
@@ -68,6 +71,7 @@ import { SupabaseBattlePassClaimRepository } from "./repositories/SupabaseBattle
 import { SupabaseTrinketInventoryRepository } from "./repositories/SupabaseTrinketInventoryRepository";
 import { SupabaseActivityEventRepository } from "./repositories/SupabaseActivityEventRepository";
 import { SupabaseShopPurchaseRepository } from "./repositories/SupabaseShopPurchaseRepository";
+import { SupabasePinnedTrinketRepository } from "./repositories/SupabasePinnedTrinketRepository";
 import { UuidGenerator } from "./id/UuidGenerator";
 import { SystemClock } from "./time/SystemClock";
 
@@ -101,6 +105,7 @@ function buildContainer() {
   const trinketInventoryRepository = new SupabaseTrinketInventoryRepository(supabase);
   const activityEventRepository = new SupabaseActivityEventRepository(supabase);
   const shopPurchaseRepository = new SupabaseShopPurchaseRepository(supabase);
+  const pinnedTrinketRepository = new SupabasePinnedTrinketRepository(supabase);
   const idGenerator = new UuidGenerator();
   const clock = new SystemClock();
   const goalPrivacyService = new GoalPrivacyService();
@@ -251,6 +256,16 @@ function buildContainer() {
       friendshipRepository,
       usernameRepository,
       activityEventRepository,
+    ),
+    getPinnedTrinketsUseCase: new GetPinnedTrinketsUseCase(pinnedTrinketRepository),
+    setPinnedTrinketsUseCase: new SetPinnedTrinketsUseCase(
+      pinnedTrinketRepository,
+      trinketInventoryRepository,
+      economyConfigRepository,
+    ),
+    getWeeklyScheduleStatusUseCase: new GetWeeklyScheduleStatusUseCase(
+      goalRepository,
+      checkInRepository,
     ),
     localDateService: new LocalDateService(clock),
   };

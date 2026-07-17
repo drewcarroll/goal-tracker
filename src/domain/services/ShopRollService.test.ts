@@ -60,4 +60,35 @@ describe("ShopRollService", () => {
       expect(offer.some((s) => s.trinket.rarity === "legendary")).toBe(false);
     }
   });
+
+  it("never repeats a trinket within the same day's offer, across many users and days (regression, 2026-07-17)", () => {
+    for (let day = 1; day <= 60; day++) {
+      for (const userId of ["user-1", "user-2", "user-3"]) {
+        const offer = service.rollDailyOffer({
+          userId,
+          date: `2026-${String(Math.ceil(day / 28)).padStart(2, "0")}-${String(((day - 1) % 28) + 1).padStart(2, "0")}`,
+          economyConfig: DEFAULT_ECONOMY_CONFIG,
+        });
+        const ids = offer.map((s) => s.trinket.id);
+        expect(new Set(ids).size).toBe(5);
+      }
+    }
+  });
+
+  it("stays unique even when every slot rolls the 3-item legendary tier (forces the cross-tier fallback)", () => {
+    const allLegendary = {
+      ...DEFAULT_ECONOMY_CONFIG,
+      shopCommonWeight: 0,
+      shopRareWeight: 0,
+      shopEpicWeight: 0,
+      shopLegendaryWeight: 100,
+    };
+    const offer = service.rollDailyOffer({
+      userId: "user-1",
+      date: "2026-07-16",
+      economyConfig: allLegendary,
+    });
+    const ids = offer.map((s) => s.trinket.id);
+    expect(new Set(ids).size).toBe(5);
+  });
 });

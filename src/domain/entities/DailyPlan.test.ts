@@ -30,12 +30,8 @@ describe("DailyPlan", () => {
     );
   });
 
-  it("rejects locksSpent over the 100 budget", () => {
-    expect(() => DailyPlan.create({ ...base, locksSpent: 101 })).toThrow(ValidationError);
-  });
-
-  it("accepts locksSpent exactly at the 100 budget", () => {
-    expect(() => DailyPlan.create({ ...base, locksSpent: 100 })).not.toThrow();
+  it("accepts locksSpent well over the old 100 budget — no daily cap (user decision, 2026-07-18)", () => {
+    expect(() => DailyPlan.create({ ...base, locksSpent: 500 })).not.toThrow();
   });
 
   it("rejects negative locksSpent", () => {
@@ -57,7 +53,7 @@ describe("DailyPlan", () => {
     });
 
     it("re-validates invariants on rehydrate", () => {
-      expect(() => DailyPlan.rehydrate({ ...validProps, locksSpent: 200 })).toThrow(
+      expect(() => DailyPlan.rehydrate({ ...validProps, locksSpent: -5 })).toThrow(
         ValidationError,
       );
     });

@@ -1,5 +1,21 @@
 import type { Config } from "tailwindcss";
 
+/**
+ * Builds a Tailwind color that reads from a CSS custom property holding a
+ * space-separated RGB triple (e.g. "255 77 141"), so `bg-brand/10` etc. keep
+ * working with the opacity modifier while the actual color lives in
+ * globals.css and can be swapped per `data-theme` for the theme picker
+ * (Profile > Advanced > Appearance).
+ */
+function withOpacity(variableName: string) {
+  return ({ opacityValue }: { opacityValue?: string }) => {
+    if (opacityValue !== undefined) {
+      return `rgb(var(${variableName}) / ${opacityValue})`;
+    }
+    return `rgb(var(${variableName}))`;
+  };
+}
+
 const config: Config = {
   content: ["./src/interfaces/**/*.{js,ts,jsx,tsx,mdx}"],
   theme: {
@@ -16,21 +32,21 @@ const config: Config = {
     },
     extend: {
       colors: {
-        // "Midnight violet": the app is a nightly ritual, so the identity
-        // leans night-sky violet rather than default-Tailwind indigo.
         brand: {
-          DEFAULT: "#7c3aed",
-          dark: "#6d28d9",
+          DEFAULT: withOpacity("--brand") as unknown as string,
+          dark: withOpacity("--brand-dark") as unknown as string,
+          light: withOpacity("--brand-light") as unknown as string,
         },
       },
       fontFamily: {
         sans: [
-          "var(--font-inter)",
+          "var(--font-body)",
           "-apple-system",
           "BlinkMacSystemFont",
           "Segoe UI",
           "sans-serif",
         ],
+        display: ["var(--font-display)", "var(--font-body)", "-apple-system", "sans-serif"],
       },
       // iOS safe-area insets exposed as spacing tokens so utilities like
       // `pt-safe-top` / `pb-safe-bottom` respect the notch and home indicator.

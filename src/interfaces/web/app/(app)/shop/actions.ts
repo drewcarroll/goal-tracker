@@ -29,7 +29,8 @@ export async function purchaseShopSlotAction(slotIndex: number): Promise<Purchas
 
   try {
     const result = await purchaseShopSlotUseCase.execute({ userId, date, slotIndex });
-    revalidatePath("/trinkets");
+    revalidatePath("/shop");
+    revalidatePath("/profile");
     return { ok: true, result };
   } catch (error) {
     return { ok: false, error: toErrorMessage(error) };

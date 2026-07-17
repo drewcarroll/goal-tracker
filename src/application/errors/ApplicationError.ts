@@ -125,3 +125,11 @@ export class InsufficientCoinsError extends ApplicationError {
     super("Not enough coins for that.");
   }
 }
+
+export class TooManyPinnedTrinketsError extends ApplicationError {
+  public readonly code = "TOO_MANY_PINNED_TRINKETS";
+
+  constructor(max: number) {
+    super(`You can only display up to ${max} trinkets at once.`);
+  }
+}

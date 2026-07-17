@@ -1,4 +1,5 @@
 import type { ActivityFeedItemDTO } from "@/application/dtos/TrinketCollectionDTO";
+import { CoinIcon } from "@/interfaces/web/components/icons";
 
 function timeAgo(iso: string): string {
   const ms = Date.now() - new Date(iso).getTime();
@@ -35,7 +36,9 @@ export function ActivityFeed({ items }: { items: ActivityFeedItemDTO[] }) {
               key={`${item.userId}-${item.occurredAt}-${index}`}
               className="flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm"
             >
-              <span className="text-xl leading-none">{item.trinket?.emoji ?? "🪙"}</span>
+              <span className="flex h-5 w-5 items-center justify-center text-xl leading-none">
+                {item.trinket?.emoji ?? <CoinIcon className="h-5 w-5 text-amber-500" />}
+              </span>
               <span className="min-w-0 flex-1 truncate">
                 <span className="font-semibold text-gray-900">{item.username}</span>{" "}
                 <span className="text-gray-600">{describe(item)}</span>

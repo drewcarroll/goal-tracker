@@ -94,9 +94,12 @@ export function CoinIcon(props: IconProps) {
   return (
     <svg {...base} {...props}>
       <circle cx="12" cy="12" r="9" />
-      <circle cx="12" cy="12" r="5.5" />
-      <path d="M12 9v6" />
-      <path d="M10 10.5c0-1 .8-1.5 2-1.5s2 .5 2 1.3-.8 1.2-2 1.4-2 .6-2 1.5.8 1.3 2 1.3 2-.5 2-1.5" />
+      <circle cx="12" cy="12" r="6.5" />
+      <path
+        d="M12 8.3l1.1 2.23 2.46.36-1.78 1.74.42 2.45L12 13.95l-2.2 1.13.42-2.45-1.78-1.74 2.46-.36L12 8.3Z"
+        fill="currentColor"
+        stroke="none"
+      />
     </svg>
   );
 }

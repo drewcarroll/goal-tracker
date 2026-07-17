@@ -4,11 +4,7 @@ import { Goal } from "../../domain/entities/Goal";
 import { DailyPlan } from "../../domain/entities/DailyPlan";
 import { GoalRepository } from "../../domain/repositories/GoalRepository";
 import { DailyPlanRepository } from "../../domain/repositories/DailyPlanRepository";
-import {
-  GoalNotFoundError,
-  GoalNotSchedulableError,
-  LockBudgetExceededError,
-} from "../errors/ApplicationError";
+import { GoalNotFoundError, GoalNotSchedulableError } from "../errors/ApplicationError";
 import { Clock } from "../ports/Clock";
 import { IdGenerator } from "../ports/IdGenerator";
 
@@ -66,15 +62,19 @@ describe("CreateDailyPlanUseCase", () => {
     expect(plans.saved).toHaveLength(1);
   });
 
-  it("rejects a plan that exceeds the 100-lock budget", async () => {
+  it("allows scheduling every active goal on the same day — no daily cap (user decision, 2026-07-18)", async () => {
     const goals = new InMemoryGoalRepository([goal("g1", 45), goal("g2", 45), goal("g3", 45)]);
     const plans = new InMemoryDailyPlanRepository();
     const useCase = new CreateDailyPlanUseCase(goals, plans, fixedIds, fixedClock);
 
-    await expect(
-      useCase.execute({ userId: "user-1", date: "2026-01-21", goalIds: ["g1", "g2", "g3"] }),
-    ).rejects.toBeInstanceOf(LockBudgetExceededError); // 45 * 3 = 135
-    expect(plans.saved).toHaveLength(0);
+    const result = await useCase.execute({
+      userId: "user-1",
+      date: "2026-01-21",
+      goalIds: ["g1", "g2", "g3"],
+    });
+
+    expect(result.locksSpent).toBe(135);
+    expect(plans.saved).toHaveLength(1);
   });
 
   it("rejects scheduling a goal the caller does not own", async () => {

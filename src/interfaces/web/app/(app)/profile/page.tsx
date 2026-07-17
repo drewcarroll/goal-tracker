@@ -1,15 +1,24 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { cookies } from "next/headers";
 import { getContainer } from "@/infrastructure/container";
 import { currentUserId, currentTimezone } from "@/interfaces/web/http/currentUser";
-import { USER_COOKIE } from "@/interfaces/web/http/session";
+import {
+  USER_COOKIE,
+  THEME_COOKIE,
+  DEFAULT_COLOR_THEME,
+  isValidColorTheme,
+} from "@/interfaces/web/http/session";
 import { RankBadge } from "@/interfaces/web/components/profile/RankBadge";
 import { rankVisual } from "@/interfaces/web/components/profile/rankColors";
 import { WindowSettingsForm } from "@/interfaces/web/components/profile/WindowSettingsForm";
+import { ThemePicker } from "@/interfaces/web/components/profile/ThemePicker";
 import { DevModeGate } from "@/interfaces/web/components/profile/DevModeGate";
 import { DevModePanel } from "@/interfaces/web/components/profile/DevModePanel";
 import { CheckInHistoryView } from "@/interfaces/web/components/profile/CheckInHistoryView";
-import { ChevronRightIcon } from "@/interfaces/web/components/icons";
+import { TrinketCollection } from "@/interfaces/web/components/trinkets/TrinketCollection";
+import { ActivityFeed } from "@/interfaces/web/components/trinkets/ActivityFeed";
+import { ChevronRightIcon, CalendarIcon } from "@/interfaces/web/components/icons";
 import {
   isDevModeUnlocked,
   recomputeAllGoalsPanelAction,
@@ -41,23 +50,42 @@ export default async function ProfilePage() {
     getCheckInHistoryUseCase,
     getAllGoalsUseCase,
     getJournalHistoryUseCase,
+    getTrinketCollectionUseCase,
+    getActivityFeedUseCase,
+    getPinnedTrinketsUseCase,
     localDateService,
   } = getContainer();
   const userId = currentUserId();
   const username = cookies().get(USER_COOKIE)?.value ?? "";
   const today = localDateService.today(currentTimezone());
+  const rawTheme = cookies().get(THEME_COOKIE)?.value ?? "";
+  const currentTheme = isValidColorTheme(rawTheme) ? rawTheme : DEFAULT_COLOR_THEME;
 
   const devUnlocked = await isDevModeUnlocked();
-  const [rank, settings, lockFormulaConfigDto, economyConfigDto, checkIns, goals, journalEntries] =
-    await Promise.all([
-      getRankUseCase.execute({ userId }),
-      getUserSettingsUseCase.execute({ userId }),
-      devUnlocked ? getLockFormulaConfigUseCase.execute() : Promise.resolve(null),
-      devUnlocked ? getEconomyConfigUseCase.execute() : Promise.resolve(null),
-      getCheckInHistoryUseCase.execute({ userId }),
-      getAllGoalsUseCase.execute({ userId }),
-      getJournalHistoryUseCase.execute({ userId }),
-    ]);
+  const [
+    rank,
+    settings,
+    lockFormulaConfigDto,
+    economyConfig,
+    checkIns,
+    goals,
+    journalEntries,
+    trinkets,
+    activityFeed,
+    pinnedIds,
+  ] = await Promise.all([
+    getRankUseCase.execute({ userId }),
+    getUserSettingsUseCase.execute({ userId }),
+    devUnlocked ? getLockFormulaConfigUseCase.execute() : Promise.resolve(null),
+    getEconomyConfigUseCase.execute(),
+    getCheckInHistoryUseCase.execute({ userId }),
+    getAllGoalsUseCase.execute({ userId }),
+    getJournalHistoryUseCase.execute({ userId }),
+    getTrinketCollectionUseCase.execute({ userId }),
+    getActivityFeedUseCase.execute({ userId }),
+    getPinnedTrinketsUseCase.execute({ userId }),
+  ]);
+  const economyConfigDto = devUnlocked ? economyConfig : null;
 
   const current = rankVisual(rank.rank);
   const next = rankVisual(rank.nextRank);
@@ -101,6 +129,25 @@ export default async function ProfilePage() {
         </div>
       </div>
 
+      <Link
+        href="/trinkets"
+        className="flex items-center justify-between gap-3 rounded-2xl border border-gray-900/[0.06] bg-white px-5 py-4 shadow-sm transition-colors active:bg-gray-50"
+      >
+        <span className="inline-flex items-center gap-2.5 font-display font-semibold text-gray-900">
+          <CalendarIcon className="h-5 w-5 text-brand" />
+          Rewards calendar
+        </span>
+        <ChevronRightIcon className="h-4 w-4 text-gray-300" />
+      </Link>
+
+      <TrinketCollection
+        trinkets={trinkets}
+        initialPinnedIds={pinnedIds}
+        maxPinned={economyConfig.config.maxPinnedTrinkets}
+      />
+
+      <ActivityFeed items={activityFeed} />
+
       <div>
         <h2 className="mb-2 text-lg font-semibold text-gray-900">History</h2>
         <p className="mb-3 -mt-1 text-sm text-gray-500">
@@ -126,6 +173,7 @@ export default async function ProfilePage() {
           <ChevronRightIcon className="h-4 w-4 shrink-0 text-gray-300 transition-transform group-open:rotate-90" />
         </summary>
         <div className="flex flex-col gap-4 border-t border-gray-900/[0.06] p-4">
+          <ThemePicker current={currentTheme} />
           <WindowSettingsForm
             start={settings.checkInWindow.start}
             end={settings.checkInWindow.end}
