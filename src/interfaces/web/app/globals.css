@@ -3,7 +3,12 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: light dark;
+  /* Light only, deliberately (fixed 2026-07-18): "light dark" here with no
+     actual dark-mode CSS anywhere meant the browser's own UA background
+     followed the OS's dark preference while every element we style stayed
+     hardcoded light — on a dark-mode OS that showed as a dingy gray/brown
+     wash behind and around the real (light) UI. */
+  color-scheme: light;
 
   /* iOS safe-area insets, also available as Tailwind spacing tokens
      (pt-safe-top, pb-safe-bottom, …). Exposed here for raw CSS use. */
@@ -50,16 +55,22 @@
     -webkit-text-size-adjust: 100%;
     -moz-text-size-adjust: 100%;
     text-size-adjust: 100%;
+    /* Explicit so there's never a UA-default flash before the body paints. */
+    background-color: #fffdfb;
   }
 
   body {
-    @apply bg-orange-50/40 text-gray-900 antialiased;
+    @apply text-gray-900 antialiased;
     /* Mobile-first: fill the dynamic viewport and never scroll sideways. */
     @apply min-h-dvh overflow-x-hidden;
-    /* A soft brand-tinted wash at the top so pages don't read as flat gray. */
+    /* A single warm-white base with one soft brand-tinted wash at the top —
+       previously this layered a separate orange-50 base UNDER the pink
+       wash, and two different warm hues stacked with transparency read as
+       muddy brown rather than clean (fixed 2026-07-18). */
+    background-color: #fffdfb;
     background-image: radial-gradient(
       60rem 24rem at 50% -6rem,
-      rgb(var(--wash) / 0.12),
+      rgb(var(--wash) / 0.1),
       transparent 70%
     );
     background-repeat: no-repeat;
@@ -99,5 +110,19 @@
   }
   .animate-rise-in-late {
     animation: rise-in 0.45s ease-out 0.5s both;
+  }
+
+  /* Battle-pass track: a soft glow pulse marking the next claimable day. */
+  @keyframes glow-pulse {
+    0%,
+    100% {
+      box-shadow: 0 0 0 0 rgb(var(--brand) / 0.35);
+    }
+    50% {
+      box-shadow: 0 0 0 8px rgb(var(--brand) / 0);
+    }
+  }
+  .animate-glow-pulse {
+    animation: glow-pulse 2s ease-in-out infinite;
   }
 }

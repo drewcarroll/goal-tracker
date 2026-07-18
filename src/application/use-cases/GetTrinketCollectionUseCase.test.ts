@@ -23,8 +23,18 @@ describe("GetTrinketCollectionUseCase", () => {
     const collection = await useCase.execute({ userId: "user-1" });
 
     expect(collection).toHaveLength(2);
-    expect(collection[0]).toMatchObject({ id: "shop:common:01", quantity: 3, source: "shop" });
-    expect(collection[1]).toMatchObject({ id: "bp:2026-07:d25", quantity: 1, source: "battle_pass" });
+    expect(collection[0]).toMatchObject({
+      id: "shop:common:01",
+      quantity: 3,
+      source: "shop",
+      rarity: "common",
+    });
+    expect(collection[1]).toMatchObject({
+      id: "bp:2026-07:d25",
+      quantity: 1,
+      source: "battle_pass",
+      rarity: undefined,
+    });
   });
 
   it("returns an empty list for a user with nothing owned", async () => {

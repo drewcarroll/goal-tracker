@@ -15,7 +15,13 @@ export interface EconomyConfig {
   coinsHighProbability: number;
   /** Flat price for every shop trinket, regardless of rarity (user decision, 2026-07-16). */
   shopTrinketPrice: number;
-  /** Relative weights for the daily 5-slot shop roll — flavor only, not price. */
+  /**
+   * Relative weights for the daily 5-slot shop roll — flavor only, not
+   * price. Sized (out of 10000) so P(at least one of the 5 slots is that
+   * rarity) hits the user's target odds — see docs/plan.md: 50% for rare,
+   * 15% for epic, 5% for legendary. Solved from
+   * p = 1 - (1 - targetP)^(1/5) per rarity (2026-07-18).
+   */
   shopCommonWeight: number;
   shopRareWeight: number;
   shopEpicWeight: number;
@@ -29,10 +35,10 @@ export const DEFAULT_ECONOMY_CONFIG: EconomyConfig = {
   coinsHighAmount: 100,
   coinsHighProbability: 0.2,
   shopTrinketPrice: 200,
-  shopCommonWeight: 55,
-  shopRareWeight: 30,
-  shopEpicWeight: 12,
-  shopLegendaryWeight: 3,
+  shopCommonWeight: 8284,
+  shopRareWeight: 1294,
+  shopEpicWeight: 320,
+  shopLegendaryWeight: 102,
   maxPinnedTrinkets: 6,
 };
 
@@ -47,10 +53,10 @@ export const ECONOMY_CONFIG_BOUNDS: Record<string, NumericBound> = {
   coinsHighAmount: { min: 5, max: 1000, integer: true },
   coinsHighProbability: { min: 0, max: 1 },
   shopTrinketPrice: { min: 10, max: 5000, integer: true },
-  shopCommonWeight: { min: 0, max: 100, integer: true },
-  shopRareWeight: { min: 0, max: 100, integer: true },
-  shopEpicWeight: { min: 0, max: 100, integer: true },
-  shopLegendaryWeight: { min: 0, max: 100, integer: true },
+  shopCommonWeight: { min: 0, max: 10000, integer: true },
+  shopRareWeight: { min: 0, max: 10000, integer: true },
+  shopEpicWeight: { min: 0, max: 10000, integer: true },
+  shopLegendaryWeight: { min: 0, max: 10000, integer: true },
   maxPinnedTrinkets: { min: 1, max: 20, integer: true },
 };
 

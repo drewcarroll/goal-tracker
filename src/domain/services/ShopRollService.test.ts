@@ -91,4 +91,33 @@ describe("ShopRollService", () => {
     const ids = offer.map((s) => s.trinket.id);
     expect(new Set(ids).size).toBe(5);
   });
+
+  it("hits the target odds over many days: ~50% rare, ~15% epic, ~5% legendary appear somewhere in the 5 slots (user-specified odds, 2026-07-18)", () => {
+    const days = 3000;
+    let daysWithRare = 0;
+    let daysWithEpic = 0;
+    let daysWithLegendary = 0;
+
+    for (let day = 0; day < days; day++) {
+      const date = `2030-${String(Math.floor(day / 28) + 1).padStart(2, "0")}-${String((day % 28) + 1).padStart(2, "0")}`;
+      const offer = service.rollDailyOffer({
+        userId: `stat-user-${day % 7}`,
+        date,
+        economyConfig: DEFAULT_ECONOMY_CONFIG,
+      });
+      const rarities = new Set(offer.map((s) => s.trinket.rarity));
+      if (rarities.has("rare")) daysWithRare++;
+      if (rarities.has("epic")) daysWithEpic++;
+      if (rarities.has("legendary")) daysWithLegendary++;
+    }
+
+    // Generous tolerance band — this is a statistical check on a
+    // deterministic-but-effectively-random hash, not an exact assertion.
+    expect(daysWithRare / days).toBeGreaterThan(0.44);
+    expect(daysWithRare / days).toBeLessThan(0.56);
+    expect(daysWithEpic / days).toBeGreaterThan(0.11);
+    expect(daysWithEpic / days).toBeLessThan(0.19);
+    expect(daysWithLegendary / days).toBeGreaterThan(0.02);
+    expect(daysWithLegendary / days).toBeLessThan(0.08);
+  });
 });

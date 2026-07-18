@@ -4,20 +4,24 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import type { GoalDTO, GoalSuggestionDTO } from "@/application/dtos/GoalDTO";
 import { FrequencySlider } from "./FrequencySlider";
-import { ChevronRightIcon } from "@/interfaces/web/components/icons";
+import { ChevronRightIcon, CalendarIcon } from "@/interfaces/web/components/icons";
 import { createGoalAction } from "@/interfaces/web/app/(app)/goals/actions";
 
 /**
  * Just the list — name, target, cost, tap through for the graph, stats, and
  * edit/pause/delete (simplified 2026-07-18; those all live on /goals/[id]
- * now, not inline on the card).
+ * now, not inline on the card). Active goals up top, Paused below; a
+ * schedule-tomorrow prompt sits above Active when tomorrow isn't planned
+ * yet (user feedback: no path to scheduling from this page).
  */
 export function GoalsManager({
   initialGoals,
   suggestions,
+  tomorrowPlanned,
 }: {
   initialGoals: GoalDTO[];
   suggestions: GoalSuggestionDTO[];
+  tomorrowPlanned: boolean;
 }) {
   const [goals, setGoals] = useState<GoalDTO[]>(initialGoals);
 
@@ -42,14 +46,32 @@ export function GoalsManager({
         </p>
       ) : (
         <>
-          <ul className="flex flex-col gap-2">
-            {active.map((goal) => (
-              <GoalRow key={goal.id} goal={goal} />
-            ))}
-          </ul>
+          {!tomorrowPlanned && active.length > 0 && (
+            <Link
+              href="/plan"
+              className="flex items-center justify-between gap-3 rounded-2xl border border-brand/30 bg-brand/5 px-4 py-3 shadow-sm transition-colors active:bg-brand/10"
+            >
+              <span className="inline-flex items-center gap-2.5 text-sm font-semibold text-brand">
+                <CalendarIcon className="h-4 w-4" />
+                Tomorrow isn&apos;t scheduled yet
+              </span>
+              <ChevronRightIcon className="h-4 w-4 text-brand" />
+            </Link>
+          )}
+
+          <div>
+            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+              Active
+            </h2>
+            <ul className="flex flex-col gap-2">
+              {active.map((goal) => (
+                <GoalRow key={goal.id} goal={goal} />
+              ))}
+            </ul>
+          </div>
           {paused.length > 0 && (
             <div>
-              <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
+              <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
                 Paused
               </h2>
               <ul className="flex flex-col gap-2">

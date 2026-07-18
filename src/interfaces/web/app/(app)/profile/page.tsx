@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { cookies } from "next/headers";
 import { getContainer } from "@/infrastructure/container";
 import { currentUserId, currentTimezone } from "@/interfaces/web/http/currentUser";
@@ -16,9 +15,8 @@ import { ThemePicker } from "@/interfaces/web/components/profile/ThemePicker";
 import { DevModeGate } from "@/interfaces/web/components/profile/DevModeGate";
 import { DevModePanel } from "@/interfaces/web/components/profile/DevModePanel";
 import { CheckInHistoryView } from "@/interfaces/web/components/profile/CheckInHistoryView";
-import { TrinketCollection } from "@/interfaces/web/components/trinkets/TrinketCollection";
 import { ActivityFeed } from "@/interfaces/web/components/trinkets/ActivityFeed";
-import { ChevronRightIcon, CalendarIcon } from "@/interfaces/web/components/icons";
+import { ChevronRightIcon } from "@/interfaces/web/components/icons";
 import {
   isDevModeUnlocked,
   recomputeAllGoalsPanelAction,
@@ -50,9 +48,7 @@ export default async function ProfilePage() {
     getCheckInHistoryUseCase,
     getAllGoalsUseCase,
     getJournalHistoryUseCase,
-    getTrinketCollectionUseCase,
     getActivityFeedUseCase,
-    getPinnedTrinketsUseCase,
     localDateService,
   } = getContainer();
   const userId = currentUserId();
@@ -62,30 +58,17 @@ export default async function ProfilePage() {
   const currentTheme = isValidColorTheme(rawTheme) ? rawTheme : DEFAULT_COLOR_THEME;
 
   const devUnlocked = await isDevModeUnlocked();
-  const [
-    rank,
-    settings,
-    lockFormulaConfigDto,
-    economyConfig,
-    checkIns,
-    goals,
-    journalEntries,
-    trinkets,
-    activityFeed,
-    pinnedIds,
-  ] = await Promise.all([
-    getRankUseCase.execute({ userId }),
-    getUserSettingsUseCase.execute({ userId }),
-    devUnlocked ? getLockFormulaConfigUseCase.execute() : Promise.resolve(null),
-    getEconomyConfigUseCase.execute(),
-    getCheckInHistoryUseCase.execute({ userId }),
-    getAllGoalsUseCase.execute({ userId }),
-    getJournalHistoryUseCase.execute({ userId }),
-    getTrinketCollectionUseCase.execute({ userId }),
-    getActivityFeedUseCase.execute({ userId }),
-    getPinnedTrinketsUseCase.execute({ userId }),
-  ]);
-  const economyConfigDto = devUnlocked ? economyConfig : null;
+  const [rank, settings, lockFormulaConfigDto, economyConfigDto, checkIns, goals, journalEntries, activityFeed] =
+    await Promise.all([
+      getRankUseCase.execute({ userId }),
+      getUserSettingsUseCase.execute({ userId }),
+      devUnlocked ? getLockFormulaConfigUseCase.execute() : Promise.resolve(null),
+      devUnlocked ? getEconomyConfigUseCase.execute() : Promise.resolve(null),
+      getCheckInHistoryUseCase.execute({ userId }),
+      getAllGoalsUseCase.execute({ userId }),
+      getJournalHistoryUseCase.execute({ userId }),
+      getActivityFeedUseCase.execute({ userId }),
+    ]);
 
   const current = rankVisual(rank.rank);
   const next = rankVisual(rank.nextRank);
@@ -128,23 +111,6 @@ export default async function ProfilePage() {
           <RankBadge rank={rank.nextRank} size="md" />
         </div>
       </div>
-
-      <Link
-        href="/trinkets"
-        className="flex items-center justify-between gap-3 rounded-2xl border border-gray-900/[0.06] bg-white px-5 py-4 shadow-sm transition-colors active:bg-gray-50"
-      >
-        <span className="inline-flex items-center gap-2.5 font-display font-semibold text-gray-900">
-          <CalendarIcon className="h-5 w-5 text-brand" />
-          Rewards calendar
-        </span>
-        <ChevronRightIcon className="h-4 w-4 text-gray-300" />
-      </Link>
-
-      <TrinketCollection
-        trinkets={trinkets}
-        initialPinnedIds={pinnedIds}
-        maxPinned={economyConfig.config.maxPinnedTrinkets}
-      />
 
       <ActivityFeed items={activityFeed} />
 

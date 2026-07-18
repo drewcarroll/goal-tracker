@@ -1,5 +1,6 @@
 import { TrinketInventoryRepository } from "@/domain/repositories/TrinketInventoryRepository";
 import { getTrinketById, trinketSource } from "@/domain/value-objects/TrinketCatalog";
+import { getShopTrinketById } from "@/domain/value-objects/ShopTrinketCatalog";
 import type { OwnedTrinketDTO } from "../dtos/TrinketCollectionDTO";
 
 export interface GetTrinketCollectionDTO {
@@ -21,7 +22,8 @@ export class GetTrinketCollectionUseCase {
       const trinket = getTrinketById(trinketId);
       const source = trinketSource(trinketId);
       if (!trinket || source === "unknown") continue; // defensive; every stored id should resolve
-      owned.push({ id: trinket.id, emoji: trinket.emoji, name: trinket.name, quantity, source });
+      const rarity = source === "shop" ? getShopTrinketById(trinketId)?.rarity : undefined;
+      owned.push({ id: trinket.id, emoji: trinket.emoji, name: trinket.name, quantity, source, rarity });
     }
     return owned.sort((a, b) => b.quantity - a.quantity || a.name.localeCompare(b.name));
   }

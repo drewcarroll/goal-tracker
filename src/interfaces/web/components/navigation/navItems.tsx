@@ -63,20 +63,20 @@ export interface NavItem {
   href: string;
   label: string;
   Icon: ComponentType<IconProps>;
-  /** Icon-only below `sm:` on the mobile tab bar — keeps 5 tabs from feeling cramped on a phone. */
-  compactLabelOnMobile?: boolean;
 }
 
 /**
  * The primary tabs, in display order. Down to 5 as of 2026-07-18 (user
  * feedback: 6 was too many) — Schedule folded into the end-of-day flow on
  * Home, and the old single "Trinkets" tab split: Shop is its own tab,
- * Collection + the battle-pass calendar moved into Profile.
+ * hosting the battle-pass calendar and collection too. All 5 show text
+ * labels (previously Friends/Shop were icon-only on mobile — user feedback:
+ * inconsistent with the other tabs).
  */
 export const NAV_ITEMS: readonly NavItem[] = [
   { href: "/home", label: "Home", Icon: HomeIcon },
   { href: "/goals", label: "Goals", Icon: GoalsIcon },
-  { href: "/shop", label: "Shop", Icon: ShopIcon, compactLabelOnMobile: true },
-  { href: "/friends", label: "Friends", Icon: FriendsIcon, compactLabelOnMobile: true },
+  { href: "/shop", label: "Shop", Icon: ShopIcon },
+  { href: "/friends", label: "Friends", Icon: FriendsIcon },
   { href: "/profile", label: "Profile", Icon: ProfileIcon },
 ];

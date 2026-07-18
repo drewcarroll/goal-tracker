@@ -103,3 +103,34 @@ export function CoinIcon(props: IconProps) {
     </svg>
   );
 }
+
+/** Filled star — used for "pinned/displayed" state instead of an emoji star. */
+export function StarIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path
+        d="M12 3.5l2.47 5.18 5.53.66-4.1 3.87 1.13 5.55L12 15.9l-4.03 2.86 1.13-5.55-4.1-3.87 5.53-.66L12 3.5Z"
+        fill="currentColor"
+        stroke="currentColor"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/** Filled check in a circle — the battle-pass "claimed" state. */
+export function CheckCircleIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <circle cx="12" cy="12" r="9" fill="currentColor" stroke="none" />
+      <path
+        d="m8 12.3 2.6 2.6L16.2 9"
+        stroke="white"
+        strokeWidth={2.2}
+        fill="none"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
