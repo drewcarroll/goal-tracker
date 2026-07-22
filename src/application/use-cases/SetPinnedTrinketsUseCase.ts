@@ -29,7 +29,7 @@ export class SetPinnedTrinketsUseCase {
     }
 
     const inventory = await this.trinketInventoryRepository.getInventory(dto.userId);
-    const owned = dto.trinketIds.filter((id) => (inventory.get(id) ?? 0) > 0);
+    const owned = dto.trinketIds.filter((id) => (inventory.get(id)?.quantity ?? 0) > 0);
 
     await this.pinnedTrinketRepository.setPinned(dto.userId, owned);
   }

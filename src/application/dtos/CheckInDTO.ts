@@ -26,10 +26,3 @@ export interface SubmitCheckInDTO {
   timezone: string;
   marks: GoalMarkDTO[];
 }
-
-/** Backfilling a missed past day via /history — never earns a rank point. */
-export interface BackfillCheckInDTO {
-  userId: string;
-  date: string; // YYYY-MM-DD
-  marks: GoalMarkDTO[];
-}

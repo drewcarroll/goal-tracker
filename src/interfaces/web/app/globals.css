@@ -68,11 +68,9 @@
        wash, and two different warm hues stacked with transparency read as
        muddy brown rather than clean (fixed 2026-07-18). */
     background-color: #fffdfb;
-    background-image: radial-gradient(
-      60rem 24rem at 50% -6rem,
-      rgb(var(--wash) / 0.1),
-      transparent 70%
-    );
+    background-image:
+      radial-gradient(60rem 24rem at 50% -6rem, rgb(var(--wash) / 0.16), transparent 70%),
+      radial-gradient(50rem 22rem at 50% 100%, rgb(var(--wash) / 0.14), transparent 70%);
     background-repeat: no-repeat;
   }
 }
@@ -124,5 +122,59 @@
   }
   .animate-glow-pulse {
     animation: glow-pulse 2s ease-in-out infinite;
+  }
+
+  /* Limited-edition trinkets: a constantly spinning rainbow (2026-07-21). */
+  @keyframes rainbow-spin {
+    0% {
+      background-position: 0% 50%;
+    }
+    100% {
+      background-position: 200% 50%;
+    }
+  }
+  .animate-rainbow-spin {
+    animation: rainbow-spin 3s linear infinite;
+  }
+
+  /* Mystery box: a shake building anticipation before the lid pops. */
+  @keyframes box-shake {
+    0%,
+    100% {
+      transform: rotate(0deg);
+    }
+    20% {
+      transform: rotate(-8deg);
+    }
+    40% {
+      transform: rotate(7deg);
+    }
+    60% {
+      transform: rotate(-5deg);
+    }
+    80% {
+      transform: rotate(4deg);
+    }
+  }
+  .animate-box-shake {
+    animation: box-shake 0.5s ease-in-out infinite;
+  }
+
+  /* Mystery box: the rarity-colored glow behind a freshly revealed trinket. */
+  @keyframes reveal-glow {
+    0% {
+      box-shadow: 0 0 0 0 currentColor;
+      opacity: 0;
+    }
+    40% {
+      opacity: 0.5;
+    }
+    100% {
+      box-shadow: 0 0 0 28px transparent;
+      opacity: 0;
+    }
+  }
+  .animate-reveal-glow {
+    animation: reveal-glow 1s ease-out both;
   }
 }

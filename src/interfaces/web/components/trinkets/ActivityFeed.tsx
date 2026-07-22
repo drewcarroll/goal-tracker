@@ -27,7 +27,7 @@ export function ActivityFeed({ items }: { items: ActivityFeedItemDTO[] }) {
       <h2 className="mb-3 text-lg font-semibold text-gray-900">Feed</h2>
       {items.length === 0 ? (
         <p className="text-sm text-gray-500">
-          Nothing from friends yet — add friends to see their trinket claims here.
+          Nothing from friends yet. Add friends to see their trinket claims here.
         </p>
       ) : (
         <ul className="flex flex-col gap-2">

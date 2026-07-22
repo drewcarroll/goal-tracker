@@ -2,19 +2,24 @@ import type { Metadata } from "next";
 import { getContainer } from "@/infrastructure/container";
 import { currentUserId } from "@/interfaces/web/http/currentUser";
 import { FriendsView } from "@/interfaces/web/components/friends/FriendsView";
+import { ActivityFeed } from "@/interfaces/web/components/trinkets/ActivityFeed";
 
 export const metadata: Metadata = { title: "Friends · Goal Tracker" };
 
 // Reads live data per request, so it must never be statically prerendered.
 export const dynamic = "force-dynamic";
 
+/** Friends list/requests, plus the friend activity feed (moved here from
+ * Profile 2026-07-21 — it's about friends, not this account). */
 export default async function FriendsPage() {
-  const { getFriendsListUseCase, getPendingFriendRequestsUseCase } = getContainer();
+  const { getFriendsListUseCase, getPendingFriendRequestsUseCase, getActivityFeedUseCase } =
+    getContainer();
   const userId = currentUserId();
 
-  const [friends, pending] = await Promise.all([
+  const [friends, pending, activityFeed] = await Promise.all([
     getFriendsListUseCase.execute({ userId }),
     getPendingFriendRequestsUseCase.execute({ userId }),
+    getActivityFeedUseCase.execute({ userId }),
   ]);
 
   return (
@@ -30,6 +35,7 @@ export default async function FriendsPage() {
         initialIncoming={pending.incoming}
         initialOutgoing={pending.outgoing}
       />
+      <ActivityFeed items={activityFeed} />
     </section>
   );
 }

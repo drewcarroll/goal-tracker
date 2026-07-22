@@ -62,7 +62,7 @@ describe("CreateGoalsFromOnboardingUseCase", () => {
     expect(repo.saved.every((g) => g.userId === "user-1")).toBe(true);
   });
 
-  it("rejects the whole batch when it would overflow the weekly capacity", async () => {
+  it("creates a whole batch even past the daily key budget — no capacity limit on creation", async () => {
     const repo = new InMemoryGoalRepository();
     const useCase = new CreateGoalsFromOnboardingUseCase(
       repo,
@@ -71,17 +71,17 @@ describe("CreateGoalsFromOnboardingUseCase", () => {
       fixedClock,
     );
 
-    // Six 7×/week goals at 20 each = 120 > 100.
-    await expect(
-      useCase.execute({
-        userId: "user-1",
-        selections: ["A", "B", "C", "D", "E", "F"].map((name) => ({
-          name,
-          weeklyFrequencyTarget: 7,
-        })),
-      }),
-    ).rejects.toMatchObject({ code: "LOCK_CAPACITY_EXCEEDED" });
-    expect(repo.saved).toHaveLength(0); // atomic: no partial batch
+    // Six 7×/week goals at 20 each = 120 — over the 100 daily budget, but
+    // creation has no cap (2026-07-21) — only scheduling does.
+    const result = await useCase.execute({
+      userId: "user-1",
+      selections: ["A", "B", "C", "D", "E", "F"].map((name) => ({
+        name,
+        weeklyFrequencyTarget: 7,
+      })),
+    });
+    expect(result).toHaveLength(6);
+    expect(repo.saved).toHaveLength(6);
   });
 
   it("creates nothing for an empty selection list", async () => {

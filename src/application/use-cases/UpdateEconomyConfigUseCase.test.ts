@@ -27,12 +27,12 @@ describe("economy config use cases", () => {
   it("saves a partial override merged over defaults", async () => {
     const repo = new InMemoryEconomyConfigRepository();
     const saved = await new UpdateEconomyConfigUseCase(repo).execute({
-      config: { shopTrinketPrice: 300 },
+      config: { mysteryBoxPrice: 300 },
     });
 
-    expect(saved.shopTrinketPrice).toBe(300);
+    expect(saved.mysteryBoxPrice).toBe(300);
     expect(saved.coinsLowAmount).toBe(DEFAULT_ECONOMY_CONFIG.coinsLowAmount);
-    expect(repo.stored?.shopTrinketPrice).toBe(300);
+    expect(repo.stored?.mysteryBoxPrice).toBe(300);
   });
 
   it("rejects out-of-range constants without saving", async () => {
@@ -52,12 +52,12 @@ describe("economy config use cases", () => {
 
     expect(result.config.maxPinnedTrinkets).toBe(10);
     expect(result.defaults).toEqual(DEFAULT_ECONOMY_CONFIG);
-    expect(result.bounds["shopTrinketPrice"]).toMatchObject({ min: 10, max: 5000 });
+    expect(result.bounds["mysteryBoxPrice"]).toMatchObject({ min: 10, max: 5000 });
   });
 
   it("reset drops the override so defaults apply again", async () => {
     const repo = new InMemoryEconomyConfigRepository();
-    await new UpdateEconomyConfigUseCase(repo).execute({ config: { shopTrinketPrice: 999 } });
+    await new UpdateEconomyConfigUseCase(repo).execute({ config: { mysteryBoxPrice: 999 } });
 
     const result = await new ResetEconomyConfigUseCase(repo).execute();
 

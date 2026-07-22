@@ -76,7 +76,7 @@ describe("CreateGoalUseCase", () => {
     expect(result.currentLockCost).toBe(30);
   });
 
-  it("rejects a goal that would overflow the weekly lock capacity", async () => {
+  it("allows creating goals well past the daily key budget — no capacity limit on creation", async () => {
     const repo = new InMemoryGoalRepository();
     const useCase = new CreateGoalUseCase(
       repo,
@@ -84,34 +84,11 @@ describe("CreateGoalUseCase", () => {
       fixedIds,
       fixedClock,
     );
-    // Five 7×/week goals at 20 each = exactly 100 — fits at the boundary.
-    for (const name of ["A", "B", "C", "D", "E"]) {
+    // Six 7×/week goals at 20 each = 120 — over the 100 daily budget, but
+    // creation has no cap (2026-07-21) — only scheduling does.
+    for (const name of ["A", "B", "C", "D", "E", "F"]) {
       await useCase.execute({ userId: "user-1", name, weeklyFrequencyTarget: 7 });
     }
-    expect(repo.saved).toHaveLength(5);
-
-    // A sixth would land at 120 > 100.
-    await expect(
-      useCase.execute({ userId: "user-1", name: "F", weeklyFrequencyTarget: 7 }),
-    ).rejects.toMatchObject({ code: "LOCK_CAPACITY_EXCEEDED" });
-    expect(repo.saved).toHaveLength(5); // nothing extra was created
-  });
-
-  it("paused goals do not count against the capacity", async () => {
-    const repo = new InMemoryGoalRepository();
-    const useCase = new CreateGoalUseCase(
-      repo,
-      new InMemoryConfigRepository(),
-      fixedIds,
-      fixedClock,
-    );
-    for (const name of ["A", "B", "C", "D", "E"]) {
-      await useCase.execute({ userId: "user-1", name, weeklyFrequencyTarget: 7 });
-    }
-    repo.saved[0]!.pause(); // 20 keys freed → 80 committed
-
-    await expect(
-      useCase.execute({ userId: "user-1", name: "F", weeklyFrequencyTarget: 7 }),
-    ).resolves.toMatchObject({ currentLockCost: 20 });
+    expect(repo.saved).toHaveLength(6);
   });
 });

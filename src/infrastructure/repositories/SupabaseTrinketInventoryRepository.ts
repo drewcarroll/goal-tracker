@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { TrinketInventoryRepository } from "@/domain/repositories/TrinketInventoryRepository";
+import { TrinketInventoryRepository, TrinketInventoryEntry } from "@/domain/repositories/TrinketInventoryRepository";
 
 const TABLE = "trinket_inventory";
 
@@ -33,17 +33,20 @@ export class SupabaseTrinketInventoryRepository implements TrinketInventoryRepos
     }
   }
 
-  async getInventory(userId: string): Promise<ReadonlyMap<string, number>> {
+  async getInventory(userId: string): Promise<ReadonlyMap<string, TrinketInventoryEntry>> {
     const { data, error } = await this.client
       .from(TABLE)
-      .select("trinket_id, quantity")
+      .select("trinket_id, quantity, updated_at")
       .eq("user_id", userId);
 
     if (error) {
       throw new Error(`Failed to fetch trinket inventory for user "${userId}": ${error.message}`);
     }
     return new Map(
-      (data as { trinket_id: string; quantity: number }[]).map((row) => [row.trinket_id, row.quantity]),
+      (data as { trinket_id: string; quantity: number; updated_at: string }[]).map((row) => [
+        row.trinket_id,
+        { quantity: row.quantity, updatedAt: row.updated_at },
+      ]),
     );
   }
 }

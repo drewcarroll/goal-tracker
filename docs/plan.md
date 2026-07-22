@@ -39,24 +39,37 @@ section below for the full rationale. The old split between a numeric-target
 As of 2026-07-16 (Phase 10), goals have NO difficulty field (every goal starts
 at the same lock cost — see `docs/lock-formula.md` §3.1).
 
-As of 2026-07-16 (Phase 11), the nav is six tabs: Home, Goals, Schedule,
-Friends, Trinkets, Profile. `/progress`, `/history`, and `/journal` no longer
-exist as standalone routes — see the Phase 10 section for where their
-functionality moved. Every goal has an `isPublic` flag (default `true`); a
-username registry backs a friend system; a coin/trinket economy (battle pass
-+ shop + feed) layers on top of the nightly check-in flow.
+As of 2026-07-16 (Phase 11), every goal has an `isPublic` flag (default
+`true`); a username registry backs a friend system; a coin/trinket economy
+(battle pass + shop + feed) layers on top of the nightly check-in flow.
+
+**Phases 12 and 13 below (2026-07-17/18/21) substantially changed the nav,
+the scheduling flow, the capacity model, and the shop/battle-pass surface
+described in Phase 11 above — this Current State section reflects where
+those changes landed, not Phase 11's original shape.** Phase 11's checklist
+items stay checked because that work genuinely happened and was verified at
+the time; Phases 12/13 are what since replaced parts of its output, same
+convention as the Phase 5 note elsewhere in this file.
+
+As of 2026-07-21 (Phase 13), the nav is five tabs: Home, Goals, Shop,
+Friends, Profile. `/progress`, `/history`, `/journal`, and the standalone
+`/plan` Schedule tab no longer exist as nav-linked routes — `/plan` still
+exists as a page (reachable from Home and Goals) but scheduling normally
+happens inline in Home's end-of-day flow. `/trinkets` redirects to `/shop`,
+which now hosts the battle-pass track, the shop, and the trinket collection
+together; the friend activity feed lives on `/friends`, not `/profile`.
 
 Working features that must keep working:
 - Username-cookie auth gate (`usernameToUserId` deterministic UUID, no passwords), middleware redirect to `/login`; best-effort username registration into `usernames` at login (Phase 11)
-- `/home` — today's scheduled goals (from last night's `/plan`) + check-in/schedule-tomorrow entry points + the battle-pass day strip (Phase 11)
-- `/goals` — unified goal CRUD: freeform name, weekly frequency target, public/private toggle, pause/resume, delete; each card shows a compact habit-strength graph and the weekly key-capacity meter
+- `/home` — today's scheduled goals in a swipeable list feeding a merged end-of-day wizard (confirm → celebrate → battle-pass claim → journal → schedule tomorrow), a time-gate popup outside the check-in window, a persistent "Schedule tomorrow" link even before check-in (Phase 13)
+- `/goals` — unified goal CRUD: freeform name, weekly frequency target, public/private toggle, pause/resume, delete; creating/resuming a goal is NEVER capacity-blocked (Phase 13) — each card shows a compact habit-strength graph, detail/edit/pause/delete live on `/goals/[id]`
 - `/goals/[id]` — one goal's full habit-strength graph (colored pass/fail points, green/red 14-day projection), times completed, 30-day pass rate
-- `/onboarding` — first-run wizard: pick suggested goal ideas or type your own, set weekly frequency, confirm (no difficulty step)
-- `/plan` — night-before scheduling within the 100-key budget (`?for=today` grace path for a day with no plan at all); the "Schedule" nav tab
-- `/checkin` — end-of-day pass/fail marks per scheduled goal + optional private journal entry + an automatic battle-pass day claim as the flow's last celebration step (Phase 11)
-- `/friends` — send/accept/decline/cancel friend requests by username, friends list; `/friends/[username]` — a friend's PUBLIC-only goals, stats, and daily log (Phase 11)
-- `/trinkets` — one tab, four segments: Battle Pass month calendar (with truncation), Shop (daily 5-slot rotation, flat pricing), Collection (owned trinkets, quantity-tracked), Feed (friends' claims/purchases) (Phase 11)
-- `/profile` — rank/XP hero, check-in history with each day's journal note shown inline, collapsed Advanced section (check-in window settings, password-gated dev mode with BOTH lock-formula and economy constants panels)
+- `/onboarding` — first-run wizard: pick suggested goal ideas or type your own, set weekly frequency, confirm (no difficulty step, no capacity block)
+- `/plan` — scheduling within a 100-key-per-DAY budget (revived Phase 13, after a brief 2026-07-18–2026-07-21 window with no cap at all — see Phase 13's entry for why) — a live running total blocks submission over budget; `?for=today` grace path for a day with no plan at all
+- `/checkin` — end-of-day pass/fail marks per scheduled goal + optional private journal entry + an automatic battle-pass day claim as the flow's last celebration step; NO way to log a day after the fact — a missed day is just missed (Phase 13)
+- `/friends` — send/accept/decline/cancel friend requests by username, friends list, and the friend activity feed (moved here from Profile, Phase 13); `/friends/[username]` — a friend's PUBLIC-only goals, stats, and daily log (Phase 11)
+- `/shop` — the trinkets hub (absorbed the old `/trinkets` tab, Phase 12/13): battle-pass track (vertical scrollable list, not a calendar grid), daily 5-slot shop offer (flat pricing, rarity-weighted), trinket collection. Superseded by the Round 2 mystery-box redesign tracked as a new phase, not yet built.
+- `/profile` — rank/XP hero, check-in history (no add-a-missed-day option) with each day's journal note shown inline, collapsed "Settings" section (renamed from "Advanced", Phase 13: theme picker, check-in window settings, password-gated dev mode with per-field explanations on both the lock-formula and economy constants panels)
 - App-wide maintenance banner: if the current month has no entry in the 12-month battle-pass trinket map (July 2026 - June 2027, hardcoded on purpose), the `(app)` layout blocks all normal rendering behind a full-screen red banner (Phase 11)
 - Daily Vercel keepalive cron (`/api/cron/keepalive`) through `GetAllGoalsUseCase`
 
@@ -595,18 +608,296 @@ a full technical design by a background Plan agent before building started.
   not done this session.
 
 **Discovered work (added mid-build, not done this session)**
-- [ ] `pinned_trinkets` table exists in the schema and has a repository-less
+- [x] (2026-07-17) `pinned_trinkets` table exists in the schema and has a repository-less
   design note in `EconomyConfig.maxPinnedTrinkets`, but no use case or UI
   was built to let a user actually choose which trinkets to showcase — the
   Collection view currently shows everything owned, unpinned/unordered.
+  **Done in Phase 12** (`GetPinnedTrinketsUseCase`/`SetPinnedTrinketsUseCase`,
+  star-toggle UI on `TrinketCollection.tsx`) — found already shipped while
+  reconciling this doc 2026-07-21, never checked off at the time.
 - [ ] No proactive job re-rolls or expires anything — the shop's daily
   offer and battle-pass coin amounts are computed on read, which is
   correct and cheap, but there's no cron analogous to the keepalive one;
   flagged only because Phase 10 left a similar gap for disuse decay and the
   pattern is worth keeping in mind, not because anything is currently wrong.
 
+### Phase 12: Full UX redesign + trinkets consolidation (user-directed, 2026-07-17/18)
+
+**Retroactively logged 2026-07-21** — this phase shipped across two commits
+(`fc689dc`, `698e274`) with no plan.md entry at the time, which let this
+doc drift out of sync with the actual app (surfaced while scoping Phase 13
+below). Summarized from the commits' own messages, not re-verified line by
+line.
+
+- [x] (2026-07-17) Nav cut from six tabs to five: Home, Goals, Shop, Friends,
+  Profile. Schedule folded into Home's end-of-day flow; the old Trinkets tab's
+  Collection and rewards-calendar link moved into Profile (later moved again
+  in Phase 13). Per-page username/rank header chip removed (Profile-only now).
+- [x] (2026-07-17) Home rebuilt as "Today's Goals": swipeable goal rows feed
+  a merged Finish Day wizard (confirm → celebrate → battle-pass claim →
+  journal → schedule tomorrow), a time-gate popup outside the check-in
+  window, inline reward preview. Fixed a live bug where the wizard was
+  yanked to its resting state mid-flow by the submit action's own
+  `revalidatePath("/home")` — resting-vs-wizard is now frozen at mount.
+- [x] (2026-07-17) Goals tab reduced to a list; edit/pause/delete moved to
+  `/goals/[id]`.
+- [x] (2026-07-17) **Per-day key cap removed entirely** (domain +
+  application) — "daily should be uncapped," replaced with a soft
+  under-target warning during scheduling instead of a hard block.
+  **Reversed in Phase 13** (2026-07-21) — see that entry.
+- [x] (2026-07-17) New default visual identity ("Bubblegum" pink, Baloo 2 +
+  Nunito), 4-preset theme picker in Profile's advanced settings.
+- [x] (2026-07-17) Fixed a live shop bug: the daily 5-slot roll could repeat
+  the same trinket (weak hash avalanche for near-identical seeds) — fixed
+  with a proper finalizer on `DeterministicRewardService` plus structural
+  exclusion of already-picked ids. Removed two fruit trinkets from the
+  battle-pass map. Redrew the coin icon (previous one read as a moon).
+  Added the trinket pin/display picker (see Discovered-work entry above).
+- [x] (2026-07-18) Fixed muddied background color (two warm hues stacking
+  into brown) and forced `color-scheme: light` (was leaking OS dark-mode UA
+  styling with no actual dark theme built). All 5 nav tabs show text labels
+  again (previously some were icon-only).
+- [x] (2026-07-18) **Shop rebuilt as the trinkets hub** — battle-pass track,
+  daily offer, and collection all moved to `/shop`; Profile kept only Feed
+  (moved again in Phase 13). Shop rarity weights recomputed from actual
+  target odds (P(≥1 of 5 slots is that rarity) = 50% rare / 15% epic / 5%
+  legendary, solved via p = 1-(1-P)^(1/5) per slot), with a statistical test
+  locking the odds in. Live "refreshes in Xh Ym" countdown added. Every shop
+  trinket shows a rarity tag; battle-pass trinkets get a rainbow "Limited
+  edition" tag instead.
+- [x] (2026-07-18) Battle-pass track redesigned from a weekday grid to a
+  vertical scrollable list with a connecting spine and glow-pulse on the
+  next claimable day; truncated days simply aren't in the list.
+- [x] (2026-07-18) Goals page: "Tomorrow isn't scheduled yet" prompt added
+  above Active when nothing's planned for tomorrow.
+
+**Not verified end-to-end against the live Supabase project as part of this
+retroactive log entry** — the original commits' own testing is the record of
+what was checked at the time; this entry exists to make plan.md stop
+contradicting the code, not to re-certify the work.
+
+### Phase 13: Post-testing alterations round 1 (user-directed, 2026-07-21)
+
+Drew tested the shipped app and sent a long list of fixes. Split into two
+rounds (his direction, confirmed via AskUserQuestion): Round 1 below; Round 2
+(mystery-box shop mechanic, trinket leveling, Collection redesign,
+battle-pass redesign) is tracked separately and not started this session.
+
+- [x] (2026-07-21) **Theme-color bug fixed** — `viewport.themeColor` in the
+  root layout was a hardcoded static `"#ff4785"`, never reading the theme
+  cookie, so a mobile browser's chrome (top status bar, Safari's bottom
+  toolbar) stayed bubblegum-pink regardless of the selected theme. Converted
+  to `generateViewport()` (reads the cookie server-side); `ThemePicker` also
+  updates the live `<meta name="theme-color">` tag client-side for an
+  instant change, matching how the CSS var already updated instantly.
+- [x] (2026-07-21) **Key budget moved from creation-time to schedule-time**
+  (user: "I should be able to add every goal I ever want, but I can only
+  actually SCHEDULE them unless I have budget for it"). Removed the
+  `WEEKLY_LOCK_CAPACITY` check from `CreateGoalUseCase`,
+  `CreateGoalsFromOnboardingUseCase`, and `UpdateGoalUseCase`'s resume
+  branch (goals are now always creatable/resumable) — deleted
+  `LockCapacityExceededError` and `WEEKLY_LOCK_CAPACITY` as dead code.
+  Added a NEW `DAILY_LOCK_BUDGET = 100` check to `CreateDailyPlanUseCase`,
+  reviving the per-day cap that Phase 12 had removed on 2026-07-18 (revived
+  `LockBudgetExceededError`, which had been left as dead scaffolding since
+  that removal). Added a live running-total counter that disables submission
+  over budget on both `/plan` and Home's end-of-day `TomorrowPicker`
+  (neither existed before — the old capacity UI was a portfolio meter on
+  `/goals` that Phase 12 had already removed, not a per-day counter).
+- [x] (2026-07-21) Added a persistent "Schedule tomorrow" link on Home's
+  goal list (visible before check-in, not just after) — Phase 12 had made
+  `/plan` reachable only via the post-check-in wizard step or a link shown
+  only once already checked in, so there was no way to schedule tomorrow
+  before logging tonight.
+- [x] (2026-07-21) **Removed "add a missed day" entirely** (user: "you miss
+  it, you miss it") — deleted `AddMissedDay` UI, `addPastCheckInAction`,
+  `BackfillCheckInUseCase` and its DTO, and the container wiring. Editing an
+  already-logged day is unaffected (that's correcting a real entry, not
+  adding a skipped one).
+- [x] (2026-07-21) Profile IA: removed the friend activity Feed (moved to
+  `/friends`, alongside the existing friends list — user's own request),
+  removed the explanatory paragraph under "History", renamed the "Advanced"
+  section to "Settings" (gear icon, same collapsed-details placement — no
+  new nav tab).
+- [x] (2026-07-21) Dev-mode constants panels now show a plain-language
+  description under every field (both lock-formula and economy panels) —
+  added a `description` string to `NumericBound` in both
+  `LockFormulaConfig.ts`/`EconomyConfig.ts`, sourced from the fields'
+  existing inline JSDoc comments, threaded through the DTOs into
+  `DevModePanel.tsx`.
+- [x] (2026-07-21) Coin icon color standardized to `text-amber-500`
+  everywhere it was previously inheriting an ambient color instead of being
+  explicit — except two spots (`ShopOffer.tsx`'s buy button,
+  `DailyFlow.tsx`'s Finish-Day reward chip) left as intentional white-on-
+  brand-button, matching their sibling icons in the same button; forcing
+  amber there would have reduced contrast/consistency, not improved it.
+- [x] (2026-07-21) Em dash sweep: the 4 actual UI-copy occurrences (goal
+  detail's null pass-rate placeholder, the Feed and Collection empty states,
+  a Collection tooltip) replaced; JSDoc/comment occurrences left alone.
+- [x] (2026-07-21) Granted the `drew` account 1,000,000 coins via a
+  temporary admin route (reused the real `usernameToUserId` +
+  `SupabaseCoinWalletRepository`/`increment_wallet_balance` RPC, deleted
+  after use) — confirmed with Drew before running since it writes to the
+  live Supabase project. Balance renders cleanly at 7 digits on `/shop`.
+- [x] (2026-07-21) This doc reconciled: Current State rewritten, Phase 12
+  logged retroactively (see above).
+
+**Verification**: `npm test` (346 passing) / `type-check` / `lint` / `build`
+all clean. Live browser walkthrough against the actual dev server + live
+Supabase project (drew's real account): theme swap confirmed instant on the
+meta tag; a goal created while active goals already totaled 94 keys
+succeeded (previously blocked); scheduling 107 keys in one day was blocked
+with the red over-budget counter, scheduling 94 keys succeeded; Profile
+confirmed Feed-free with no History blurb and a "Settings" section; Friends
+confirmed showing the Feed; dev-mode field descriptions confirmed rendering;
+missed-day button confirmed absent. Test goal/schedule created during
+verification were cleaned up (goal deleted); the 3 real goals scheduled for
+tomorrow during the capacity test were left in place since they're Drew's
+actual goals and a legitimate schedule, not fabricated test data.
+
+**Round 2 (2026-07-21/22): mystery box, trinket leveling, Collection + battle-pass redesigns**
+
+- [x] (2026-07-22) **Mystery box replaces the 5-slot daily shop.**
+  `GetShopOfferUseCase`/`PurchaseShopSlotUseCase`/`ShopRollService`/`ShopDTO.ts`
+  deleted wholesale; new `OpenMysteryBoxUseCase` + `MysteryBoxRollService`
+  (domain): one independent weighted-rarity roll per purchase (no more
+  "5 distinct slots" exclusion logic — duplicates are the point now), seeded
+  off a fresh id per open. Odds are Drew's exact target numbers — 50%
+  common / 33% rare / 12% epic / 5% legendary — replacing the old
+  "P(≥1 of 5 slots) = target" math (`EconomyConfig.shopCommonWeight`/etc.
+  now direct percentages: 5000/3300/1200/500 of 10000).
+  `EconomyConfig.shopTrinketPrice` renamed `mysteryBoxPrice` (same role).
+  No daily purchase limit — bounded only by coin balance, per Drew's own
+  stated default in the approved plan (nothing in the request called for a
+  limit). `shop_purchases` repurposed from a rate-limited slot/date table
+  into a flat purchase log (`slot_index`/`date` columns and their unique
+  constraint dropped from `supabase/schema.sql` — **user ran the migration
+  live before this could be verified end-to-end**). New `MysteryBoxCard.tsx`
+  (shake → reveal, rarity-colored glow) replaces the deleted `ShopOffer.tsx`
+  grid, which was the actual cause of the reported 2-2-1 mobile overflow
+  (`lg:grid-cols-5` firing off raw viewport width inside a `max-w-md`-capped
+  page column); the new single-box layout is structurally incapable of that
+  bug — no multi-column grid at all. `ShopCountdown.tsx` deleted (no more
+  daily rotation to count down to).
+- [x] (2026-07-22) **Trinket leveling.** Per Drew's explicit correction
+  (overriding his own earlier "1,2,4,8,16" idea): every duplicate is +1 real
+  level, `level = quantity` directly, no domain concept needed. Display
+  badge is a cosmetic cap only (`trinketLevel.ts`'s `formatTrinketLevel`):
+  "×1".."×8", then "×8+".
+  `TrinketInventoryRepository.getInventory()` return type changed from
+  `ReadonlyMap<string, number>` to `ReadonlyMap<string, {quantity,
+  updatedAt}>` to carry recency for the Collection sort (see below); updated
+  every call site (`GetTrinketCollectionUseCase`, `SetPinnedTrinketsUseCase`,
+  `ClaimBattlePassDayUseCase`, `OpenMysteryBoxUseCase`).
+- [x] (2026-07-22) **Rarity text colors + spinning rainbow.** Shop trinket
+  names colored per rarity (`RarityTag.tsx`'s new `RARITY_TEXT` map) in
+  Collection cards and the box reveal. Limited-edition (battle-pass)
+  trinkets' tag and name both animate through a constantly spinning rainbow
+  gradient (`animate-rainbow-spin` keyframe in `globals.css`) instead of the
+  old static gradient.
+- [x] (2026-07-22) **Collection redesign.** `GetTrinketCollectionUseCase`
+  now returns `{trinkets, tierCounts, limitedEditionOwned}` instead of a
+  bare array — `tierCounts` (owned/total per rarity, denominators from new
+  `ShopTrinketCatalog.SHOP_TIER_TOTALS`) and `limitedEditionOwned` (no
+  denominator — the battle-pass pool is large and partially unobtainable
+  retroactively) power the new headline. Empty state simplified to "No
+  items yet." Tier filter chips (All/Common/Rare/Epic/Legendary/Limited
+  Edition) and a sort control (rarity/level/recently obtained) added,
+  filtering/sorting client-side over the already-fetched list — no new
+  server round trip. "Recently obtained" needed the leveling change above
+  (`trinket_inventory.updated_at` was already stamped on every upsert but
+  never selected — now it is).
+- [x] (2026-07-22) **Battle-pass redesign.** `BattlePassTrack.tsx` rewritten
+  from a tall vertical scrolling list to a compact horizontal strip,
+  auto-scrolled to today on mount (`scrollIntoView`) with a ring highlight
+  on today's node — addresses "much smaller" + "show where we are." Header
+  no longer renders `calendar.theme` (was literally showing strings like
+  "Independence Day / summer") — replaced with a computed
+  "{Month} {Year} Rewards"; `theme` stays in the domain data, just isn't
+  surfaced. Added a "N/visibleDayCount days logged" stat using
+  `visibleDayCount` — already computed by `BattlePassCalendarService`,
+  never rendered by either prior design. New `BattlePassTrack` prop
+  `todayDate` (from the page's already-computed `today`) added so the
+  component can identify which cell is "today" for the anchor/highlight —
+  the DTO itself has no explicit today marker, only per-cell
+  claimed/claimable. Reported circle-animation overflow traced to the old
+  vertical list's scroll container having no left padding, clipping the
+  leftmost glow-pulse node; the new strip has generous horizontal padding
+  on both ends specifically to avoid a repeat.
+- [x] (2026-07-22) `SupabaseTrinketInventoryRepository.incrementQuantity()`'s
+  non-atomic read-then-upsert (flagged at Round 2 kickoff as a possible
+  issue) was left as-is, a deliberate scope call, not an oversight — Round 2
+  didn't raise mystery-box purchase throughput enough above the old
+  5-purchases/day cap to make the race meaningfully more likely; still open
+  if it ever does.
+- [x] (2026-07-22) **Found and fixed a real bug during Drew's own testing
+  round**: `/goals`, `/shop`, and `/profile` were 500ing locally. Root cause
+  was a corrupted Next.js dev-server webpack cache (`Cannot find module
+  './682.js'`) — Round 2 deleted/renamed enough files (`ShopOffer.tsx`,
+  `ShopDTO.ts`, `GetShopOfferUseCase.ts`, etc.) that the long-running dev
+  server's hot-reload chunk graph desynced; not a code or migration bug.
+  Fixed by killing the stale process and restarting with a cleared `.next`.
+  Separately, Drew also correctly flagged that the theme picker didn't
+  visibly change the page's overall background: `globals.css`'s body wash
+  was a single 10%-opacity radial gradient anchored at the very top only, so
+  swapping themes barely read as a background change. Added a second,
+  bottom-anchored radial gradient (both bumped to 14-16% opacity) so the
+  theme tint is visible at both the top and bottom of the page, not just a
+  sliver up top.
+
+**Verification**: `npm test` (342 passing) / `type-check` / `lint` / `build`
+all clean. Live browser walkthrough against the dev server + live Supabase
+project (drew's real account, after the user ran the `shop_purchases`
+migration): confirmed the pre-migration state actually failed with a clear
+NOT-NULL constraint error (not a silent bug) before the migration ran, then
+succeeded after; opened ~30 real mystery boxes and got real spread across
+all 4 rarity tiers plus correctly-incrementing level badges on duplicates
+(confirmed ×2/×3 badges); Collection headline, tier chips, filter, and sort
+all confirmed against that real data; battle-pass header confirmed showing
+"July 2026 Rewards" with no leftover theme string, and the day-strip
+confirmed with no clipping at its edges. **Not verified this session**: an
+actual narrow mobile-viewport screenshot — the browser-automation tool's
+window-resize did not affect this tab's rendered viewport width in this
+session (a tooling limitation, not a app issue); confirmed instead by
+inspecting the layout code directly (the mystery box is a single centered
+element with no responsive grid, and the battle-pass strip is
+`overflow-x-auto`, so neither can reproduce the deleted `ShopOffer.tsx`'s
+breakpoint-driven column-overflow bug). Real trinkets/coins spent during
+verification were left on the account rather than cleaned up, matching
+Round 1's precedent for real-not-fabricated data.
+
 ## Changelog
 
+- 2026-07-22 — **Phase 13 Round 2 shipped** (see section above): the
+  shop's 5-slot daily rotation replaced wholesale with a mystery-box
+  purchase (independent roll, Drew's exact 50/33/12/5 odds, no daily
+  limit), trinket leveling (level = quantity, cosmetic ×N display cap),
+  rarity-colored trinket names + a spinning rainbow on limited-edition
+  trinkets, a Collection redesign (tier-count headline, filter chips, sort
+  control), and a battle-pass redesign (compact horizontal strip anchored
+  to today, dynamic "{Month} {Year} Rewards" title, a "days logged" stat).
+  Required a live Supabase schema update (`shop_purchases` repurposed into
+  a flat purchase log) — confirmed the pre-migration state genuinely failed
+  with a clear error before the user ran it, then succeeded after. 342
+  tests passing, `type-check`/`lint`/`build` clean, live-verified against
+  ~30 real mystery-box opens on the `drew` account.
+- 2026-07-21 — **Phase 13 Round 1 shipped** (see section above): a
+  post-testing fix round covering a theme-color bug, the key-budget model
+  (moved from goal-creation to scheduling, reviving a per-day cap that had
+  been removed on 2026-07-18), removal of the "add a missed day" backfill
+  feature, Profile IA changes (Feed moved to Friends, Settings rename),
+  dev-mode field descriptions, coin-icon consistency, an em-dash sweep, and
+  a one-off 1,000,000-coin grant to the `drew` account (confirmed before
+  running, live Supabase write). Also reconciled this doc, which had drifted
+  out of sync across two undocumented redesign rounds — see the new Phase 12
+  entry. Round 2 (mystery-box shop, trinket leveling, Collection/battle-pass
+  redesigns) is scoped but not started.
+- 2026-07-17/18 — **Phase 12 shipped, logged retroactively 2026-07-21** (see
+  section above): a full UX redesign across two commits with no plan.md
+  entry at the time — nav cut to 5 tabs, Home rebuilt around an end-of-day
+  wizard, the per-day key cap removed (later reversed in Phase 13), a new
+  default visual identity, and the Trinkets tab consolidated into `/shop`
+  with a redesigned battle-pass track and fixed shop-roll duplicate bug.
 - 2026-07-16 — **Phase 11 shipped** (see section above): a major social +
   economy expansion, specified by the user with several `AskUserQuestion`
   clarifications resolved along the way and a background Plan agent pass

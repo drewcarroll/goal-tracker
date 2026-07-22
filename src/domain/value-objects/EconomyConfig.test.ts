@@ -19,8 +19,8 @@ describe("EconomyConfig", () => {
     });
 
     it("merges a partial override over defaults", () => {
-      const config = economyConfigFrom({ shopTrinketPrice: 300 });
-      expect(config.shopTrinketPrice).toBe(300);
+      const config = economyConfigFrom({ mysteryBoxPrice: 300 });
+      expect(config.mysteryBoxPrice).toBe(300);
       expect(config.coinsLowAmount).toBe(DEFAULT_ECONOMY_CONFIG.coinsLowAmount);
     });
 
@@ -29,7 +29,7 @@ describe("EconomyConfig", () => {
     });
 
     it("rejects a non-integer where an integer is required", () => {
-      expect(() => economyConfigFrom({ shopTrinketPrice: 200.5 })).toThrow(ValidationError);
+      expect(() => economyConfigFrom({ mysteryBoxPrice: 200.5 })).toThrow(ValidationError);
     });
   });
 });

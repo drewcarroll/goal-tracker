@@ -77,7 +77,7 @@ export default async function GoalDetailPage({ params }: { params: { id: string 
         </div>
         <div className="rounded-2xl border border-gray-900/[0.06] bg-white p-4 text-center shadow-sm">
           <p className="text-2xl font-bold text-gray-900">
-            {stats.last30.passRate !== null ? `${stats.last30.passRate}%` : "—"}
+            {stats.last30.passRate !== null ? `${stats.last30.passRate}%` : "N/A"}
           </p>
           <p className="mt-1 text-xs text-gray-500">Pass rate, last 30 days</p>
         </div>

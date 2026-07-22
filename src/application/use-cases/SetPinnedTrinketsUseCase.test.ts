@@ -1,7 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { SetPinnedTrinketsUseCase } from "./SetPinnedTrinketsUseCase";
 import { PinnedTrinketRepository } from "../../domain/repositories/PinnedTrinketRepository";
-import { TrinketInventoryRepository } from "../../domain/repositories/TrinketInventoryRepository";
+import {
+  TrinketInventoryRepository,
+  TrinketInventoryEntry,
+} from "../../domain/repositories/TrinketInventoryRepository";
 import { EconomyConfigRepository } from "../../domain/repositories/EconomyConfigRepository";
 import { economyConfigFrom } from "../../domain/value-objects/EconomyConfig";
 import { TooManyPinnedTrinketsError } from "../errors/ApplicationError";
@@ -16,8 +19,10 @@ class InMemoryPinnedTrinketRepository implements PinnedTrinketRepository {
   }
 }
 
+const UPDATED_AT = "2026-07-21T00:00:00.000Z";
+
 class InMemoryTrinketInventoryRepository implements TrinketInventoryRepository {
-  constructor(private inventory: Map<string, number> = new Map()) {}
+  constructor(private inventory: Map<string, TrinketInventoryEntry> = new Map()) {}
   async incrementQuantity() {}
   async getInventory() {
     return this.inventory;
@@ -36,9 +41,9 @@ class InMemoryEconomyConfigRepository implements EconomyConfigRepository {
 describe("SetPinnedTrinketsUseCase", () => {
   it("saves the pinned set when within the cap and all owned", async () => {
     const pinnedRepo = new InMemoryPinnedTrinketRepository();
-    const inventory = new Map([
-      ["shop:common:01", 1],
-      ["bp:2026-07:d5", 2],
+    const inventory = new Map<string, TrinketInventoryEntry>([
+      ["shop:common:01", { quantity: 1, updatedAt: UPDATED_AT }],
+      ["bp:2026-07:d5", { quantity: 2, updatedAt: UPDATED_AT }],
     ]);
     const useCase = new SetPinnedTrinketsUseCase(
       pinnedRepo,
@@ -53,7 +58,9 @@ describe("SetPinnedTrinketsUseCase", () => {
 
   it("drops ids the user doesn't own rather than erroring", async () => {
     const pinnedRepo = new InMemoryPinnedTrinketRepository();
-    const inventory = new Map([["shop:common:01", 1]]);
+    const inventory = new Map<string, TrinketInventoryEntry>([
+      ["shop:common:01", { quantity: 1, updatedAt: UPDATED_AT }],
+    ]);
     const useCase = new SetPinnedTrinketsUseCase(
       pinnedRepo,
       new InMemoryTrinketInventoryRepository(inventory),

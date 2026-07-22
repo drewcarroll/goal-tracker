@@ -93,7 +93,7 @@ export class ClaimBattlePassDayUseCase {
       return {
         kind: "trinket",
         trinket: { id: trinket.id, emoji: trinket.emoji, name: trinket.name },
-        quantity: inventory.get(trinket.id) ?? 1,
+        quantity: inventory.get(trinket.id)?.quantity ?? 1,
       };
     }
 

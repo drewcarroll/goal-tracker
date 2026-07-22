@@ -257,14 +257,20 @@ create table if not exists public.pinned_trinkets (
 create table if not exists public.shop_purchases (
   id          uuid primary key default gen_random_uuid(),
   user_id     uuid not null,
-  date        date not null,
-  slot_index  int not null check (slot_index between 0 and 4),
   trinket_id  text not null,
   price_paid  int not null,
-  created_at  timestamptz not null default now(),
-  unique (user_id, date, slot_index)
+  created_at  timestamptz not null default now()
 );
-create index if not exists shop_purchases_user_date_idx on public.shop_purchases (user_id, date);
+-- The mystery-box redesign (2026-07-21) replaced the daily 5-slot rotation
+-- with an unlimited-per-day purchase model, so the slot/date rate-limit
+-- columns no longer apply. Dropped BEFORE the index below is (re)created,
+-- since dropping `date` cascade-drops the old 2-column index that named it
+-- (and the unique constraint spanning slot_index/date) — creating the new
+-- 1-column index first would leave it shadowed by the stale one under the
+-- same name, which `create index if not exists` would then silently skip.
+alter table public.shop_purchases drop column if exists slot_index;
+alter table public.shop_purchases drop column if exists date;
+create index if not exists shop_purchases_user_date_idx on public.shop_purchases (user_id);
 
 -- Friend-feed source of truth: trinket claims and purchases. Read filtered
 -- by "user_id in (my accepted friends)" at query time — no fan-out-on-write.

@@ -44,16 +44,6 @@ export class CheckInNotFoundError extends ApplicationError {
   }
 }
 
-export class LockCapacityExceededError extends ApplicationError {
-  public readonly code = "LOCK_CAPACITY_EXCEEDED";
-
-  constructor(wouldBe: number, capacity: number) {
-    super(
-      `That would put your active goals at ${wouldBe}/${capacity} keys. Pause or delete a goal, or lower a weekly target, to make room.`,
-    );
-  }
-}
-
 export class CheckInWindowClosedError extends ApplicationError {
   public readonly code = "CHECKIN_WINDOW_CLOSED";
 
@@ -107,14 +97,6 @@ export class BattlePassDayNotClaimableError extends ApplicationError {
 
   constructor(date: string) {
     super(`"${date}" isn't claimable — it's already claimed, truncated, or hasn't happened yet.`);
-  }
-}
-
-export class ShopSlotAlreadyPurchasedError extends ApplicationError {
-  public readonly code = "SHOP_SLOT_ALREADY_PURCHASED";
-
-  constructor() {
-    super("You've already bought from that slot today.");
   }
 }
 

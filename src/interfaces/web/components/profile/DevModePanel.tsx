@@ -6,7 +6,7 @@ import { AlertTriangleIcon } from "@/interfaces/web/components/icons";
 interface ConfigDTO {
   config: object;
   defaults: object;
-  bounds: Record<string, { min: number; max: number; integer?: boolean }>;
+  bounds: Record<string, { min: number; max: number; integer?: boolean; description: string }>;
 }
 
 type ActionResult = { ok: true } | { ok: false; error: string };
@@ -125,6 +125,9 @@ export function DevModePanel({
           <label key={path} className="min-w-0 text-xs font-medium text-gray-700">
             <span className="block truncate" title={path}>
               {path}
+            </span>
+            <span className="mt-0.5 block text-[10px] font-normal leading-snug text-gray-500">
+              {bound.description}
             </span>
             <input
               type="number"

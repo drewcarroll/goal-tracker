@@ -16,7 +16,6 @@ import { EditCheckInUseCase } from "@/application/use-cases/EditCheckInUseCase";
 import { DeleteCheckInUseCase } from "@/application/use-cases/DeleteCheckInUseCase";
 import { GetJournalHistoryUseCase } from "@/application/use-cases/GetJournalHistoryUseCase";
 import { CreateJournalEntryUseCase } from "@/application/use-cases/CreateJournalEntryUseCase";
-import { BackfillCheckInUseCase } from "@/application/use-cases/BackfillCheckInUseCase";
 import { GetRankUseCase } from "@/application/use-cases/GetRankUseCase";
 import { GetCheckInWindowUseCase } from "@/application/use-cases/GetCheckInWindowUseCase";
 import { GetUserSettingsUseCase } from "@/application/use-cases/GetUserSettingsUseCase";
@@ -42,8 +41,7 @@ import { GetCoinBalanceUseCase } from "@/application/use-cases/GetCoinBalanceUse
 import { GetBattlePassCalendarUseCase } from "@/application/use-cases/GetBattlePassCalendarUseCase";
 import { ClaimBattlePassDayUseCase } from "@/application/use-cases/ClaimBattlePassDayUseCase";
 import { GetMaintenanceStatusUseCase } from "@/application/use-cases/GetMaintenanceStatusUseCase";
-import { GetShopOfferUseCase } from "@/application/use-cases/GetShopOfferUseCase";
-import { PurchaseShopSlotUseCase } from "@/application/use-cases/PurchaseShopSlotUseCase";
+import { OpenMysteryBoxUseCase } from "@/application/use-cases/OpenMysteryBoxUseCase";
 import { GetTrinketCollectionUseCase } from "@/application/use-cases/GetTrinketCollectionUseCase";
 import { GetActivityFeedUseCase } from "@/application/use-cases/GetActivityFeedUseCase";
 import { GetPinnedTrinketsUseCase } from "@/application/use-cases/GetPinnedTrinketsUseCase";
@@ -51,7 +49,7 @@ import { SetPinnedTrinketsUseCase } from "@/application/use-cases/SetPinnedTrink
 import { GetWeeklyScheduleStatusUseCase } from "@/application/use-cases/GetWeeklyScheduleStatusUseCase";
 import { GoalPrivacyService } from "@/domain/services/GoalPrivacyService";
 import { BattlePassCalendarService } from "@/domain/services/BattlePassCalendarService";
-import { ShopRollService } from "@/domain/services/ShopRollService";
+import { MysteryBoxRollService } from "@/domain/services/MysteryBoxRollService";
 import { DeterministicRewardService } from "@/domain/services/DeterministicRewardService";
 import { LocalDateService } from "@/application/services/LocalDateService";
 import { CheckInWindowResolver } from "@/application/services/CheckInWindowResolver";
@@ -111,7 +109,7 @@ function buildContainer() {
   const goalPrivacyService = new GoalPrivacyService();
   const deterministicRewardService = new DeterministicRewardService();
   const battlePassCalendarService = new BattlePassCalendarService(deterministicRewardService);
-  const shopRollService = new ShopRollService(deterministicRewardService);
+  const mysteryBoxRollService = new MysteryBoxRollService(deterministicRewardService);
 
   // Shared application services.
   const recomputeService = new GoalCostRecomputeService(
@@ -148,13 +146,6 @@ function buildContainer() {
       goalRepository,
       checkInRepository,
       checkInWindowResolver,
-      recomputeService,
-      idGenerator,
-      clock,
-    ),
-    backfillCheckInUseCase: new BackfillCheckInUseCase(
-      goalRepository,
-      checkInRepository,
       recomputeService,
       idGenerator,
       clock,
@@ -235,20 +226,14 @@ function buildContainer() {
       clock,
     ),
     getMaintenanceStatusUseCase: new GetMaintenanceStatusUseCase(clock),
-    getShopOfferUseCase: new GetShopOfferUseCase(
-      shopPurchaseRepository,
-      economyConfigRepository,
-      coinWalletRepository,
-      trinketInventoryRepository,
-      shopRollService,
-    ),
-    purchaseShopSlotUseCase: new PurchaseShopSlotUseCase(
+    openMysteryBoxUseCase: new OpenMysteryBoxUseCase(
       shopPurchaseRepository,
       economyConfigRepository,
       coinWalletRepository,
       trinketInventoryRepository,
       activityEventRepository,
-      shopRollService,
+      mysteryBoxRollService,
+      idGenerator,
       clock,
     ),
     getTrinketCollectionUseCase: new GetTrinketCollectionUseCase(trinketInventoryRepository),

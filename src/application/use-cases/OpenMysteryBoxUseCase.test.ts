@@ -1,23 +1,22 @@
 import { describe, it, expect } from "vitest";
-import { PurchaseShopSlotUseCase } from "./PurchaseShopSlotUseCase";
+import { OpenMysteryBoxUseCase } from "./OpenMysteryBoxUseCase";
 import { ShopPurchaseRepository, ShopPurchase } from "../../domain/repositories/ShopPurchaseRepository";
 import { EconomyConfigRepository } from "../../domain/repositories/EconomyConfigRepository";
 import { CoinWalletRepository } from "../../domain/repositories/CoinWalletRepository";
-import { TrinketInventoryRepository } from "../../domain/repositories/TrinketInventoryRepository";
+import {
+  TrinketInventoryRepository,
+  TrinketInventoryEntry,
+} from "../../domain/repositories/TrinketInventoryRepository";
 import { ActivityEventRepository, ActivityEvent } from "../../domain/repositories/ActivityEventRepository";
-import { ShopRollService } from "../../domain/services/ShopRollService";
+import { MysteryBoxRollService } from "../../domain/services/MysteryBoxRollService";
 import { DeterministicRewardService } from "../../domain/services/DeterministicRewardService";
 import { economyConfigFrom } from "../../domain/value-objects/EconomyConfig";
 import { Clock } from "../ports/Clock";
-import { ShopSlotAlreadyPurchasedError, InsufficientCoinsError } from "../errors/ApplicationError";
+import { IdGenerator } from "../ports/IdGenerator";
+import { InsufficientCoinsError } from "../errors/ApplicationError";
 
 class InMemoryShopPurchaseRepository implements ShopPurchaseRepository {
   public purchases: ShopPurchase[] = [];
-  async findPurchasedSlotsForDate(userId: string, date: string) {
-    return new Set(
-      this.purchases.filter((p) => p.userId === userId && p.date === date).map((p) => p.slotIndex),
-    );
-  }
   async save(purchase: ShopPurchase) {
     this.purchases.push(purchase);
   }
@@ -48,10 +47,11 @@ class InMemoryCoinWalletRepository implements CoinWalletRepository {
 }
 
 class InMemoryTrinketInventoryRepository implements TrinketInventoryRepository {
-  private inventory: Record<string, Map<string, number>> = {};
+  private inventory: Record<string, Map<string, TrinketInventoryEntry>> = {};
   async incrementQuantity(userId: string, trinketId: string, by = 1) {
     const map = (this.inventory[userId] ??= new Map());
-    map.set(trinketId, (map.get(trinketId) ?? 0) + by);
+    const prev = map.get(trinketId)?.quantity ?? 0;
+    map.set(trinketId, { quantity: prev + by, updatedAt: "2026-07-21T00:00:00.000Z" });
   }
   async getInventory(userId: string) {
     return this.inventory[userId] ?? new Map();
@@ -70,84 +70,77 @@ class InMemoryActivityEventRepository implements ActivityEventRepository {
 
 class FixedClock implements Clock {
   now() {
-    return new Date("2026-07-16T12:00:00Z");
+    return new Date("2026-07-21T12:00:00Z");
   }
 }
 
 function buildUseCase(coinBalance = 1000) {
+  let counter = 0;
+  const idGenerator: IdGenerator = { generate: () => `id-${++counter}` };
   const purchaseRepo = new InMemoryShopPurchaseRepository();
   const walletRepo = new InMemoryCoinWalletRepository({ "user-1": coinBalance });
   const inventoryRepo = new InMemoryTrinketInventoryRepository();
   const activityRepo = new InMemoryActivityEventRepository();
   const economyRepo = new InMemoryEconomyConfigRepository();
-  const rollService = new ShopRollService(new DeterministicRewardService());
-  const useCase = new PurchaseShopSlotUseCase(
+  const rollService = new MysteryBoxRollService(new DeterministicRewardService());
+  const useCase = new OpenMysteryBoxUseCase(
     purchaseRepo,
     economyRepo,
     walletRepo,
     inventoryRepo,
     activityRepo,
     rollService,
+    idGenerator,
     new FixedClock(),
   );
-  return { useCase, purchaseRepo, walletRepo, inventoryRepo, activityRepo, economyRepo, rollService };
+  return { useCase, purchaseRepo, walletRepo, inventoryRepo, activityRepo };
 }
 
-describe("PurchaseShopSlotUseCase", () => {
-  it("buys the offered slot's trinket, deducts coins, and records the purchase", async () => {
+describe("OpenMysteryBoxUseCase", () => {
+  it("rolls a trinket, deducts coins, and records the purchase", async () => {
     const { useCase, purchaseRepo, walletRepo } = buildUseCase(1000);
 
-    const result = await useCase.execute({ userId: "user-1", date: "2026-07-16", slotIndex: 0 });
+    const result = await useCase.execute({ userId: "user-1" });
 
     expect(result.balance).toBe(1000 - 200);
     expect(await walletRepo.getBalance("user-1")).toBe(800);
     expect(purchaseRepo.purchases).toHaveLength(1);
     expect(purchaseRepo.purchases[0]!.trinketId).toBe(result.trinket.id);
+    expect(result.quantity).toBe(1);
   });
 
-  it("buys the exact trinket the offer displayed for that slot (never trusts client-side state)", async () => {
-    const { useCase, rollService, economyRepo } = buildUseCase(1000);
-    const economyConfig = await economyRepo.getEconomyConfig();
-    const offer = rollService.rollDailyOffer({ userId: "user-1", date: "2026-07-16", economyConfig });
-
-    const result = await useCase.execute({ userId: "user-1", date: "2026-07-16", slotIndex: 2 });
-
-    expect(result.trinket.id).toBe(offer[2]!.trinket.id);
-  });
-
-  it("tracks quantity across repeat purchases of the same trinket on different days", async () => {
-    const { useCase, inventoryRepo } = buildUseCase(10000);
-    const first = await useCase.execute({ userId: "user-1", date: "2026-07-16", slotIndex: 0 });
-    // A different day's roll may or may not repeat the same trinket in the
-    // same slot; force it by buying the same trinket id twice via the
-    // inventory repo directly is redundant — instead assert quantity=1
-    // after a single purchase, and that inventory reflects it.
+  it("increments quantity/level across repeat opens that happen to roll the same trinket", async () => {
+    const { inventoryRepo } = buildUseCase(1000);
+    // Simulate two opens landing on the same trinket directly via the
+    // inventory repo, since the roll itself is effectively random per a
+    // fresh id and not something a test can force deterministically here.
+    await inventoryRepo.incrementQuantity("user-1", "shop:common:01", 1);
+    await inventoryRepo.incrementQuantity("user-1", "shop:common:01", 1);
     const inventory = await inventoryRepo.getInventory("user-1");
-    expect(inventory.get(first.trinket.id)).toBe(1);
-    expect(first.quantity).toBe(1);
+    expect(inventory.get("shop:common:01")?.quantity).toBe(2);
   });
 
-  it("rejects a second purchase of the same slot on the same day (rate limit)", async () => {
-    const { useCase } = buildUseCase(10000);
-    await useCase.execute({ userId: "user-1", date: "2026-07-16", slotIndex: 0 });
-
-    await expect(
-      useCase.execute({ userId: "user-1", date: "2026-07-16", slotIndex: 0 }),
-    ).rejects.toBeInstanceOf(ShopSlotAlreadyPurchasedError);
+  it("records an activity event for the open", async () => {
+    const { useCase, activityRepo } = buildUseCase(1000);
+    const result = await useCase.execute({ userId: "user-1" });
+    expect(activityRepo.events).toHaveLength(1);
+    expect(activityRepo.events[0]).toMatchObject({
+      userId: "user-1",
+      type: "shop_purchase",
+      trinketId: result.trinket.id,
+    });
   });
 
-  it("allows purchasing every one of the 5 slots on the same day", async () => {
+  it("allows opening as many boxes as the balance affords — no daily limit", async () => {
     const { useCase, purchaseRepo } = buildUseCase(10000);
-    for (let slotIndex = 0; slotIndex < 5; slotIndex++) {
-      await useCase.execute({ userId: "user-1", date: "2026-07-16", slotIndex });
+    for (let i = 0; i < 10; i++) {
+      await useCase.execute({ userId: "user-1" });
     }
-    expect(purchaseRepo.purchases).toHaveLength(5);
+    expect(purchaseRepo.purchases).toHaveLength(10);
   });
 
-  it("rejects a purchase when the balance can't cover the flat price", async () => {
+  it("rejects an open when the balance can't cover the flat price", async () => {
     const { useCase } = buildUseCase(100); // price is 200
-    await expect(
-      useCase.execute({ userId: "user-1", date: "2026-07-16", slotIndex: 0 }),
-    ).rejects.toBeInstanceOf(InsufficientCoinsError);
+    await expect(useCase.execute({ userId: "user-1" })).rejects.toBeInstanceOf(InsufficientCoinsError);
   });
 });

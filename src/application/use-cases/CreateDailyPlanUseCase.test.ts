@@ -4,7 +4,11 @@ import { Goal } from "../../domain/entities/Goal";
 import { DailyPlan } from "../../domain/entities/DailyPlan";
 import { GoalRepository } from "../../domain/repositories/GoalRepository";
 import { DailyPlanRepository } from "../../domain/repositories/DailyPlanRepository";
-import { GoalNotFoundError, GoalNotSchedulableError } from "../errors/ApplicationError";
+import {
+  GoalNotFoundError,
+  GoalNotSchedulableError,
+  LockBudgetExceededError,
+} from "../errors/ApplicationError";
 import { Clock } from "../ports/Clock";
 import { IdGenerator } from "../ports/IdGenerator";
 
@@ -62,19 +66,30 @@ describe("CreateDailyPlanUseCase", () => {
     expect(plans.saved).toHaveLength(1);
   });
 
-  it("allows scheduling every active goal on the same day — no daily cap (user decision, 2026-07-18)", async () => {
-    const goals = new InMemoryGoalRepository([goal("g1", 45), goal("g2", 45), goal("g3", 45)]);
+  it("allows scheduling exactly up to the 100-key daily budget", async () => {
+    const goals = new InMemoryGoalRepository([goal("g1", 50), goal("g2", 50)]);
     const plans = new InMemoryDailyPlanRepository();
     const useCase = new CreateDailyPlanUseCase(goals, plans, fixedIds, fixedClock);
 
     const result = await useCase.execute({
       userId: "user-1",
       date: "2026-01-21",
-      goalIds: ["g1", "g2", "g3"],
+      goalIds: ["g1", "g2"],
     });
 
-    expect(result.locksSpent).toBe(135);
+    expect(result.locksSpent).toBe(100);
     expect(plans.saved).toHaveLength(1);
+  });
+
+  it("rejects scheduling over the 100-key daily budget (revived 2026-07-21, reversing the 2026-07-18 no-cap decision)", async () => {
+    const goals = new InMemoryGoalRepository([goal("g1", 45), goal("g2", 45), goal("g3", 45)]);
+    const plans = new InMemoryDailyPlanRepository();
+    const useCase = new CreateDailyPlanUseCase(goals, plans, fixedIds, fixedClock);
+
+    await expect(
+      useCase.execute({ userId: "user-1", date: "2026-01-21", goalIds: ["g1", "g2", "g3"] }),
+    ).rejects.toBeInstanceOf(LockBudgetExceededError);
+    expect(plans.saved).toHaveLength(0);
   });
 
   it("rejects scheduling a goal the caller does not own", async () => {

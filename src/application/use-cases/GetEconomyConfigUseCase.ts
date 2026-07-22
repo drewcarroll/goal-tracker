@@ -8,7 +8,7 @@ import {
 export interface EconomyConfigDTO {
   config: EconomyConfig;
   defaults: EconomyConfig;
-  bounds: Record<string, { min: number; max: number; integer?: boolean }>;
+  bounds: Record<string, { min: number; max: number; integer?: boolean; description: string }>;
 }
 
 /** Use Case: read the active economy constants for the dev panel. */

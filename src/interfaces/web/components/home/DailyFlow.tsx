@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { GoalDTO } from "@/application/dtos/GoalDTO";
 import type { CheckInDTO } from "@/application/dtos/CheckInDTO";
-import type { DailyPlanDTO } from "@/application/dtos/DailyPlanDTO";
+import { DAILY_LOCK_BUDGET, type DailyPlanDTO } from "@/application/dtos/DailyPlanDTO";
 import type { ClaimBattlePassDayResultDTO } from "@/application/dtos/BattlePassDTO";
 import type { WeeklyGoalStatusDTO } from "@/application/use-cases/GetWeeklyScheduleStatusUseCase";
 import { RankBadge } from "@/interfaces/web/components/profile/RankBadge";
@@ -256,6 +256,12 @@ function DailyWizard({
           )}
         </button>
 
+        {!tomorrowPlan && (
+          <Link href="/plan" className="self-center text-sm font-medium text-brand hover:underline">
+            Schedule tomorrow →
+          </Link>
+        )}
+
         <Link href="/trinkets" className="self-center text-sm font-medium text-brand hover:underline">
           View rewards calendar
         </Link>
@@ -274,7 +280,7 @@ function DailyWizard({
               <p className="font-display text-lg font-bold text-gray-900">Not open yet</p>
               <p className="mt-2 text-sm text-gray-600">
                 Available starting at {opensAtRaw ? formatTime(opensAtRaw) : "later today"}! You can
-                change this in your advanced settings.
+                change this in Settings.
               </p>
               <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row">
                 <button
@@ -288,7 +294,7 @@ function DailyWizard({
                   href="/profile"
                   className="flex-1 rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-dark"
                 >
-                  Advanced settings
+                  Settings
                 </Link>
               </div>
             </div>
@@ -528,6 +534,12 @@ function TomorrowPicker({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const statusByGoal = new Map(weeklyStatus.map((s) => [s.goalId, s]));
+  const byId = new Map(goals.map((g) => [g.id, g]));
+  const selectedKeys = Array.from(selected).reduce(
+    (sum, goalId) => sum + (byId.get(goalId)?.currentLockCost ?? 0),
+    0,
+  );
+  const overBudget = selectedKeys > DAILY_LOCK_BUDGET;
 
   function toggle(goalId: string) {
     setSelected((prev) => {
@@ -594,10 +606,28 @@ function TomorrowPicker({
         })}
       </div>
 
+      <div
+        className={`flex items-center justify-between rounded-xl border px-4 py-2.5 text-sm font-semibold ${
+          overBudget
+            ? "border-red-300 bg-red-50 text-red-700"
+            : "border-gray-900/[0.06] bg-white text-gray-700"
+        }`}
+      >
+        <span>Keys for tomorrow</span>
+        <span>
+          {selectedKeys} / {DAILY_LOCK_BUDGET}
+        </span>
+      </div>
+      {overBudget && (
+        <p role="alert" className="-mt-2 text-xs text-red-600">
+          Over the daily key budget. Unschedule something to make room.
+        </p>
+      )}
+
       <button
         type="button"
         onClick={handleSubmit}
-        disabled={pending || selected.size === 0}
+        disabled={pending || selected.size === 0 || overBudget}
         className="mt-1 rounded-xl bg-brand px-5 py-3.5 text-base font-semibold text-white shadow-sm transition-colors hover:bg-brand-dark disabled:opacity-60"
       >
         {pending ? "Saving…" : `Schedule tomorrow (${selected.size})`}

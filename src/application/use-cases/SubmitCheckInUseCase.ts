@@ -17,7 +17,9 @@ import { Clock } from "../ports/Clock";
  * window (e.g. 7:01 AM) the submission is rejected with
  * CheckInWindowClosedError. Submitting here is what earns the rank point
  * (submittedOnTime = true); marks affect only each goal's own lock cost.
- * Backfilling a past day is a different action — see BackfillCheckInUseCase.
+ * There is no way to submit for a past day you missed — you miss it, you
+ * miss it (2026-07-21, user decision); EditCheckInUseCase/DeleteCheckInUseCase
+ * only correct an already-logged day, they don't create a new one.
  *
  * Costs are derived via GoalCostRecomputeService's full-history replay
  * rather than incrementing stored values, so ordering never matters.

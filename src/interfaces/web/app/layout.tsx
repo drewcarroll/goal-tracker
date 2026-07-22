@@ -2,7 +2,12 @@ import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { Nunito, Baloo_2 } from "next/font/google";
 import { cookies } from "next/headers";
-import { THEME_COOKIE, DEFAULT_COLOR_THEME, isValidColorTheme } from "@/interfaces/web/http/session";
+import {
+  THEME_COOKIE,
+  DEFAULT_COLOR_THEME,
+  COLOR_THEMES,
+  isValidColorTheme,
+} from "@/interfaces/web/http/session";
 import "./globals.css";
 
 // Self-hosted at build time by next/font; no runtime request to Google.
@@ -27,19 +32,31 @@ export const metadata: Metadata = {
   },
 };
 
+function resolveTheme(): (typeof COLOR_THEMES)[number]["id"] {
+  const rawTheme = cookies().get(THEME_COOKIE)?.value ?? "";
+  return isValidColorTheme(rawTheme) ? rawTheme : DEFAULT_COLOR_THEME;
+}
+
 // `viewportFit: "cover"` is required for the CSS `env(safe-area-inset-*)`
 // values to resolve to non-zero on notched iPhones; without it the insets
-// are always 0 and the safe-area padding has no effect.
-export const viewport: Viewport = {
-  width: "device-width",
-  initialScale: 1,
-  viewportFit: "cover",
-  themeColor: "#ff4785",
-};
+// are always 0 and the safe-area padding has no effect. `themeColor` must be
+// read per-request (not a static constant) so the mobile browser's chrome
+// (top status bar, and Safari's bottom toolbar, which shares this same meta
+// tag) matches the user's selected theme instead of always being bubblegum
+// pink — see ThemePicker.tsx for the client-side instant-update counterpart.
+export async function generateViewport(): Promise<Viewport> {
+  const theme = resolveTheme();
+  const themeColor = COLOR_THEMES.find((t) => t.id === theme)?.swatch ?? COLOR_THEMES[0].swatch;
+  return {
+    width: "device-width",
+    initialScale: 1,
+    viewportFit: "cover",
+    themeColor,
+  };
+}
 
 export default function RootLayout({ children }: { children: ReactNode }) {
-  const rawTheme = cookies().get(THEME_COOKIE)?.value ?? "";
-  const theme = isValidColorTheme(rawTheme) ? rawTheme : DEFAULT_COLOR_THEME;
+  const theme = resolveTheme();
 
   return (
     <html lang="en" data-theme={theme} className={`${nunito.variable} ${baloo.variable}`}>

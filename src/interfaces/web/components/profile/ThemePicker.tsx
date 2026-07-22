@@ -12,6 +12,12 @@ export function ThemePicker({ current }: { current: ColorThemeId }) {
   function choose(themeId: ColorThemeId) {
     setActive(themeId);
     document.documentElement.setAttribute("data-theme", themeId);
+    // Keeps the mobile browser's own chrome (top status bar, Safari's bottom
+    // toolbar) in sync instantly instead of waiting for a full page reload.
+    const swatch = COLOR_THEMES.find((t) => t.id === themeId)?.swatch;
+    if (swatch) {
+      document.querySelector('meta[name="theme-color"]')?.setAttribute("content", swatch);
+    }
     startTransition(async () => {
       await setThemeAction(themeId);
     });

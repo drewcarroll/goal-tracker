@@ -1,3 +1,6 @@
+// Re-exported so interfaces/ never needs to import domain/ directly for this.
+export { DAILY_LOCK_BUDGET } from "@/domain/value-objects/LockCapacity";
+
 export interface DailyPlanDTO {
   id: string;
   userId: string;

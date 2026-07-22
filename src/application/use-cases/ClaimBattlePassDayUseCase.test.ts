@@ -4,7 +4,10 @@ import { CheckInRepository } from "../../domain/repositories/CheckInRepository";
 import { BattlePassClaimRepository, BattlePassClaim } from "../../domain/repositories/BattlePassClaimRepository";
 import { EconomyConfigRepository } from "../../domain/repositories/EconomyConfigRepository";
 import { CoinWalletRepository } from "../../domain/repositories/CoinWalletRepository";
-import { TrinketInventoryRepository } from "../../domain/repositories/TrinketInventoryRepository";
+import {
+  TrinketInventoryRepository,
+  TrinketInventoryEntry,
+} from "../../domain/repositories/TrinketInventoryRepository";
 import { ActivityEventRepository, ActivityEvent } from "../../domain/repositories/ActivityEventRepository";
 import { BattlePassCalendarService } from "../../domain/services/BattlePassCalendarService";
 import { DeterministicRewardService } from "../../domain/services/DeterministicRewardService";
@@ -65,10 +68,11 @@ class InMemoryCoinWalletRepository implements CoinWalletRepository {
 }
 
 class InMemoryTrinketInventoryRepository implements TrinketInventoryRepository {
-  private inventory: Record<string, Map<string, number>> = {};
+  private inventory: Record<string, Map<string, TrinketInventoryEntry>> = {};
   async incrementQuantity(userId: string, trinketId: string, by = 1) {
     const map = (this.inventory[userId] ??= new Map());
-    map.set(trinketId, (map.get(trinketId) ?? 0) + by);
+    const prev = map.get(trinketId)?.quantity ?? 0;
+    map.set(trinketId, { quantity: prev + by, updatedAt: "2026-07-21T00:00:00.000Z" });
   }
   async getInventory(userId: string) {
     return this.inventory[userId] ?? new Map();
@@ -134,7 +138,7 @@ describe("ClaimBattlePassDayUseCase", () => {
       expect(result.quantity).toBe(1);
     }
     const inventory = await inventoryRepo.getInventory("user-1");
-    expect(inventory.get("bp:2026-07:d5")).toBe(1);
+    expect(inventory.get("bp:2026-07:d5")?.quantity).toBe(1);
   });
 
   it("rejects a second claim of the same day", async () => {

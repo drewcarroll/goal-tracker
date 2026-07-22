@@ -5,7 +5,6 @@ import type { GoalDTO } from "@/application/dtos/GoalDTO";
 import type { CheckInDTO, GoalMarkDTO } from "@/application/dtos/CheckInDTO";
 import type { JournalEntryDTO } from "@/application/dtos/JournalEntryDTO";
 import {
-  addPastCheckInAction,
   editCheckInAction,
   deleteCheckInAction,
 } from "@/interfaces/web/app/(app)/profile/checkInActions";
@@ -38,22 +37,17 @@ export function CheckInHistoryView({
   checkIns,
   goals,
   journalEntries,
-  today,
 }: {
   checkIns: CheckInDTO[];
   goals: GoalDTO[];
   journalEntries: JournalEntryDTO[];
-  today: string;
 }) {
   const byId = new Map(goals.map((g) => [g.id, g]));
   const journalByDate = new Map(journalEntries.map((entry) => [entry.date, entry]));
   const sorted = [...checkIns].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
-  const checkedInDates = new Set(checkIns.map((c) => c.date));
 
   return (
     <div className="flex flex-col gap-3">
-      <AddMissedDay goals={goals} today={today} checkedInDates={checkedInDates} />
-
       {sorted.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-gray-300 bg-white p-6 text-center text-sm text-gray-500">
           No check-ins yet.
@@ -216,164 +210,5 @@ function CheckInCard({
         </div>
       )}
     </li>
-  );
-}
-
-function AddMissedDay({
-  goals,
-  today,
-  checkedInDates,
-}: {
-  goals: GoalDTO[];
-  today: string;
-  checkedInDates: Set<string>;
-}) {
-  const [open, setOpen] = useState(false);
-  const [date, setDate] = useState("");
-  const [selected, setSelected] = useState<Record<string, boolean>>({});
-  const [error, setError] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
-
-  function toggle(goalId: string) {
-    setSelected((prev) => {
-      const next = { ...prev };
-      if (goalId in next) delete next[goalId];
-      else next[goalId] = true;
-      return next;
-    });
-  }
-
-  function setPassed(goalId: string, passed: boolean) {
-    setSelected((prev) => ({ ...prev, [goalId]: passed }));
-  }
-
-  function handleSubmit() {
-    setError(null);
-    if (!date) {
-      setError("Pick a date.");
-      return;
-    }
-    if (checkedInDates.has(date)) {
-      setError("That day already has a check-in. Edit it below instead.");
-      return;
-    }
-    const marks: GoalMarkDTO[] = Object.entries(selected).map(([goalId, passed]) => ({
-      goalId,
-      passed,
-    }));
-    if (marks.length === 0) {
-      setError("Mark at least one goal.");
-      return;
-    }
-    startTransition(async () => {
-      const result = await addPastCheckInAction(date, marks);
-      if (result.ok) {
-        setOpen(false);
-        setDate("");
-        setSelected({});
-      } else {
-        setError(result.error);
-      }
-    });
-  }
-
-  if (!open) {
-    return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="self-start rounded-lg border border-gray-300 bg-white px-3.5 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100"
-      >
-        + Add a missed day
-      </button>
-    );
-  }
-
-  return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-gray-900/[0.06] bg-white p-4 shadow-sm">
-      <div>
-        <label htmlFor="missed-day-date" className="mb-1.5 block text-sm font-medium text-gray-700">
-          Date
-        </label>
-        <input
-          id="missed-day-date"
-          type="date"
-          value={date}
-          max={today}
-          onChange={(e) => setDate(e.target.value)}
-          className="w-full rounded-xl border border-gray-300 bg-white px-3.5 py-2.5 text-base text-gray-900 shadow-sm outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/30"
-        />
-      </div>
-
-      <div className="flex flex-col gap-1.5">
-        {goals.map((goal) => {
-          const chosen = goal.id in selected;
-          const passed = selected[goal.id];
-          return (
-            <div key={goal.id} className="flex items-center justify-between gap-2">
-              <label className="flex min-w-0 items-center gap-2 text-sm text-gray-700">
-                <input
-                  type="checkbox"
-                  checked={chosen}
-                  onChange={() => toggle(goal.id)}
-                  className="h-4 w-4 shrink-0 accent-brand"
-                />
-                <span className="truncate">{goal.name}</span>
-              </label>
-              {chosen && (
-                <div className="flex gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => setPassed(goal.id, true)}
-                    className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
-                      passed
-                        ? "border-emerald-300 bg-emerald-50 text-emerald-700"
-                        : "border-gray-900/[0.06] bg-white text-gray-400"
-                    }`}
-                  >
-                    Passed
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPassed(goal.id, false)}
-                    className={`rounded-full border px-2.5 py-0.5 text-xs font-semibold ${
-                      passed === false
-                        ? "border-red-300 bg-red-50 text-red-700"
-                        : "border-gray-900/[0.06] bg-white text-gray-400"
-                    }`}
-                  >
-                    Missed
-                  </button>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {error && <p className="text-sm text-red-600">{error}</p>}
-
-      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-        <button
-          type="button"
-          onClick={() => {
-            setOpen(false);
-            setError(null);
-          }}
-          disabled={pending}
-          className="rounded-xl border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100 disabled:opacity-60"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          onClick={handleSubmit}
-          disabled={pending}
-          className="rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-brand-dark disabled:opacity-60"
-        >
-          {pending ? "Saving…" : "Add check-in"}
-        </button>
-      </div>
-    </div>
   );
 }

@@ -8,11 +8,12 @@ export interface ShopTrinket extends Trinket {
  * The 100-trinket shop pool — completely disjoint from the 12 battle-pass
  * exclusives (BattlePassCalendarMap.ts) by the `shop:` id prefix, which is
  * structural (never overlaps, even by bug) rather than a runtime check.
- * Every trinket costs the same (EconomyConfig.shopTrinketPrice, user
+ * Every trinket costs the same (EconomyConfig.mysteryBoxPrice, user
  * decision 2026-07-16: "Price of each trinket should be exactly the same")
- * — rarity only affects how often it's offered in the daily 5-slot rotation
- * (ShopRollService), never its price. Counts (55/30/12/3) mirror the
- * default rarity-weight split so the catalog and the weights agree.
+ * — rarity only affects how often a mystery box rolls it
+ * (MysteryBoxRollService), never its price. Counts (55/30/12/3) roughly
+ * mirror the default rarity-weight split so the catalog and the weights
+ * agree.
  */
 const COMMON: readonly [string, string][] = [
   ["🍀", "Four-Leaf Clover"],
@@ -153,3 +154,11 @@ export function getShopTrinketById(id: string): ShopTrinket | undefined {
 export function shopTrinketsByRarity(rarity: TrinketRarity): readonly ShopTrinket[] {
   return SHOP_TRINKETS.filter((trinket) => trinket.rarity === rarity);
 }
+
+/** Total catalog size per rarity tier — the denominator for a Collection "N/total" count. */
+export const SHOP_TIER_TOTALS: Record<TrinketRarity, number> = {
+  common: COMMON.length,
+  rare: RARE.length,
+  epic: EPIC.length,
+  legendary: LEGENDARY.length,
+};

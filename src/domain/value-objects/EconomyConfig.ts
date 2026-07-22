@@ -13,14 +13,14 @@ export interface EconomyConfig {
   coinsHighAmount: number;
   /** Chance (0-1) an ordinary day rolls the high amount instead of the low one. */
   coinsHighProbability: number;
-  /** Flat price for every shop trinket, regardless of rarity (user decision, 2026-07-16). */
-  shopTrinketPrice: number;
+  /** Flat coin price to open one mystery box, regardless of what it rolls (renamed from shopTrinketPrice, 2026-07-21). */
+  mysteryBoxPrice: number;
   /**
-   * Relative weights for the daily 5-slot shop roll — flavor only, not
-   * price. Sized (out of 10000) so P(at least one of the 5 slots is that
-   * rarity) hits the user's target odds — see docs/plan.md: 50% for rare,
-   * 15% for epic, 5% for legendary. Solved from
-   * p = 1 - (1 - targetP)^(1/5) per rarity (2026-07-18).
+   * Relative weights for a single mystery-box roll — flavor only, not
+   * price. Each box open is an independent roll (2026-07-21, replacing the
+   * old 5-slot-per-day model), so these are the box's own odds directly:
+   * default 5000/3300/1200/500 out of 10000 = 50%/33%/12%/5%
+   * common/rare/epic/legendary (Drew's exact target numbers).
    */
   shopCommonWeight: number;
   shopRareWeight: number;
@@ -34,11 +34,11 @@ export const DEFAULT_ECONOMY_CONFIG: EconomyConfig = {
   coinsLowAmount: 50,
   coinsHighAmount: 100,
   coinsHighProbability: 0.2,
-  shopTrinketPrice: 200,
-  shopCommonWeight: 8284,
-  shopRareWeight: 1294,
-  shopEpicWeight: 320,
-  shopLegendaryWeight: 102,
+  mysteryBoxPrice: 200,
+  shopCommonWeight: 5000,
+  shopRareWeight: 3300,
+  shopEpicWeight: 1200,
+  shopLegendaryWeight: 500,
   maxPinnedTrinkets: 6,
 };
 
@@ -46,18 +46,64 @@ interface NumericBound {
   min: number;
   max: number;
   integer?: boolean;
+  /** Plain-language explanation shown in the dev-mode panel. */
+  description: string;
 }
 
 export const ECONOMY_CONFIG_BOUNDS: Record<string, NumericBound> = {
-  coinsLowAmount: { min: 5, max: 500, integer: true },
-  coinsHighAmount: { min: 5, max: 1000, integer: true },
-  coinsHighProbability: { min: 0, max: 1 },
-  shopTrinketPrice: { min: 10, max: 5000, integer: true },
-  shopCommonWeight: { min: 0, max: 10000, integer: true },
-  shopRareWeight: { min: 0, max: 10000, integer: true },
-  shopEpicWeight: { min: 0, max: 10000, integer: true },
-  shopLegendaryWeight: { min: 0, max: 10000, integer: true },
-  maxPinnedTrinkets: { min: 1, max: 20, integer: true },
+  coinsLowAmount: {
+    min: 5,
+    max: 500,
+    integer: true,
+    description: "The typical coin reward for an ordinary battle-pass day.",
+  },
+  coinsHighAmount: {
+    min: 5,
+    max: 1000,
+    integer: true,
+    description: "The occasional bigger coin reward for an ordinary battle-pass day.",
+  },
+  coinsHighProbability: {
+    min: 0,
+    max: 1,
+    description: "Chance an ordinary day rolls the bigger reward instead of the typical one.",
+  },
+  mysteryBoxPrice: {
+    min: 10,
+    max: 5000,
+    integer: true,
+    description: "Flat coin price to open one mystery box, regardless of what it rolls.",
+  },
+  shopCommonWeight: {
+    min: 0,
+    max: 10000,
+    integer: true,
+    description: "Relative odds a mystery box rolls a common trinket.",
+  },
+  shopRareWeight: {
+    min: 0,
+    max: 10000,
+    integer: true,
+    description: "Relative odds a mystery box rolls a rare trinket.",
+  },
+  shopEpicWeight: {
+    min: 0,
+    max: 10000,
+    integer: true,
+    description: "Relative odds a mystery box rolls an epic trinket.",
+  },
+  shopLegendaryWeight: {
+    min: 0,
+    max: 10000,
+    integer: true,
+    description: "Relative odds a mystery box rolls a legendary trinket.",
+  },
+  maxPinnedTrinkets: {
+    min: 1,
+    max: 20,
+    integer: true,
+    description: "How many trinkets a user can showcase on their profile at once.",
+  },
 };
 
 export function assertValidEconomyConfig(config: EconomyConfig): void {

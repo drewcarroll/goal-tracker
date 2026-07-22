@@ -1,19 +1,25 @@
 import { DailyPlan } from "@/domain/entities/DailyPlan";
 import { LocalDate } from "@/domain/value-objects/LocalDate";
+import { DAILY_LOCK_BUDGET } from "@/domain/value-objects/LockCapacity";
 import { GoalRepository } from "@/domain/repositories/GoalRepository";
 import { DailyPlanRepository } from "@/domain/repositories/DailyPlanRepository";
-import { GoalNotFoundError, GoalNotSchedulableError } from "../errors/ApplicationError";
+import {
+  GoalNotFoundError,
+  GoalNotSchedulableError,
+  LockBudgetExceededError,
+} from "../errors/ApplicationError";
 import { CreateDailyPlanDTO, DailyPlanDTO } from "../dtos/DailyPlanDTO";
 import { DailyPlanMapper } from "../mappers/DailyPlanMapper";
 import { IdGenerator } from "../ports/IdGenerator";
 import { Clock } from "../ports/Clock";
 
 /**
- * Use Case: build a day's plan from a set of goal ids. No per-day key cap
- * (removed 2026-07-18, user decision: "daily should be uncapped") — every
- * goal can be scheduled on the same day, since no goal can appear more than
- * once per day anyway. `locksSpent` is still recorded (display only) as the
- * sum of each scheduled goal's cost.
+ * Use Case: build a day's plan from a set of goal ids. The combined key cost
+ * of everything scheduled for this one day must fit `DAILY_LOCK_BUDGET`
+ * (100) — this is the only place the key budget is enforced; goal
+ * creation/resume is always allowed (2026-07-21, user decision: "I should be
+ * able to add every goal I ever want, but I can only actually SCHEDULE them
+ * unless I have budget for it").
  */
 export class CreateDailyPlanUseCase {
   constructor(
@@ -34,6 +40,10 @@ export class CreateDailyPlanUseCase {
         throw new GoalNotSchedulableError(goalId);
       }
       locksSpent += goal.currentLockCost;
+    }
+
+    if (locksSpent > DAILY_LOCK_BUDGET) {
+      throw new LockBudgetExceededError(locksSpent);
     }
 
     const plan = DailyPlan.create({

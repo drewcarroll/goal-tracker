@@ -2,7 +2,6 @@ import type { GoalState } from "@/domain/entities/Goal";
 
 // Re-exported so interfaces/ never needs to import domain/ directly for these types.
 export type { GoalState };
-export { WEEKLY_LOCK_CAPACITY } from "@/domain/value-objects/LockCapacity";
 
 export interface GoalDTO {
   id: string;

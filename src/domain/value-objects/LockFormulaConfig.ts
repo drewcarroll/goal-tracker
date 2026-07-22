@@ -71,21 +71,74 @@ interface NumericBound {
   min: number;
   max: number;
   integer?: boolean;
+  /** Plain-language explanation shown in the dev-mode panel. */
+  description: string;
 }
 
 /** Sane ranges, mirrored in docs/lock-formula.md §4. Dev mode enforces these. */
 export const LOCK_FORMULA_BOUNDS: Record<string, NumericBound> = {
-  initialCost: { min: 5, max: 49, integer: true },
-  gainRate: { min: 0.01, max: 0.25 },
-  lossAversion: { min: 1, max: 3 },
-  failEscalation: { min: 1, max: 3 },
-  maxEscalationCount: { min: 1, max: 10, integer: true },
-  calibrationBoost: { min: 1, max: 5 },
-  calibrationDays: { min: 0, max: 30, integer: true },
-  minStrength: { min: -3, max: -0.1 },
-  frequencyWeight: { min: 0, max: 0.8 },
-  staleAfterDays: { min: 3, max: 60, integer: true },
-  decayRate: { min: 0, max: 0.2 },
+  initialCost: {
+    min: 5,
+    max: 49,
+    integer: true,
+    description: "Starting key cost of a brand-new goal, before any pass/fail history.",
+  },
+  gainRate: {
+    min: 0.01,
+    max: 0.25,
+    description:
+      "How much cheaper a goal gets per pass, as a fraction of the remaining distance to fully formed.",
+  },
+  lossAversion: {
+    min: 1,
+    max: 3,
+    description: "How much more a miss raises the cost than a pass lowers it — losses hurt more.",
+  },
+  failEscalation: {
+    min: 1,
+    max: 3,
+    description: "Extra cost multiplier for each consecutive miss in a row.",
+  },
+  maxEscalationCount: {
+    min: 1,
+    max: 10,
+    integer: true,
+    description: "How many consecutive misses in a row before the escalating penalty stops growing.",
+  },
+  calibrationBoost: {
+    min: 1,
+    max: 5,
+    description: "Extra learning speed on a goal's very first scheduled day, so it calibrates fast.",
+  },
+  calibrationDays: {
+    min: 0,
+    max: 30,
+    integer: true,
+    description: "How many scheduled days it takes for that early calibration boost to fade to normal.",
+  },
+  minStrength: {
+    min: -3,
+    max: -0.1,
+    description: "The habit-strength floor — controls the 50-key cost cap.",
+  },
+  frequencyWeight: {
+    min: 0,
+    max: 0.8,
+    description:
+      "How much choosing a lower weekly target discounts the key cost. A 7×/week goal always pays full price.",
+  },
+  staleAfterDays: {
+    min: 3,
+    max: 60,
+    integer: true,
+    description: "How many days a goal can go unscheduled before it starts drifting back toward neutral.",
+  },
+  decayRate: {
+    min: 0,
+    max: 0.2,
+    description:
+      "How fast an unscheduled goal drifts back toward neutral once the days-unscheduled threshold passes.",
+  },
 };
 
 function readPath(config: LockFormulaConfig, path: string): unknown {

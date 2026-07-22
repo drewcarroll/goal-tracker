@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getContainer } from "@/infrastructure/container";
-import { currentUserId, currentTimezone } from "@/interfaces/web/http/currentUser";
+import { currentUserId } from "@/interfaces/web/http/currentUser";
 import type { CheckInDTO, GoalMarkDTO } from "@/application/dtos/CheckInDTO";
 
 /** Translate thrown domain/application errors into a user-facing message. */
@@ -31,37 +31,6 @@ export type HistoryActionResult = { ok: true } | { ok: false; error: string };
 export type CheckInActionResult =
   | { ok: true; checkIn: CheckInDTO }
   | { ok: false; error: string };
-
-/**
- * Backfill a missed day. The date must be in the past (never today or the
- * future — today goes through /checkin, and "the future" isn't a thing you
- * can have checked in for yet) relative to the signed-in user's timezone.
- */
-export async function addPastCheckInAction(
-  date: string,
-  marks: GoalMarkDTO[],
-): Promise<CheckInActionResult> {
-  if (marks.length === 0) {
-    return { ok: false, error: "Mark at least one goal." };
-  }
-
-  const { backfillCheckInUseCase, localDateService } = getContainer();
-  const userId = currentUserId();
-  const today = localDateService.today(currentTimezone());
-  if (date >= today) {
-    return { ok: false, error: "Pick a date before today — today's check-in happens on /checkin." };
-  }
-
-  try {
-    // Backfills count fully for lock costs but are stamped not-on-time, so
-    // they never earn a rank point (honesty without farming).
-    const checkIn = await backfillCheckInUseCase.execute({ userId, date, marks });
-    revalidateCheckInDerivedPages();
-    return { ok: true, checkIn };
-  } catch (error) {
-    return { ok: false, error: toErrorMessage(error) };
-  }
-}
 
 /** Correct an existing day's marks. */
 export async function editCheckInAction(

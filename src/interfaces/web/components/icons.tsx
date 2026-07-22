@@ -118,6 +118,30 @@ export function StarIcon(props: IconProps) {
   );
 }
 
+export function GearIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M12 3v2.2M12 18.8V21M4.9 4.9l1.55 1.55M17.55 17.55 19.1 19.1M3 12h2.2M18.8 12H21M4.9 19.1l1.55-1.55M17.55 6.45 19.1 4.9" />
+    </svg>
+  );
+}
+
+/** A gift box — the mystery-box purchase button. */
+export function GiftBoxIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <rect x="3.5" y="9" width="17" height="12" rx="1.5" />
+      <path d="M3.5 13h17" />
+      <path d="M12 9v12" />
+      <path
+        d="M12 9c-1.5 0-4-.7-4-3a2 2 0 0 1 4 0 2 2 0 0 1 4 0c0 2.3-2.5 3-4 3Z"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 /** Filled check in a circle — the battle-pass "claimed" state. */
 export function CheckCircleIcon(props: IconProps) {
   return (

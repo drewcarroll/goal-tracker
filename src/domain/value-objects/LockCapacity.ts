@@ -1,15 +1,14 @@
 /**
- * The weekly lock capacity: the combined lock cost of all ACTIVE goals must
- * fit inside it. It is deliberately the same 100 that bounds a single day's
- * plan — your whole active portfolio could, in principle, be scheduled on
- * one day.
+ * The daily key budget: the combined lock cost of a single day's SCHEDULED
+ * goals must fit inside it. This is the forced-focus mechanic
+ * (docs/lock-formula.md §3.5) — you can create and activate as many goals as
+ * you want, but only this much of them can be scheduled on any one day, so
+ * a struggling portfolio (costs rising from misses) forces a real decision
+ * at planning time: which goals actually make tonight's cut.
  *
- * This is the portfolio-level forced-focus mechanic (docs/lock-formula.md
- * §3.5): costs rise when you miss, so a struggling portfolio grows until it
- * no longer fits, and the week's planning starts with a real decision —
- * pause a goal, delete one, or lower a weekly target (which cuts its price
- * via φ). Creating or resuming a goal is blocked when it would overflow;
- * organic cost growth can push you over, which the UI surfaces as a warning
- * rather than a hard stop.
+ * Not checked at goal creation/resume time (2026-07-21, user decision:
+ * "I should be able to add every goal I ever want ever, but I can only
+ * actually SCHEDULE THEM unless I have budget for it") — only at
+ * scheduling time, in `CreateDailyPlanUseCase`.
  */
-export const WEEKLY_LOCK_CAPACITY = 100;
+export const DAILY_LOCK_BUDGET = 100;
